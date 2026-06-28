@@ -16,6 +16,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# Allow frontend source utilities (not a Python lib dir)
+!frontend/lib/
 parts/
 sdist/
 var/

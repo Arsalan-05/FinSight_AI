@@ -69,6 +69,31 @@
 
 ---
 
+## UI — Full Frontend (Weeks 1–3 Coverage) ✅ DONE
+
+**Deliverable:** Production-quality Next.js UI covering all data-layer and RAG features, with light/dark mode.
+
+**Pages shipped:**
+- [x] `/` — Dashboard: net savings KPI, monthly spend/income with `% vs last month` trend, 30-day daily-spend area sparkline, category breakdown bars, recent transactions list
+- [x] `/analytics` — Full analytics: period selector (3M/6M/YTD/12M), 4 KPI cards, grouped income-vs-spend bar chart, category donut chart, daily spend line chart, top-10 merchants ranked list, monthly breakdown table, category detail table, CSV export
+- [x] `/transactions` — CRUD table: sortable columns, row checkboxes, bulk delete, per-row delete, filter by account/category/date range, pagination, create modal, CSV upload modal (drag-and-drop), export current view as CSV
+- [x] `/accounts` — User and account management: create user modal, create account modal, account cards per user
+- [x] `/search` — AI semantic search: natural language input, top-K selector (3–20), search history (localStorage, clearable), example query chips, export results as CSV, Voyage AI status warning
+- [x] `/settings` — System status: live API health, Voyage AI / Claude status cards, data stats (users/accounts/transactions), export all transactions, environment info, build roadmap
+- [x] `/chat` — Placeholder with agent feature roadmap (Week 4+)
+
+**Infrastructure:**
+- [x] `recharts` — Bar, Line, Area, Pie charts with dark/light-aware colors
+- [x] `next-themes` — Persistent light/dark mode toggle (Sun/Moon button in sidebar footer)
+- [x] Global toast notification system (`contexts/ToastContext.tsx`) — success/error/info, auto-dismiss 3.5 s
+- [x] `lib/api.ts` — type-safe API client with auto-paginating `getAllTransactions`
+- [x] `lib/utils.ts` — `exportToCsv`, `getDateRange`, `getYearToDateRange`, `monthLabel`
+- [x] `lib/chart-theme.ts` — reads CSS variables at runtime so chart colors match the active theme
+- [x] Light theme via Tailwind v4 CSS variable remapping (`[data-theme="light"]` inverts zinc palette — zero component changes required)
+- [x] Sidebar: Analytics + Settings nav items; theme toggle button
+
+---
+
 ## Week 4 (Jul 19 – Jul 25) — LangGraph Agent Core
 
 **Deliverable:** CLI-testable agent that answers finance questions with memory.
@@ -137,9 +162,10 @@
 | 1 | Jun 28 – Jul 4 | Scaffolding | Repo + Docker boots | ✅ Done |
 | 2 | Jul 5 – Jul 11 | Data Layer | Transaction ingestion works | ✅ Done |
 | 3 | Jul 12 – Jul 18 | RAG | Semantic retrieval works | ✅ Done |
+| — | (parallel) | UI | Full frontend + light/dark theme | ✅ Done |
 | 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions | ⬜ Pending |
 | 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams | ⬜ Pending |
-| 6 | Aug 2 – Aug 8 | UI | Chat interface in browser | ⬜ Pending |
+| 6 | Aug 2 – Aug 8 | UI | Wire chat UI to real agent | ⬜ Pending |
 | 7 | Aug 9 – Aug 15 | Deploy | Live on Railway | ⬜ Pending |
 | 8 | Aug 16 – Aug 23 | Polish | Demo-ready, tested, documented | ⬜ Pending |
 
