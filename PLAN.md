@@ -50,12 +50,22 @@
 
 **Deliverable:** Ask "what did I spend on food last month?" and get semantically retrieved transactions back.
 
-- [ ] `transaction_embeddings` table via pgvector
-- [ ] Chunking strategy: one embedding per transaction (with rich metadata text)
-- [ ] Embedding via Anthropic `claude-sonnet-4-6` or `text-embedding-3-small` fallback
-- [ ] Retriever module: top-k cosine similarity search
-- [ ] Ingest pipeline: on transaction upload → auto-embed → store in pgvector
-- [ ] Unit tests for retriever
+- [x] `transaction_embeddings` table via pgvector — `TransactionEmbedding` model added to `db/models.py` (Vector(1024), cascade delete FK, back-relationship on `Transaction`)
+- [x] Dependencies wired: `pgvector>=0.3.6`, `anthropic>=0.40.0`, `voyageai>=0.2.3` in `pyproject.toml`; `VOYAGE_API_KEY` in config + `.env.example`
+- [ ] Alembic migration: create `vector` extension + `transaction_embeddings` table
+- [ ] Chunking strategy: one embedding per transaction with rich metadata text (`backend/rag/embedder.py`)
+- [ ] Embedding via Voyage AI `voyage-3` (1024-dim) — `backend/rag/embedder.py`
+- [ ] Retriever module: top-k cosine similarity search — `backend/rag/retriever.py`
+- [ ] Ingest pipeline: on transaction upload → auto-embed → store in pgvector (update `transactions.py` router)
+- [ ] Unit tests for retriever — `tests/test_retriever.py`
+
+**Remaining for Cursor:**
+1. `alembic/versions/<rev>_add_transaction_embeddings.py` — `CREATE EXTENSION IF NOT EXISTS vector`, create table, IVFFlat index optional
+2. `backend/rag/__init__.py` — empty
+3. `backend/rag/embedder.py` — `build_content(tx)` formats rich text; `embed_texts(texts, api_key)` calls `voyageai.Client.embed(model="voyage-3")`
+4. `backend/rag/retriever.py` — `retrieve(query, db, api_key, k=5)` does cosine distance search via pgvector
+5. `app/routers/transactions.py` — call embedder after commit in both `create_transaction` and `upload_csv`; skip gracefully if `VOYAGE_API_KEY` not set
+6. `tests/test_retriever.py` — unit tests: `build_content` formatting, retriever with mocked DB + embedder
 
 ---
 
