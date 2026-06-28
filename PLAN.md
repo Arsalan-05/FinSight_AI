@@ -5,7 +5,7 @@
 
 ---
 
-## Week 1 (Jun 28 – Jul 4) — Project Scaffolding & Dev Environment
+## Week 1 (Jun 28 – Jul 4) — Project Scaffolding & Dev Environment ✅ DONE
 
 **Deliverable:** `docker compose up` starts all services, health checks pass.
 
@@ -15,9 +15,17 @@
 - [x] `.env.example` with all required vars (`ANTHROPIC_API_KEY`, `DATABASE_URL`, etc.)
 - [x] Alembic wired up, initial empty migration runs clean
 
+**Shipped:**
+- FastAPI app with `/health`, pydantic-settings config, CORS middleware
+- Next.js 16 (App Router, TypeScript, Tailwind v4) — build, lint, type-check all pass
+- Docker Compose: `db` (pgvector/pg16 with healthcheck), `api` (waits for db healthy), `frontend`
+- Multi-stage Dockerfiles for backend and frontend (standalone Next.js output)
+- Alembic reads `DATABASE_URL` from env; `env.py` imports `Base.metadata` for autogenerate
+- `npm run type-check` script added; ruff + mypy clean; 1 pytest passing
+
 ---
 
-## Week 2 (Jul 5 – Jul 11) — Data Layer (Relational Schema + Ingestion)
+## Week 2 (Jul 5 – Jul 11) — Data Layer (Relational Schema + Ingestion) ✅ DONE
 
 **Deliverable:** Upload a CSV of transactions via API, query them back.
 
@@ -25,6 +33,16 @@
 - [x] FastAPI CRUD endpoints: ingest transactions (CSV/JSON upload), list/filter
 - [x] Pydantic schemas for request/response validation
 - [x] Manual test data seeded for development
+
+**Shipped:**
+- SQLAlchemy models: `User`, `Account`, `Transaction` with typed `Mapped` columns and relationships
+- Alembic migration `603770f84793` creates all tables with indexes on `account_id`, `transaction_date`, `category`
+- `get_db()` FastAPI dependency injection for DB sessions
+- Pydantic `Create`/`Out` schemas — `account_type` enum validation, `EmailStr`, `field_validator`
+- Endpoints: `POST/GET /users/`, `POST/GET /accounts/`, `POST /transactions/` (JSON), `POST /transactions/upload` (CSV multipart), `GET /transactions/` (filters: account, category, date range, pagination), `GET/DELETE /transactions/{id}`
+- `scripts/seed.py` — 1 demo user, 2 accounts (checking + Sapphire Reserve credit), 56 transactions across Apr–Jun 2026 (10 categories)
+- `tests/conftest.py` uses SQLite `StaticPool` in-memory DB with `get_db` override
+- 7 pytest passing, ruff clean, mypy clean
 
 ---
 
@@ -104,16 +122,16 @@
 
 ## Summary
 
-| Week | Dates | Theme | Key Output |
-|------|-------|-------|-----------|
-| 1 | Jun 28 – Jul 4 | Scaffolding | Repo + Docker boots |
-| 2 | Jul 5 – Jul 11 | Data Layer | Transaction ingestion works |
-| 3 | Jul 12 – Jul 18 | RAG | Semantic retrieval works |
-| 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions |
-| 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams |
-| 6 | Aug 2 – Aug 8 | UI | Chat interface in browser |
-| 7 | Aug 9 – Aug 15 | Deploy | Live on Railway |
-| 8 | Aug 16 – Aug 23 | Polish | Demo-ready, tested, documented |
+| Week | Dates | Theme | Key Output | Status |
+|------|-------|-------|-----------|--------|
+| 1 | Jun 28 – Jul 4 | Scaffolding | Repo + Docker boots | ✅ Done |
+| 2 | Jul 5 – Jul 11 | Data Layer | Transaction ingestion works | ✅ Done |
+| 3 | Jul 12 – Jul 18 | RAG | Semantic retrieval works | ⬜ Up next |
+| 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions | ⬜ Pending |
+| 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams | ⬜ Pending |
+| 6 | Aug 2 – Aug 8 | UI | Chat interface in browser | ⬜ Pending |
+| 7 | Aug 9 – Aug 15 | Deploy | Live on Railway | ⬜ Pending |
+| 8 | Aug 16 – Aug 23 | Polish | Demo-ready, tested, documented | ⬜ Pending |
 
 ---
 
