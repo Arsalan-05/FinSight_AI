@@ -46,26 +46,26 @@
 
 ---
 
-## Week 3 (Jul 12 – Jul 18) — RAG Pipeline
+## Week 3 (Jul 12 – Jul 18) — RAG Pipeline ✅ DONE
 
 **Deliverable:** Ask "what did I spend on food last month?" and get semantically retrieved transactions back.
 
 - [x] `transaction_embeddings` table via pgvector — `TransactionEmbedding` model added to `db/models.py` (Vector(1024), cascade delete FK, back-relationship on `Transaction`)
 - [x] Dependencies wired: `pgvector>=0.3.6`, `anthropic>=0.40.0`, `voyageai>=0.2.3` in `pyproject.toml`; `VOYAGE_API_KEY` in config + `.env.example`
-- [ ] Alembic migration: create `vector` extension + `transaction_embeddings` table
-- [ ] Chunking strategy: one embedding per transaction with rich metadata text (`backend/rag/embedder.py`)
-- [ ] Embedding via Voyage AI `voyage-3` (1024-dim) — `backend/rag/embedder.py`
-- [ ] Retriever module: top-k cosine similarity search — `backend/rag/retriever.py`
-- [ ] Ingest pipeline: on transaction upload → auto-embed → store in pgvector (update `transactions.py` router)
-- [ ] Unit tests for retriever — `tests/test_retriever.py`
+- [x] Alembic migration: create `vector` extension + `transaction_embeddings` table
+- [x] Chunking strategy: one embedding per transaction with rich metadata text (`backend/rag/embedder.py`)
+- [x] Embedding via Voyage AI `voyage-3` (1024-dim) — `backend/rag/embedder.py`
+- [x] Retriever module: top-k cosine similarity search — `backend/rag/retriever.py`
+- [x] Ingest pipeline: on transaction upload → auto-embed → store in pgvector (update `transactions.py` router)
+- [x] Unit tests for retriever — `tests/test_retriever.py`
 
-**Remaining for Cursor:**
-1. `alembic/versions/<rev>_add_transaction_embeddings.py` — `CREATE EXTENSION IF NOT EXISTS vector`, create table, IVFFlat index optional
-2. `backend/rag/__init__.py` — empty
-3. `backend/rag/embedder.py` — `build_content(tx)` formats rich text; `embed_texts(texts, api_key)` calls `voyageai.Client.embed(model="voyage-3")`
-4. `backend/rag/retriever.py` — `retrieve(query, db, api_key, k=5)` does cosine distance search via pgvector
-5. `app/routers/transactions.py` — call embedder after commit in both `create_transaction` and `upload_csv`; skip gracefully if `VOYAGE_API_KEY` not set
-6. `tests/test_retriever.py` — unit tests: `build_content` formatting, retriever with mocked DB + embedder
+**Shipped:**
+- Alembic migration `a1b2c3d4e5f6` — `CREATE EXTENSION IF NOT EXISTS vector`, `transaction_embeddings` table, `ix_transaction_embeddings_transaction_id` B-tree index, IVFFlat index (`lists=100`, cosine ops) for approximate similarity search
+- `backend/rag/__init__.py` — package marker
+- `backend/rag/embedder.py` — `build_content(tx)` formats date/description/amount/category/merchant/notes into a pipe-delimited string; `embed_texts(texts, api_key, input_type)` calls `voyageai.Client.embed(model="voyage-3")` with correct `input_type` ("document" for indexing, "query" for retrieval)
+- `backend/rag/retriever.py` — `retrieve(query, db, api_key, k=5)` embeds the query then runs pgvector cosine distance sort via `.cosine_distance()`
+- `app/routers/transactions.py` — `_embed_and_store(txs, db)` helper called after commit in both `create_transaction` and `upload_csv`; silently skips if `VOYAGE_API_KEY` is unset or Voyage API call fails (best-effort, never blocks ingestion)
+- `tests/test_retriever.py` — 17 unit tests: 12 for `build_content` (all fields, debit/credit labels, merchant/notes presence), 5 for `retrieve` (results ordering, empty results, `input_type="query"` enforced, k limit respected, vector passed to DB)
 
 ---
 
@@ -136,7 +136,7 @@
 |------|-------|-------|-----------|--------|
 | 1 | Jun 28 – Jul 4 | Scaffolding | Repo + Docker boots | ✅ Done |
 | 2 | Jul 5 – Jul 11 | Data Layer | Transaction ingestion works | ✅ Done |
-| 3 | Jul 12 – Jul 18 | RAG | Semantic retrieval works | ⬜ Up next |
+| 3 | Jul 12 – Jul 18 | RAG | Semantic retrieval works | ✅ Done |
 | 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions | ⬜ Pending |
 | 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams | ⬜ Pending |
 | 6 | Aug 2 – Aug 8 | UI | Chat interface in browser | ⬜ Pending |

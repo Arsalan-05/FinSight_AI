@@ -2,16 +2,46 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.dependencies import get_db
 from app.schemas import TransactionCreate, TransactionListOut, TransactionOut
-from db.models import Account, Transaction
+from db.models import Account, Transaction, TransactionEmbedding
+from rag.embedder import build_content, embed_texts
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+
+def _embed_and_store(txs: list[Transaction], db: Session) -> None:
+    """Embed *txs* via Voyage AI and persist to transaction_embeddings.
+
+    Silently skips if VOYAGE_API_KEY is not configured or if the Voyage
+    API call fails — embedding is best-effort and must never block ingestion.
+    """
+    if not settings.voyage_api_key:
+        return
+    try:
+        contents = [build_content(tx) for tx in txs]
+        vectors = embed_texts(contents, settings.voyage_api_key, input_type="document")
+        for tx, content, vector in zip(txs, contents, vectors):
+            db.add(
+                TransactionEmbedding(
+                    transaction_id=tx.id,
+                    content=content,
+                    embedding=vector,
+                )
+            )
+        db.commit()
+    except Exception:
+        logger.exception("Embedding failed — transactions saved without embeddings")
+        db.rollback()
 
 
 @router.post("/", response_model=TransactionOut, status_code=status.HTTP_201_CREATED)
@@ -22,6 +52,7 @@ def create_transaction(payload: TransactionCreate, db: Session = Depends(get_db)
     db.add(tx)
     db.commit()
     db.refresh(tx)
+    _embed_and_store([tx], db)
     return tx
 
 
@@ -53,6 +84,7 @@ async def upload_csv(
 
     created = 0
     errors: list[str] = []
+    created_txs: list[Transaction] = []
 
     for i, row in enumerate(reader, start=2):
         try:
@@ -66,11 +98,13 @@ async def upload_csv(
                 notes=row.get("notes", "").strip() or None,
             )
             db.add(tx)
+            created_txs.append(tx)
             created += 1
         except Exception as exc:
             errors.append(f"Row {i}: {exc}")
 
     db.commit()
+    _embed_and_store(created_txs, db)
     return {"created": created, "errors": errors}
 
 
