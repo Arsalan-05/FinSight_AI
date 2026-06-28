@@ -4,10 +4,13 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
+
+EMBEDDING_DIM = 1024
 
 
 def _uuid() -> str:
@@ -54,3 +57,24 @@ class Transaction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     account: Mapped[Account] = relationship("Account", back_populates="transactions")
+    embedding: Mapped[Optional[TransactionEmbedding]] = relationship(
+        "TransactionEmbedding", back_populates="transaction", uselist=False
+    )
+
+
+class TransactionEmbedding(Base):
+    __tablename__ = "transaction_embeddings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    transaction_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("transactions.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    # The text that was embedded — useful for debugging / re-embedding
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding = mapped_column(Vector(EMBEDDING_DIM), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    transaction: Mapped[Transaction] = relationship("Transaction", back_populates="embedding")
