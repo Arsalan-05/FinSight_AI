@@ -94,16 +94,41 @@
 
 ---
 
-## Week 4 (Jul 19 – Jul 25) — LangGraph Agent Core
+## Week 4 (Jul 19 – Jul 25) — LangGraph Agent Core ✅ DONE
 
 **Deliverable:** CLI-testable agent that answers finance questions with memory.
 
-- [ ] `TypedDict` state: `messages`, `memory_summary`, `session_id`
-- [ ] ReAct graph: tool call → observe → respond loop
-- [ ] Tool nodes: RAG retriever, spending aggregator (SQL aggregates over `transactions`)
-- [ ] Claude API integration (`claude-sonnet-4-6`), prompt caching on system prompt + RAG context
-- [ ] Session state persisted in DB across turns
-- [ ] Tests via pytest + direct graph invocation (no UI yet)
+- [x] `TypedDict` state: `messages`, `memory_summary`, `session_id`
+- [x] ReAct graph: tool call → observe → respond loop
+- [x] Tool nodes: RAG retriever, spending aggregator (SQL aggregates over `transactions`)
+- [x] Claude API integration (`claude-sonnet-4-6`), prompt caching on system prompt + RAG context
+- [x] Session state persisted in DB across turns
+- [x] Tests via pytest + direct graph invocation (no UI yet)
+
+**Shipped:**
+- `agent/state.py` — `AgentState` TypedDict with `add_messages` reducer
+- `agent/graph.py` — ReAct `StateGraph`: `agent` → `tools` → `agent` loop until no tool calls
+- `agent/llm.py` — Pluggable LLM: **Ollama** (free default) or Anthropic Claude; `summarize_memory` for rolling context
+- `agent/tools/aggregator.py` — SQL aggregates: group by category/merchant/month, date/account/category/type filters
+- `agent/tools/dates.py` — `period` resolution (`last_month`, `this_month`, etc.)
+- `agent/tools/summarize.py` — plain-English `summary` field on tool results for small models
+- `agent/tools/__init__.py` — `search_transactions` (RAG) + `aggregate_spending`; auto-retry on empty/wrong args
+- `agent/memory.py` — `ChatSession` load/save with JSON-serialized LangChain messages
+- `agent/runner.py` — `run_agent()` one-turn orchestrator (load → invoke → summarize → persist)
+- `agent/cli.py` — CLI entry: `uv run python -m agent.cli "your question"`
+- `agent/_warn.py` — suppress harmless urllib3/LangGraph import warnings on macOS
+- Alembic migration `b2c3d4e5f6a7` — `chat_sessions` table (`messages_json`, `memory_summary`)
+- Alembic migration `c3d4e5f6a7b8` — resize embeddings to 768-dim (Ollama `nomic-embed-text`)
+- **Ollama integration** — `LLM_PROVIDER=ollama`, `EMBEDDING_PROVIDER=ollama`; no API keys required
+- `scripts/seed.py` — auto-embeds transactions after seeding (Ollama)
+- `app/config.py` — loads `.env` from repo root or `backend/`; `localhost` DB default for local dev
+- `tests/test_aggregator.py` — 9 unit tests for spending aggregator
+- `tests/test_agent.py` — 8 tests: tool execution, session persistence, ReAct loop, multi-turn memory
+- `tests/test_tool_dates.py` — 4 tests: period resolution, category=`none` sanitization, auto-retry
+- Dependencies: `langgraph>=0.6.11`, `langchain-core>=0.3.86`, `httpx`
+- 45 pytest passing, ruff + mypy clean
+
+**Local setup (no paid APIs):** Install [Ollama](https://ollama.com) → `ollama pull llama3.2` + `ollama pull nomic-embed-text` → `docker compose up -d db` → migrate + seed → `uv run python -m agent.cli "…"`
 
 ---
 
@@ -163,7 +188,7 @@
 | 2 | Jul 5 – Jul 11 | Data Layer | Transaction ingestion works | ✅ Done |
 | 3 | Jul 12 – Jul 18 | RAG | Semantic retrieval works | ✅ Done |
 | — | (parallel) | UI | Full frontend + light/dark theme | ✅ Done |
-| 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions | ⬜ Pending |
+| 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions | ✅ Done |
 | 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams | ⬜ Pending |
 | 6 | Aug 2 – Aug 8 | UI | Wire chat UI to real agent | ⬜ Pending |
 | 7 | Aug 9 – Aug 15 | Deploy | Live on Railway | ⬜ Pending |
