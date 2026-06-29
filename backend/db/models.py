@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
 
-EMBEDDING_DIM = 1024
+EMBEDDING_DIM = 768  # Ollama nomic-embed-text (default); Voyage voyage-3 uses 1024
 
 
 def _uuid() -> str:
@@ -58,7 +58,24 @@ class Transaction(Base):
 
     account: Mapped[Account] = relationship("Account", back_populates="transactions")
     embedding: Mapped[Optional[TransactionEmbedding]] = relationship(
-        "TransactionEmbedding", back_populates="transaction", uselist=False
+        "TransactionEmbedding",
+        back_populates="transaction",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    # JSON-serialized LangChain message dicts for conversation history
+    messages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    memory_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
     )
 
 
