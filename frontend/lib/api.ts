@@ -42,6 +42,8 @@ async function request<T>(
 export const api = {
   health: (): Promise<HealthResponse> => request("/health"),
 
+  getMe: (): Promise<User> => request("/auth/me"),
+
   // ── Users ───────────────────────────────────────────────────────────────
 
   getUsers: (): Promise<User[]> => request("/users/"),

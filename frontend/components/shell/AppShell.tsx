@@ -34,18 +34,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [userLabel, setUserLabel] = useState<string>("");
+  const [userLabel, setUserLabel] = useState("");
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     const supabase = createClient();
     void supabase.auth.getUser().then(({ data }) => {
       const u = data.user;
-      if (u) {
-        setUserLabel(
-          u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split("@")[0] ?? "User",
-        );
-      }
+      if (!u) return;
+      setUserLabel(
+        u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split("@")[0] ?? "User",
+      );
     });
   }, []);
 
@@ -84,17 +83,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           "md:translate-x-0",
         ].join(" ")}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-[var(--border)] px-5">
+        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-[var(--border)] px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
             <BrainCircuit size={18} className="text-white" />
           </div>
-          <div>
-            <p className="text-sm font-semibold tracking-tight">FinSight</p>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">Intelligence</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-tight">FinSight</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">Private</p>
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 p-3">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
@@ -104,41 +103,44 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 onClick={() => setOpen(false)}
                 className={[
                   "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-                  active
-                    ? "bg-[var(--accent-soft)] text-indigo-300 shadow-sm glow-accent"
-                    : "text-[var(--muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]",
+                  active ? "nav-link-active" : "nav-link-idle",
                 ].join(" ")}
               >
-                <Icon size={16} className={active ? "text-indigo-400" : "opacity-70 group-hover:opacity-100"} />
-                {label}
+                <Icon size={16} className={active ? "text-indigo-500" : "opacity-70 group-hover:opacity-100"} />
+                <span className="truncate">{label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-[var(--border)] p-4">
-          <div className="flex items-center justify-between gap-2 rounded-xl glass-elevated px-3 py-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium">{userLabel || "FinSight User"}</p>
+        <div className="shrink-0 border-t border-[var(--border)] p-4">
+          <div className="card space-y-3 p-3">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-[var(--foreground)]">
+                {userLabel || "FinSight User"}
+              </p>
               <p className="truncate text-[10px] text-[var(--muted)]">Personal workspace</p>
             </div>
-            <ThemeToggle />
-            {isSupabaseConfigured() && (
-              <button
-                type="button"
-                onClick={() => void handleSignOut()}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
-                aria-label="Sign out"
-              >
-                <LogOut size={14} />
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              {isSupabaseConfigured() && (
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  className="btn-ghost flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)]"
+                  aria-label="Sign out"
+                >
+                  <LogOut size={13} />
+                  Sign out
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </aside>
 
       <div className="min-h-screen md:pl-64">
-        <main className="min-h-screen px-4 pb-8 pt-20 md:px-8 md:pt-8">{children}</main>
+        <main className="min-h-screen px-4 pb-10 pt-[4.5rem] md:px-8 md:pt-8">{children}</main>
       </div>
     </>
   );
