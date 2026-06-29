@@ -34,12 +34,7 @@ def summarize_aggregate(result: dict[str, Any]) -> str:
     ranked = sorted(groups, key=lambda g: abs(float(g["total"])), reverse=True)
     lines = [f"Spending breakdown{when} (highest first):"]
     for g in ranked[:10]:
-        label = (
-            g.get("category")
-            or g.get("merchant")
-            or g.get("month")
-            or "Unknown"
-        )
+        label = g.get("category") or g.get("merchant") or g.get("month") or "Unknown"
         lines.append(
             f"- {label}: ${abs(float(g['total'])):.2f} ({g['count']} tx, raw {g['total']})"
         )

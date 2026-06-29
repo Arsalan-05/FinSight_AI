@@ -1,12 +1,25 @@
 from __future__ import annotations
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+import json
+from dataclasses import dataclass, field
+from typing import Any
+
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from sqlalchemy.orm import Session
 
+from agent.goals import goals_summary_for_prompt
 from agent.graph import build_graph
 from agent.llm import summarize_memory
 from agent.memory import load_messages, load_session, save_session
 from app.config import settings
+from app.scoping import account_ids_for_user
+from db.models import User
+
+
+@dataclass
+class AgentResult:
+    reply: str
+    citations: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _last_ai_text(messages: list[BaseMessage]) -> str:
@@ -16,23 +29,80 @@ def _last_ai_text(messages: list[BaseMessage]) -> str:
     return ""
 
 
+def _extract_citations(messages: list[BaseMessage]) -> list[dict[str, Any]]:
+    """Pull transaction citations from tool results used during the turn."""
+    seen: set[str] = set()
+    citations: list[dict[str, Any]] = []
+    for msg in messages:
+        if not isinstance(msg, ToolMessage):
+            continue
+        try:
+            data = json.loads(str(msg.content))
+        except json.JSONDecodeError:
+            continue
+        if msg.name == "search_transactions":
+            for r in data.get("results", []):
+                tid = r.get("id")
+                if tid and tid not in seen:
+                    seen.add(tid)
+                    citations.append(
+                        {
+                            "id": tid,
+                            "date": r.get("date"),
+                            "description": r.get("description"),
+                            "amount": r.get("amount"),
+                            "category": r.get("category"),
+                            "merchant": r.get("merchant"),
+                            "source": "semantic_search",
+                        }
+                    )
+        elif msg.name == "get_financial_insights":
+            for item in data.get("subscriptions", {}).get("items", []):
+                for tid in item.get("transaction_ids", []):
+                    if tid not in seen:
+                        seen.add(tid)
+                        citations.append(
+                            {
+                                "id": tid,
+                                "description": item.get("merchant"),
+                                "amount": -item.get("amount", 0),
+                                "category": item.get("category"),
+                                "source": "recurring_detection",
+                            }
+                        )
+    return citations[:12]
+
+
 def run_agent(
     user_message: str,
     session_id: str,
     db: Session,
     *,
+    user_id: str | None = None,
     update_memory: bool = True,
-) -> str:
-    """Run one agent turn: load session → invoke graph → persist state → return reply."""
-    session = load_session(db, session_id)
+) -> AgentResult:
+    """Run one agent turn: load → invoke → persist → return reply + citations."""
+    session = load_session(db, session_id, user_id=user_id)
     messages = load_messages(session)
     messages.append(HumanMessage(content=user_message))
 
-    graph = build_graph(db)
+    account_ids = None
+    goals_text = ""
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            account_ids = account_ids_for_user(db, user)
+            goals_text = goals_summary_for_prompt(user)
+
+    memory = session.memory_summary or ""
+    if goals_text:
+        memory = f"{memory}\n\n{goals_text}".strip()
+
+    graph = build_graph(db, account_ids=account_ids)
     result = graph.invoke(
         {
             "messages": messages,
-            "memory_summary": session.memory_summary or "",
+            "memory_summary": memory,
             "session_id": session_id,
         }
     )
@@ -43,5 +113,7 @@ def run_agent(
     if update_memory and settings.llm_configured:
         memory_summary = summarize_memory(final_messages, memory_summary)
 
-    save_session(db, session_id, final_messages, memory_summary)
-    return _last_ai_text(final_messages)
+    save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
+    reply = _last_ai_text(final_messages)
+    citations = _extract_citations(final_messages)
+    return AgentResult(reply=reply, citations=citations)

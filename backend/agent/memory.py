@@ -8,14 +8,25 @@ from sqlalchemy.orm import Session
 from db.models import ChatSession
 
 
-def load_session(db: Session, session_id: str) -> ChatSession:
+def load_session(db: Session, session_id: str, user_id: str | None = None) -> ChatSession:
     """Load an existing session or create a new one."""
     session = db.get(ChatSession, session_id)
     if session is None:
-        session = ChatSession(id=session_id, messages_json="[]", memory_summary="")
+        session = ChatSession(
+            id=session_id,
+            user_id=user_id,
+            messages_json="[]",
+            memory_summary="",
+        )
         db.add(session)
         db.commit()
         db.refresh(session)
+    elif user_id and session.user_id is None:
+        session.user_id = user_id
+        db.commit()
+        db.refresh(session)
+    elif user_id and session.user_id and session.user_id != user_id:
+        raise PermissionError("Chat session belongs to another user")
     return session
 
 
@@ -29,8 +40,9 @@ def save_session(
     session_id: str,
     messages: list[BaseMessage],
     memory_summary: str,
+    user_id: str | None = None,
 ) -> None:
-    session = load_session(db, session_id)
+    session = load_session(db, session_id, user_id=user_id)
     session.messages_json = json.dumps(messages_to_dict(messages))
     session.memory_summary = memory_summary
     db.commit()

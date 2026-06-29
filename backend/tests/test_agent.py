@@ -165,14 +165,14 @@ class TestRunAgent:
         ]
         mock_summarize.return_value = "User asked about total spending."
 
-        reply = run_agent(
+        result = run_agent(
             "What's my total spending?",
             "persist-session",
             db_session,
             update_memory=True,
         )
 
-        assert "5.50" in reply
+        assert "5.50" in result.reply
         session = load_session(db_session, "persist-session")
         assert session.memory_summary == "User asked about total spending."
         messages = load_messages(session)

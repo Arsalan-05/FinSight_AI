@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -50,19 +50,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     if (!isSupabaseConfigured()) return;
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await createClient().auth.signOut();
     router.push("/login");
     router.refresh();
   };
 
   return (
     <>
-      <div className="mesh-bg" aria-hidden />
+      <div className="mesh-bg" aria-hidden>
+        <div className="mesh-orb mesh-orb--cyan" />
+      </div>
+      <div className="grain" aria-hidden />
 
       <button
         type="button"
-        className="fixed top-5 left-5 z-50 flex h-10 w-10 items-center justify-center rounded-xl glass md:hidden"
+        className="fixed top-5 left-5 z-50 flex h-10 w-10 items-center justify-center rounded-xl glass panel-interactive md:hidden"
         onClick={() => setOpen(!open)}
         aria-label="Toggle navigation"
       >
@@ -71,30 +73,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-black/55 backdrop-blur-md md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       <aside
         className={[
-          "fixed left-0 top-0 z-40 flex h-full w-64 flex-col border-r border-[var(--border)] glass transition-transform duration-300",
+          "fixed left-0 top-0 z-40 flex h-full w-64 flex-col border-r border-[var(--border)] glass",
+          "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
           open ? "translate-x-0" : "-translate-x-full",
           "md:translate-x-0",
         ].join(" ")}
       >
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-[var(--border)] px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
-            <BrainCircuit size={18} className="text-white" />
+          <div className="logo-float flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/30">
+            <BrainCircuit size={19} className="text-white" />
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold tracking-tight">FinSight</p>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">Private</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--muted)]">
+              Intelligence
+            </p>
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-          {NAV.map(({ href, label, icon: Icon }) => {
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+          {NAV.map(({ href, label, icon: Icon }, i) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
               <Link
@@ -102,11 +107,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 href={href}
                 onClick={() => setOpen(false)}
                 className={[
-                  "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-                  active ? "nav-link-active" : "nav-link-idle",
+                  "nav-item stagger-item",
+                  active ? "nav-item--active" : "nav-item--idle",
                 ].join(" ")}
+                style={{ "--stagger": i + 1 } as CSSProperties}
               >
-                <Icon size={16} className={active ? "text-indigo-500" : "opacity-70 group-hover:opacity-100"} />
+                <Icon
+                  size={16}
+                  className={active ? "text-indigo-400" : "opacity-75 group-hover:opacity-100"}
+                />
                 <span className="truncate">{label}</span>
               </Link>
             );
@@ -114,9 +123,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="shrink-0 border-t border-[var(--border)] p-4">
-          <div className="card space-y-3 p-3">
-            <div className="min-w-0">
-              <p className="truncate text-xs font-medium text-[var(--foreground)]">
+          <div className="panel rounded-xl px-3 py-3">
+            <div className="mb-2.5 min-w-0">
+              <p className="truncate text-xs font-semibold text-[var(--foreground)]">
                 {userLabel || "FinSight User"}
               </p>
               <p className="truncate text-[10px] text-[var(--muted)]">Personal workspace</p>

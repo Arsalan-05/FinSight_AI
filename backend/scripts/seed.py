@@ -1,4 +1,4 @@
-"""Seed the database with a realistic 3-month transaction history.
+"""Seed the database with a realistic 6-month transaction history.
 
 Run with:
     uv run python scripts/seed.py
@@ -16,6 +16,7 @@ from datetime import date
 
 from db.base import Base, SessionLocal, engine
 from db.models import Account, Transaction, TransactionEmbedding, User
+from scripts.canadian_demo import prior_month_transactions
 
 
 def _embed_seeded_transactions(db, txs: list[Transaction]) -> None:
@@ -46,36 +47,66 @@ def _embed_seeded_transactions(db, txs: list[Transaction]) -> None:
         print(f"Embedding skipped ({exc})")
 
 
+def _backfill_prior_months(db, checking: Account, credit: Account) -> int:
+    """Add Jan–Mar 2026 transactions when demo user already exists without them."""
+    has_prior = (
+        db.query(Transaction)
+        .filter(
+            Transaction.account_id.in_([checking.id, credit.id]),
+            Transaction.transaction_date < date(2026, 4, 1),
+        )
+        .count()
+    )
+    if has_prior:
+        return 0
+
+    prior = prior_month_transactions(checking.id, credit.id)
+    db.add_all(prior)
+    db.commit()
+    _embed_seeded_transactions(db, prior)
+    return len(prior)
+
+
 def seed() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 
-    # Idempotent: skip if already seeded
-    if db.query(User).filter(User.email == "demo@finsight.ai").first():
-        print("Already seeded — skipping.")
+    existing = db.query(User).filter(User.email == "demo@finsight.ai").first()
+    if existing:
+        accounts = db.query(Account).filter(Account.user_id == existing.id).all()
+        checking = next((a for a in accounts if a.account_type == "checking"), None)
+        credit = next((a for a in accounts if a.account_type == "credit"), None)
+        if checking and credit:
+            added = _backfill_prior_months(db, checking, credit)
+            if added:
+                print(f"Backfilled {added} Jan–Mar transactions for demo user.")
+            else:
+                print("Already seeded — skipping.")
+        else:
+            print("Demo user exists but accounts missing — skipping.")
         db.close()
         return
 
-    user = User(email="demo@finsight.ai", name="Demo User")
+    user = User(email="demo@finsight.ai", name="Demo Student (York U)")
     db.add(user)
     db.flush()
 
     checking = Account(
         user_id=user.id,
-        name="Primary Checking",
-        institution="Chase",
+        name="RBC Student Chequing",
+        institution="RBC",
         account_type="checking",
     )
     credit = Account(
         user_id=user.id,
-        name="Sapphire Reserve",
-        institution="Chase",
+        name="Simplii Cash Back Visa",
+        institution="Simplii Financial",
         account_type="credit",
     )
     db.add_all([checking, credit])
     db.flush()
 
-    transactions = [
+    transactions = prior_month_transactions(checking.id, credit.id) + [
         # ── April ─────────────────────────────────────────────────────────────
         Transaction(
             account_id=checking.id,

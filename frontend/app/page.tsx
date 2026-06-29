@@ -2,7 +2,6 @@
 
 import {
   ArrowDownLeft,
-  ArrowDownRight,
   ArrowUpRight,
   BarChart2,
   CreditCard,
@@ -12,7 +11,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import {
   Area,
   AreaChart,
@@ -20,9 +19,12 @@ import {
   Tooltip,
 } from "recharts";
 
-import { PageHeader } from "@/components/ui/PageHeader";
+import { KpiCard } from "@/components/ui/KpiCard";
+import { StatusPill } from "@/components/ui/StatusPill";
+import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { api } from "@/lib/api";
-import type { Account, Transaction } from "@/lib/types";
+import { useAuthReady } from "@/hooks/useAuthReady";
+import type { Account, InsightCard, Transaction, TransactionList } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
 import { useChartColors } from "@/lib/chart-theme";
 import {
@@ -34,6 +36,7 @@ import {
 
 export default function DashboardPage() {
   const chart = useChartColors();
+  const authReady = useAuthReady();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [recent, setRecent] = useState<Transaction[]>([]);
   const [curMonth, setCurMonth] = useState<Transaction[]>([]);
@@ -41,6 +44,8 @@ export default function DashboardPage() {
   const [daily, setDaily] = useState<{ day: string; spend: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [insightCards, setInsightCards] = useState<InsightCard[]>([]);
 
   const fetchAll = useCallback(async () => {
     const { from: curFrom, to: curTo } = getCurrentMonthRange();
@@ -54,16 +59,53 @@ export default function DashboardPage() {
     })();
     const thirtyRange = getDateRange(1);
 
-    const [health, accs, recentList, curList, prevList, thirtyList] = await Promise.all([
-      api.health(),
-      api.getAccounts(),
-      api.getTransactions({ limit: 10 }),
-      api.getTransactions({ date_from: curFrom, date_to: curTo, limit: 500 }),
-      api.getTransactions({ date_from: prevFrom, date_to: prevTo, limit: 500 }),
-      api.getAllTransactions(thirtyRange.from, thirtyRange.to),
-    ]);
+    let healthOk = false;
+    try {
+      const health = await api.health();
+      healthOk = health.status === "ok";
+    } catch {
+      healthOk = false;
+    }
 
-    // Build daily spend for sparkline
+    const emptyList: TransactionList = { total: 0, items: [] };
+    let accs: Account[] = [];
+    let recentList = emptyList;
+    let curList = emptyList;
+    let prevList = emptyList;
+    let thirtyList: Transaction[] = [];
+
+    let insightCards: InsightCard[] = [];
+
+    try {
+      [accs, recentList, curList, prevList, thirtyList] = await Promise.all([
+        api.getAccounts(),
+        api.getTransactions({ limit: 10 }),
+        api.getTransactions({ date_from: curFrom, date_to: curTo, limit: 500 }),
+        api.getTransactions({ date_from: prevFrom, date_to: prevTo, limit: 500 }),
+        api.getAllTransactions(thirtyRange.from, thirtyRange.to),
+      ]);
+      if (accs.length > 0) {
+        try {
+          const insights = await api.getInsights();
+          insightCards = insights.insight_cards;
+        } catch {
+          // insights optional when auth/data missing
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load data";
+      return {
+        healthOk,
+        accs,
+        recentList,
+        curList,
+        prevList,
+        dailyData: [],
+        dataError: msg,
+        insightCards: [],
+      };
+    }
+
     const dayMap: Record<string, number> = {};
     for (const tx of thirtyList) {
       if (tx.amount < 0)
@@ -73,33 +115,47 @@ export default function DashboardPage() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([day, spend]) => ({ day: day.slice(5), spend }));
 
-    return { health, accs, recentList, curList, prevList, dailyData };
+    return {
+      healthOk,
+      accs,
+      recentList,
+      curList,
+      prevList,
+      dailyData,
+      dataError: null,
+      insightCards,
+    };
   }, []);
 
   useEffect(() => {
+    if (!authReady) return;
     let active = true;
-    fetchAll().then(({ health, accs, recentList, curList, prevList, dailyData }) => {
+    fetchAll().then(({ healthOk, accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards }) => {
       if (!active) return;
-      setApiOk(health.status === "ok");
+      setApiOk(healthOk);
+      setDataError(err);
       setAccounts(accs);
       setRecent(recentList.items);
       setCurMonth(curList.items);
       setLastMonth(prevList.items);
       setDaily(dailyData);
+      setInsightCards(cards);
       setLoading(false);
     }).catch(() => { if (active) { setApiOk(false); setLoading(false); } });
     return () => { active = false; };
-  }, [fetchAll]);
+  }, [authReady, fetchAll]);
 
   const reload = useCallback(() => {
     setLoading(true);
-    fetchAll().then(({ health, accs, recentList, curList, prevList, dailyData }) => {
-      setApiOk(health.status === "ok");
+    fetchAll().then(({ healthOk, accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards }) => {
+      setApiOk(healthOk);
+      setDataError(err);
       setAccounts(accs);
       setRecent(recentList.items);
       setCurMonth(curList.items);
       setLastMonth(prevList.items);
       setDaily(dailyData);
+      setInsightCards(cards);
       setLoading(false);
     }).catch(() => { setApiOk(false); setLoading(false); });
   }, [fetchAll]);
@@ -120,35 +176,71 @@ export default function DashboardPage() {
     .slice(0, 6);
   const maxCat = topCategories[0]?.[1] ?? 1;
 
+  const greeting = new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening";
+
   return (
     <div className="page-container gap-8">
-      <PageHeader
-        eyebrow="Overview"
-        title={`Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}`}
-        subtitle={new Date().toLocaleDateString("en-CA", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })}
-        actions={
-          <>
-            <span className={["flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium glass",
-              apiOk === true ? "text-emerald-400" :
-              apiOk === false ? "text-red-400" : "text-[var(--muted)]",
-            ].join(" ")}>
-              <span className={["h-1.5 w-1.5 rounded-full",
-                apiOk === true ? "bg-emerald-400 animate-pulse" : apiOk === false ? "bg-red-400" : "bg-[var(--muted)]",
-              ].join(" ")} />
-              {apiOk === true ? "Connected" : apiOk === false ? "Offline" : "Checking…"}
-            </span>
-            <button type="button" onClick={reload} disabled={loading}
-              className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40">
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            </button>
-          </>
-        }
-      />
+      <header
+        className="page-header stagger-item"
+        style={{ "--stagger": 0 } as CSSProperties}
+      >
+        <div className="min-w-0">
+          <p className="eyebrow">Overview</p>
+          <h1 className="hero-title mt-1">
+            Good <span className="text-gradient">{greeting}</span>
+          </h1>
+          <p className="page-subtitle mt-1.5">
+            {new Date().toLocaleDateString("en-CA", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <StatusPill ok={apiOk} />
+          <button
+            type="button"
+            onClick={reload}
+            disabled={loading}
+            className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
+      </header>
+
+      {dataError && (
+        <div className="panel rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          Could not load your data: {dataError}
+        </div>
+      )}
+
+      {!loading && accounts.length === 0 && <OnboardingBanner />}
+
+      {insightCards.length > 0 && (
+        <section className="grid gap-3 sm:grid-cols-2">
+          {insightCards.map((card) => (
+            <div
+              key={card.id}
+              className={[
+                "panel rounded-xl p-4",
+                card.severity === "warning" && "border-amber-500/30",
+                card.severity === "success" && "border-emerald-500/30",
+              ].filter(Boolean).join(" ")}
+            >
+              <p className="text-sm font-medium text-zinc-200">{card.title}</p>
+              <p className="mt-1 text-xs text-zinc-500">{card.body}</p>
+              {card.action && (
+                <Link href="/chat" className="mt-2 inline-block text-xs text-indigo-400 hover:text-indigo-300">
+                  {card.action}
+                </Link>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -159,6 +251,7 @@ export default function DashboardPage() {
           sub={accounts.length ? accounts.map((a) => a.name).join(", ") : "No accounts yet"}
           accent="indigo"
           loading={loading}
+          stagger={1}
         />
         <KpiCard
           icon={<TrendingDown size={15} />}
@@ -170,6 +263,7 @@ export default function DashboardPage() {
           accent={spendChange !== null && spendChange < 0 ? "emerald" : "rose"}
           trend={spendChange}
           loading={loading}
+          stagger={2}
         />
         <KpiCard
           icon={<TrendingUp size={15} />}
@@ -178,6 +272,7 @@ export default function DashboardPage() {
           sub={`${curMonth.filter((t) => t.amount > 0).length} credit transactions`}
           accent="emerald"
           loading={loading}
+          stagger={3}
         />
         <KpiCard
           icon={<Wallet size={15} />}
@@ -187,20 +282,26 @@ export default function DashboardPage() {
           accent={netSavings >= 0 ? "emerald" : "rose"}
           neg={netSavings < 0}
           loading={loading}
+          stagger={4}
         />
       </div>
 
       {/* Sparkline + quick links */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 flex flex-col gap-3 glass-elevated rounded-2xl p-6">
+        <div
+          className="panel lg:col-span-2 flex flex-col gap-3 rounded-2xl p-6 stagger-item"
+          style={{ "--stagger": 5 } as CSSProperties}
+        >
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-200">Daily Spending (30 days)</h2>
-            <Link href="/analytics" className="text-xs text-indigo-400 hover:text-indigo-300">Full analytics →</Link>
+            <h2 className="section-title">Daily Spending (30 days)</h2>
+            <Link href="/analytics" className="text-xs font-medium text-indigo-400 transition-colors hover:text-indigo-300">
+              Full analytics →
+            </Link>
           </div>
           {loading ? (
-            <div className="h-[100px] animate-pulse rounded-lg bg-zinc-800" />
+            <div className="shimmer h-[100px] rounded-xl" />
           ) : daily.length === 0 ? (
-            <p className="py-8 text-center text-sm text-zinc-700">No data yet</p>
+            <p className="py-8 text-center text-sm text-[var(--muted)]">No data yet</p>
           ) : (
             <ResponsiveContainer width="100%" height={100}>
               <AreaChart data={daily}>
@@ -227,15 +328,19 @@ export default function DashboardPage() {
             { href: "/analytics", icon: <BarChart2 size={15} />, label: "Analytics", desc: "Charts, trends, merchants" },
             { href: "/transactions", icon: <CreditCard size={15} />, label: "Transactions", desc: "Browse, filter, upload" },
             { href: "/search", icon: <TrendingUp size={15} />, label: "AI Search", desc: "Semantic RAG search" },
-          ].map(({ href, icon, label, desc }) => (
-            <Link key={href} href={href}
-              className="glass flex items-center gap-3 rounded-2xl p-4 transition-all hover:glass-elevated">
-              <span className="rounded-lg bg-indigo-500/10 p-2 text-indigo-400">{icon}</span>
-              <div>
-                <p className="text-sm font-medium text-zinc-200">{label}</p>
-                <p className="text-xs text-zinc-600">{desc}</p>
+          ].map(({ href, icon, label, desc }, i) => (
+            <Link
+              key={href}
+              href={href}
+              className="link-card stagger-item"
+              style={{ "--stagger": 6 + i } as CSSProperties}
+            >
+              <span className="link-card-icon">{icon}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-[var(--foreground)]">{label}</p>
+                <p className="text-xs text-[var(--muted)]">{desc}</p>
               </div>
-              <ArrowUpRight size={14} className="ml-auto text-zinc-700" />
+              <ArrowUpRight size={14} className="shrink-0 text-[var(--muted)]" />
             </Link>
           ))}
         </div>
@@ -244,19 +349,22 @@ export default function DashboardPage() {
       {/* Bottom grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* Category breakdown */}
-        <section className="col-span-1 flex flex-col gap-3 glass-elevated rounded-2xl p-6 lg:col-span-2">
+        <section
+          className="panel col-span-1 flex flex-col gap-3 rounded-2xl p-6 lg:col-span-2 stagger-item"
+          style={{ "--stagger": 9 } as CSSProperties}
+        >
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-200">Spending by Category</h2>
-            <span className="text-xs text-zinc-600">This month</span>
+            <h2 className="section-title">Spending by Category</h2>
+            <span className="text-xs text-[var(--muted)]">This month</span>
           </div>
           {loading ? (
             <ul className="flex flex-col gap-3">{Array.from({ length: 6 }).map((_, i) => (
-              <li key={i} className="h-4 animate-pulse rounded bg-zinc-800" />
+              <li key={i} className="shimmer h-4 rounded" />
             ))}</ul>
           ) : topCategories.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-8 text-center">
-              <p className="text-sm text-zinc-600">No spending data yet.</p>
-              <Link href="/transactions" className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500">
+              <p className="text-sm text-[var(--muted)]">No spending data yet.</p>
+              <Link href="/transactions" className="btn-primary rounded-xl px-4 py-2 text-xs font-medium">
                 Upload CSV
               </Link>
             </div>
@@ -267,11 +375,11 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full" style={{ background: getCategoryColor(cat) }} />
-                      <span className="text-zinc-300">{cat}</span>
+                      <span className="text-[var(--foreground)]">{cat}</span>
                     </span>
-                    <span className="tabular-nums text-zinc-400">{formatCurrency(total)}</span>
+                    <span className="tabular-nums text-[var(--muted)]">{formatCurrency(total)}</span>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface)]">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{ width: `${(total / maxCat) * 100}%`, backgroundColor: getCategoryColor(cat) }}
@@ -284,26 +392,34 @@ export default function DashboardPage() {
         </section>
 
         {/* Recent transactions */}
-        <section className="col-span-1 flex flex-col gap-3 glass-elevated rounded-2xl p-6 lg:col-span-3">
+        <section
+          className="panel col-span-1 flex flex-col gap-3 rounded-2xl p-6 lg:col-span-3 stagger-item"
+          style={{ "--stagger": 10 } as CSSProperties}
+        >
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-zinc-200">Recent Transactions</h2>
-            <Link href="/transactions" className="text-xs text-indigo-400 hover:text-indigo-300">View all →</Link>
+            <h2 className="section-title">Recent Transactions</h2>
+            <Link href="/transactions" className="text-xs font-medium text-indigo-400 transition-colors hover:text-indigo-300">
+              View all →
+            </Link>
           </div>
           {loading ? (
             <ul className="flex flex-col gap-3">{Array.from({ length: 7 }).map((_, i) => (
-              <li key={i} className="h-12 animate-pulse rounded-lg bg-zinc-800" />
+              <li key={i} className="shimmer h-12 rounded-xl" />
             ))}</ul>
           ) : recent.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-8 text-center">
-              <p className="text-sm text-zinc-600">No transactions yet.</p>
-              <Link href="/transactions" className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500">
+              <p className="text-sm text-[var(--muted)]">No transactions yet.</p>
+              <Link href="/transactions" className="btn-primary rounded-xl px-4 py-2 text-xs font-medium">
                 Upload CSV
               </Link>
             </div>
           ) : (
-            <ul className="flex flex-col divide-y divide-zinc-800/60">
+            <ul className="flex flex-col divide-y divide-[var(--border)]">
               {recent.map((tx) => (
-                <li key={tx.id} className="flex items-center gap-3 py-2.5">
+                <li
+                  key={tx.id}
+                  className="group flex items-center gap-3 py-2.5 transition-colors hover:bg-[var(--accent-soft)]/30 rounded-lg px-1 -mx-1"
+                >
                   <div
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
                     style={{ backgroundColor: getCategoryColor(tx.category) + "20" }}
@@ -314,8 +430,8 @@ export default function DashboardPage() {
                     }
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-zinc-200">{tx.description}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="truncate text-sm text-[var(--foreground)]">{tx.description}</p>
+                    <p className="text-xs text-[var(--muted)]">
                       {tx.category}{tx.merchant ? ` · ${tx.merchant}` : ""} · {formatDateShort(tx.transaction_date)}
                     </p>
                   </div>
@@ -330,43 +446,6 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
-    </div>
-  );
-}
-
-// ── KPI Card ──────────────────────────────────────────────────────────────────
-
-function KpiCard({ icon, label, value, sub, accent, trend, neg, loading }: {
-  icon: React.ReactNode; label: string; value: string; sub: string;
-  accent: "indigo" | "sky" | "rose" | "emerald"; trend?: number | null; neg?: boolean; loading?: boolean;
-}) {
-  const cls: Record<string, string> = {
-    indigo: "bg-indigo-500/10 text-indigo-400",
-    sky: "bg-sky-500/10 text-sky-400",
-    rose: "bg-rose-500/10 text-rose-400",
-    emerald: "bg-emerald-500/10 text-emerald-400",
-  };
-  return (
-    <div className="glass-elevated flex flex-col gap-3 rounded-2xl p-5 glow-accent">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-zinc-500">{label}</span>
-        <span className={`rounded-lg p-1.5 ${cls[accent]}`}>{icon}</span>
-      </div>
-      {loading ? (
-        <div className="h-8 animate-pulse rounded bg-zinc-800" />
-      ) : (
-        <p className={["text-2xl font-semibold tabular-nums", neg ? "text-rose-400" : "text-zinc-50"].join(" ")}>
-          {neg ? "−" : ""}{value}
-        </p>
-      )}
-      <p className="flex items-center gap-1 truncate text-xs text-zinc-600">
-        {trend !== null && trend !== undefined && (
-          trend < 0
-            ? <ArrowDownRight size={11} className="text-emerald-500" />
-            : <ArrowUpRight size={11} className="text-rose-500" />
-        )}
-        {sub}
-      </p>
     </div>
   );
 }

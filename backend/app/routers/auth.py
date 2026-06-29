@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.demo_provision import provision_demo_if_empty
 from app.dependencies import get_db
 from app.schemas import UserOut
 from db.models import User
@@ -21,6 +22,7 @@ def get_me(user: User = Depends(get_current_user)) -> User:
 
 @router.post("/sync", response_model=UserOut)
 def sync_profile(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
-    """Ensure the Supabase identity has a matching row in the app database."""
+    """Ensure the Supabase identity has a matching row and starter demo data."""
+    provision_demo_if_empty(db, user)
     db.refresh(user)
     return user

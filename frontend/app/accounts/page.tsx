@@ -126,7 +126,7 @@ export default function AccountsPage() {
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-40 animate-pulse rounded-xl bg-zinc-800/50" />
+            <div key={i} className="h-40 shimmer rounded-xl" />
           ))}
         </div>
       ) : (
@@ -199,7 +199,7 @@ function AccountCard({ account }: { account: Account }) {
   const typeStyle = typeColors[account.account_type] ?? "text-zinc-400 bg-zinc-800";
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+    <div className="flex flex-col gap-3 panel rounded-2xl p-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <Building2 size={15} className="text-zinc-500" />

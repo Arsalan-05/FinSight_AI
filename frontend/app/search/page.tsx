@@ -224,7 +224,7 @@ export default function SearchPage() {
 
       {/* Results list */}
       {results.length > 0 && (
-        <div className="flex flex-col divide-y divide-zinc-800/60 rounded-xl border border-zinc-800 bg-zinc-900">
+        <div className="flex flex-col divide-y divide-zinc-800/60 panel rounded-2xl">
           {results.map((tx, idx) => (
             <div key={tx.id} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-zinc-800/40">
               <span className="w-5 shrink-0 text-center text-xs font-semibold text-zinc-700">{idx + 1}</span>
@@ -259,15 +259,15 @@ export default function SearchPage() {
 
       {/* Loading skeleton */}
       {loading && (
-        <div className="flex flex-col gap-1 rounded-xl border border-zinc-800 bg-zinc-900 p-2">
+        <div className="flex flex-col gap-1 panel rounded-2xl p-2">
           {Array.from({ length: kValue }).map((_, i) => (
             <div key={i} className="flex items-center gap-4 p-3">
-              <div className="h-9 w-9 animate-pulse rounded-lg bg-zinc-800" />
+              <div className="h-9 w-9 shimmer rounded-lg" />
               <div className="flex flex-1 flex-col gap-2">
-                <div className="h-3.5 w-3/4 animate-pulse rounded bg-zinc-800" />
-                <div className="h-3 w-1/2 animate-pulse rounded bg-zinc-800" />
+                <div className="h-3.5 w-3/4 shimmer rounded" />
+                <div className="h-3 w-1/2 shimmer rounded" />
               </div>
-              <div className="h-4 w-16 animate-pulse rounded bg-zinc-800" />
+              <div className="h-4 w-16 shimmer rounded" />
             </div>
           ))}
         </div>

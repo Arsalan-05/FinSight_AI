@@ -11,6 +11,9 @@ from agent.tools.aggregator import aggregate_spending
 from agent.tools.dates import last_month_range, resolve_aggregate_dates
 from agent.tools.summarize import is_empty_aggregate, summarize_aggregate
 from app.config import settings
+from insights.runway import analyze_cash_runway
+from insights.service import build_all_insights
+from insights.tfsa import tfsa_contribution_status
 from mcp.registry import MCP_TOOL_DEFINITIONS, execute_mcp_tool
 from rag.retriever import retrieve
 
@@ -92,6 +95,26 @@ CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": [],
         },
     },
+    {
+        "name": "get_financial_insights",
+        "description": (
+            "Get proactive insights: subscriptions, cash runway, TFSA room, anomalies, "
+            "credit card tips, and multi-account reconciliation."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "get_tfsa_status",
+        "description": "Check estimated TFSA and RRSP contribution room for the current year.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "get_cash_runway",
+        "description": (
+            "Estimate cash runway in months from recent spending (student/co-op friendly)."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
 ]
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = CORE_TOOL_DEFINITIONS + MCP_TOOL_DEFINITIONS
@@ -139,6 +162,7 @@ def _run_aggregate(
     category: str | None,
     account_id: str | None,
     transaction_type: str,
+    account_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     return aggregate_spending(
         db,
@@ -147,6 +171,7 @@ def _run_aggregate(
         group_by=group_by,  # type: ignore[arg-type]
         category=category,
         account_id=account_id,
+        account_ids=account_ids,
         transaction_type=transaction_type,  # type: ignore[arg-type]
     )
 
@@ -168,6 +193,7 @@ def execute_tool(
     args: dict[str, Any],
     *,
     db: Session,
+    account_ids: list[str] | None = None,
 ) -> str:
     """Execute a named agent tool and return a JSON string result."""
     if name == "search_transactions":
@@ -178,7 +204,7 @@ def execute_tool(
                 {"error": "Semantic search unavailable — embeddings provider not configured."}
             )
         try:
-            txs = retrieve(query, db, k=k)
+            txs = retrieve(query, db, k=k, account_ids=account_ids)
             return json.dumps(
                 {"results": [_format_transaction(tx) for tx in txs], "count": len(txs)}
             )
@@ -200,11 +226,11 @@ def execute_tool(
             category=category,
             account_id=account_id,
             transaction_type=txn_type,
+            account_ids=account_ids,
         )
         if args.get("period"):
             result["filters"]["period"] = args["period"]
 
-        # Small models pass wrong dates, category='none', or bad account IDs — retry safely.
         if is_empty_aggregate(result):
             retry_start, retry_end = last_month_range()
             result = _run_aggregate(
@@ -215,6 +241,7 @@ def execute_tool(
                 category=category,
                 account_id=None,
                 transaction_type="debit",
+                account_ids=account_ids,
             )
             result["filters"]["period"] = "last_month"
             result["auto_retried"] = True
@@ -222,7 +249,16 @@ def execute_tool(
         result["summary"] = summarize_aggregate(result)
         return json.dumps(result)
 
-    if name in {"convert_currency", "get_market_quote"}:
+    if name == "get_financial_insights":
+        return json.dumps(build_all_insights(db, account_ids=account_ids))
+
+    if name == "get_tfsa_status":
+        return json.dumps(tfsa_contribution_status(db, account_ids=account_ids))
+
+    if name == "get_cash_runway":
+        return json.dumps(analyze_cash_runway(db, account_ids=account_ids))
+
+    if name in {"convert_currency", "get_market_quote", "get_exchange_rates"}:
         return execute_mcp_tool(name, args)
 
     return json.dumps({"error": f"Unknown tool: {name}"})

@@ -182,9 +182,7 @@ def _call_ollama(messages: list[BaseMessage], memory_summary: str) -> AIMessage:
     return AIMessage(content=content)
 
 
-def _summarize_anthropic(
-    messages: list[BaseMessage], current_summary: str, api_key: str
-) -> str:
+def _summarize_anthropic(messages: list[BaseMessage], current_summary: str, api_key: str) -> str:
     recent = _recent_exchange(messages)
     if not recent:
         return current_summary
