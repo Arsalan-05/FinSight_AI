@@ -8,15 +8,26 @@ import type {
   User,
 } from "./types";
 import { authHeaders } from "./auth";
+import { getAccessToken } from "./supabase/session";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+async function buildHeaders(extra?: HeadersInit): Promise<HeadersInit> {
+  const token = await getAccessToken();
+  return {
+    "Content-Type": "application/json",
+    ...authHeaders(),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+}
 
 async function request<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...authHeaders(), ...init?.headers },
+    headers: await buildHeaders(init?.headers),
     ...init,
   });
   if (!res.ok) {
@@ -86,12 +97,13 @@ export const api = {
   deleteTransaction: (id: string): Promise<void> =>
     request(`/transactions/${id}`, { method: "DELETE" }),
 
-  uploadCsv: (file: File, account_id: string): Promise<{ created: number; errors: string[] }> => {
+    uploadCsv: async (file: File, account_id: string): Promise<{ created: number; errors: string[] }> => {
     const form = new FormData();
     form.append("file", file);
+    const token = await getAccessToken();
     return fetch(`${BASE}/transactions/upload?account_id=${account_id}`, {
       method: "POST",
-      headers: authHeaders(),
+      headers: { ...authHeaders(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: form,
     }).then((r) => {
       if (!r.ok) throw new Error(`Upload failed: ${r.statusText}`);
@@ -114,9 +126,14 @@ export const api = {
     sessionId?: string,
     signal?: AbortSignal,
   ): AsyncGenerator<ChatSSEEvent> {
+    const token = await getAccessToken();
     const res = await fetch(`${BASE}/chat/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ message, session_id: sessionId }),
       signal,
     });

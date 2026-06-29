@@ -182,15 +182,18 @@ curl -N -X POST http://localhost:8000/chat/ \
 
 ---
 
-## Week 7 (Aug 9 – Aug 15) — Docker Polish + Railway Deployment
+## Week 7 (Aug 9 – Aug 15) — Supabase Auth + Premium UI 🚧 IN PROGRESS
 
-**Deliverable:** One-click deploy to Railway, accessible via a public URL.
+**Deliverable:** Production-ready auth and premium fintech UI.
 
-- [ ] Production `Dockerfile` for backend and frontend (multi-stage builds, minimal images)
-- [ ] `railway.toml` config: services wired, env vars mapped
-- [ ] GitHub Actions CI: lint (`ruff`, ESLint), type-check (`mypy`, `tsc`), pytest on every push
-- [ ] Managed Postgres on Railway with pgvector extension enabled
-- [ ] Environment variable management (Railway dashboard → service env vars)
+- [x] Supabase Google OAuth login page + callback route
+- [x] JWT validation on backend + user sync (`auth_id` on users)
+- [x] Premium design system (glass surfaces, mesh gradients, AppShell)
+- [x] Dashboard visual refresh
+- [ ] User provides Supabase keys + Google OAuth configured in dashboard
+- [ ] Migrate `DATABASE_URL` to Supabase Postgres + run Alembic
+- [ ] Scope all data queries per authenticated user
+- [ ] Railway deployment + CI/CD
 
 ---
 

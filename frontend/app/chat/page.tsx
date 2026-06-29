@@ -144,7 +144,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-0px)] flex-col gap-4 p-6 pt-16 md:pt-6">
+    <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-5xl flex-col gap-4">
       <div className="flex shrink-0 items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-50">Chat Agent</h1>

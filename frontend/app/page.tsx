@@ -120,27 +120,29 @@ export default function DashboardPage() {
   const maxCat = topCategories[0]?.[1] ?? 1;
 
   return (
-    <div className="flex flex-col gap-6 p-6 pt-16 md:pt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="mx-auto flex max-w-7xl flex-col gap-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Dashboard</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">Overview</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}
+          </h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">
             {new Date().toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className={["flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-            apiOk === true ? "bg-emerald-500/10 text-emerald-400" :
-            apiOk === false ? "bg-red-500/10 text-red-400" : "bg-zinc-800 text-zinc-500",
+          <span className={["flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium glass",
+            apiOk === true ? "text-emerald-400" :
+            apiOk === false ? "text-red-400" : "text-[var(--muted)]",
           ].join(" ")}>
             <span className={["h-1.5 w-1.5 rounded-full",
-              apiOk === true ? "bg-emerald-400 animate-pulse" : apiOk === false ? "bg-red-400" : "bg-zinc-500",
+              apiOk === true ? "bg-emerald-400 animate-pulse" : apiOk === false ? "bg-red-400" : "bg-[var(--muted)]",
             ].join(" ")} />
-            {apiOk === true ? "API Healthy" : apiOk === false ? "API Down" : "Checking…"}
+            {apiOk === true ? "Connected" : apiOk === false ? "Offline" : "Checking…"}
           </span>
-          <button onClick={reload} disabled={loading}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-100 disabled:opacity-40">
+          <button type="button" onClick={reload} disabled={loading}
+            className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40">
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
@@ -188,7 +190,7 @@ export default function DashboardPage() {
 
       {/* Sparkline + quick links */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="lg:col-span-2 flex flex-col gap-3 glass-elevated rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-200">Daily Spending (30 days)</h2>
             <Link href="/analytics" className="text-xs text-indigo-400 hover:text-indigo-300">Full analytics →</Link>
@@ -225,7 +227,7 @@ export default function DashboardPage() {
             { href: "/search", icon: <TrendingUp size={15} />, label: "AI Search", desc: "Semantic RAG search" },
           ].map(({ href, icon, label, desc }) => (
             <Link key={href} href={href}
-              className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700">
+              className="glass flex items-center gap-3 rounded-2xl p-4 transition-all hover:glass-elevated">
               <span className="rounded-lg bg-indigo-500/10 p-2 text-indigo-400">{icon}</span>
               <div>
                 <p className="text-sm font-medium text-zinc-200">{label}</p>
@@ -240,7 +242,7 @@ export default function DashboardPage() {
       {/* Bottom grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* Category breakdown */}
-        <section className="col-span-1 flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5 lg:col-span-2">
+        <section className="col-span-1 flex flex-col gap-3 glass-elevated rounded-2xl p-6 lg:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-200">Spending by Category</h2>
             <span className="text-xs text-zinc-600">This month</span>
@@ -280,7 +282,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Recent transactions */}
-        <section className="col-span-1 flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5 lg:col-span-3">
+        <section className="col-span-1 flex flex-col gap-3 glass-elevated rounded-2xl p-6 lg:col-span-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-200">Recent Transactions</h2>
             <Link href="/transactions" className="text-xs text-indigo-400 hover:text-indigo-300">View all →</Link>
@@ -343,7 +345,7 @@ function KpiCard({ icon, label, value, sub, accent, trend, neg, loading }: {
     emerald: "bg-emerald-500/10 text-emerald-400",
   };
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+    <div className="glass-elevated flex flex-col gap-3 rounded-2xl p-5 glow-accent">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-zinc-500">{label}</span>
         <span className={`rounded-lg p-1.5 ${cls[accent]}`}>{icon}</span>
