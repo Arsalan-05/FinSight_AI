@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # Supabase — set DATABASE_URL to your Supabase Postgres connection string
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
+    supabase_service_role_key: str = ""
     require_auth: bool = False
 
     @property
