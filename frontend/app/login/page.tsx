@@ -1,6 +1,6 @@
 "use client";
 
-import { BrainCircuit, Loader2, Sparkles } from "lucide-react";
+import { BrainCircuit, Loader2, Mail, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -9,24 +9,64 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const error = searchParams.get("error");
-  const [loading, setLoading] = useState(false);
+  const urlError = searchParams.get("error");
+  const [loading, setLoading] = useState<"google" | "email" | null>(null);
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(
+    urlError ? "Sign-in failed. Please try again." : null,
+  );
   const configured = isSupabaseConfigured();
+
+  const redirectTo = () => {
+    const next = searchParams.get("next") ?? "/";
+    return `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+  };
 
   const signInWithGoogle = async () => {
     if (!configured) return;
-    setLoading(true);
+    setLoading("google");
+    setAuthError(null);
+    setMessage(null);
     try {
       const supabase = createClient();
-      const next = searchParams.get("next") ?? "/";
-      await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-        },
+        options: { redirectTo: redirectTo() },
       });
+      if (error) {
+        if (error.message.toLowerCase().includes("not enabled")) {
+          setAuthError(
+            "Google sign-in is not enabled in your Supabase project yet. Use email below, or enable Google under Authentication → Providers.",
+          );
+        } else {
+          setAuthError(error.message);
+        }
+      }
     } finally {
-      setLoading(false);
+      setLoading(null);
+    }
+  };
+
+  const signInWithEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!configured || !email.trim()) return;
+    setLoading("email");
+    setAuthError(null);
+    setMessage(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: redirectTo() },
+      });
+      if (error) {
+        setAuthError(error.message);
+      } else {
+        setMessage(`Magic link sent to ${email.trim()}. Check your inbox.`);
+      }
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -34,7 +74,6 @@ function LoginForm() {
     <div className="flex min-h-screen">
       <div className="mesh-bg" aria-hidden />
 
-      {/* Brand panel */}
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-12 lg:flex">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-violet-600/10" />
         <div className="relative">
@@ -72,7 +111,6 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* Auth card */}
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-md space-y-8">
           <div className="space-y-2 text-center lg:text-left">
@@ -86,9 +124,14 @@ function LoginForm() {
           </div>
 
           <div className="glass-elevated space-y-4 rounded-2xl p-6">
-            {error && (
+            {authError && (
               <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-                Sign-in failed. Please try again.
+                {authError}
+              </p>
+            )}
+            {message && (
+              <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+                {message}
               </p>
             )}
 
@@ -107,24 +150,73 @@ function LoginForm() {
                 </Link>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => void signInWithGoogle()}
-                disabled={loading}
-                className="btn-ghost flex w-full items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-medium"
-              >
-                {loading ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <GoogleIcon />
-                )}
-                Continue with Google
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void signInWithGoogle()}
+                  disabled={loading !== null}
+                  className="btn-ghost flex w-full items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-medium"
+                >
+                  {loading === "google" ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <GoogleIcon />
+                  )}
+                  Continue with Google
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[var(--border)]" />
+                  <span className="text-xs text-[var(--muted)]">or</span>
+                  <div className="h-px flex-1 bg-[var(--border)]" />
+                </div>
+
+                <form onSubmit={(e) => void signInWithEmail(e)} className="space-y-3">
+                  <label className="block text-xs font-medium text-[var(--muted)]">
+                    Email magic link
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Mail
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"
+                      />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        required
+                        className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-500/50"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading !== null || !email.trim()}
+                      className="btn-primary shrink-0 rounded-xl px-4 py-2.5 text-sm"
+                    >
+                      {loading === "email" ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        "Send link"
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
           </div>
 
           <p className="text-center text-xs text-[var(--muted)] lg:text-left">
-            By continuing, you agree to our terms of service and privacy policy.
+            Google not working? Enable it in{" "}
+            <a
+              href="https://supabase.com/dashboard/project/zibzsxwceivnziplciuq/auth/providers"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-400 hover:text-indigo-300"
+            >
+              Supabase → Authentication → Providers
+            </a>
           </p>
         </div>
       </div>
