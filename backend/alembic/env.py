@@ -1,4 +1,3 @@
-import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -10,10 +9,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Pull DATABASE_URL from env so Docker / Railway env vars work without touching alembic.ini
-database_url = os.environ.get("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+# Pull DATABASE_URL from settings (loads .env from repo root or backend/)
+from app.config import settings  # noqa: E402
+
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Import Base + all models so autogenerate picks up every table
 import db.models  # noqa: F401, E402

@@ -9,16 +9,12 @@ from rag.embedder import embed_texts
 def retrieve(
     query: str,
     db: Session,
-    api_key: str,
     k: int = 5,
+    *,
+    api_key: str = "",
 ) -> list[Transaction]:
-    """Return the top-k transactions most semantically similar to *query*.
-
-    Embeds the query with input_type="query" then runs a cosine distance
-    search via pgvector against the stored 1024-dim transaction embeddings.
-    Returns an empty list when the embeddings table has no rows.
-    """
-    query_vector = embed_texts([query], api_key, input_type="query")[0]
+    """Return the top-k transactions most semantically similar to *query*."""
+    query_vector = embed_texts([query], input_type="query", api_key=api_key)[0]
 
     results: list[Transaction] = (
         db.query(Transaction)

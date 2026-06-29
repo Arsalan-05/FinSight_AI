@@ -9,7 +9,7 @@ from db.models import Transaction
 from rag.embedder import build_content
 from rag.retriever import retrieve
 
-_FAKE_VECTOR = [0.1] * 1024
+_FAKE_VECTOR = [0.1] * 768
 
 
 def _tx(**overrides: object) -> Transaction:
@@ -94,7 +94,7 @@ class TestRetrieve:
         mock_db = _mock_db([tx1, tx2])
 
         with patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]):
-            results = retrieve("food spending", mock_db, "fake-key", k=2)
+            results = retrieve("food spending", mock_db, k=2)
 
         assert len(results) == 2
         assert results[0].id == "tx-1"
@@ -104,7 +104,7 @@ class TestRetrieve:
         mock_db = _mock_db([])
 
         with patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]):
-            results = retrieve("coffee", mock_db, "fake-key", k=5)
+            results = retrieve("coffee", mock_db, k=5)
 
         assert results == []
 
@@ -112,17 +112,17 @@ class TestRetrieve:
         mock_db = _mock_db([])
 
         with patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]) as mock_embed:
-            retrieve("subscriptions last month", mock_db, "test-key", k=3)
+            retrieve("subscriptions last month", mock_db, k=3)
 
         mock_embed.assert_called_once_with(
-            ["subscriptions last month"], "test-key", input_type="query"
+            ["subscriptions last month"], input_type="query", api_key=""
         )
 
     def test_respects_k_limit(self) -> None:
         mock_db = _mock_db([])
 
         with patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]):
-            retrieve("dining", mock_db, "fake-key", k=7)
+            retrieve("dining", mock_db, k=7)
 
         mock_db.query.return_value.join.return_value.order_by.return_value.limit.assert_called_once_with(
             7
@@ -130,11 +130,11 @@ class TestRetrieve:
 
     def test_passes_query_vector_to_db(self) -> None:
         """The vector returned by embed_texts must flow into the DB query chain."""
-        expected_vector = [0.42] * 1024
+        expected_vector = [0.42] * 768
         mock_db = _mock_db([])
 
         with patch("rag.retriever.embed_texts", return_value=[expected_vector]):
-            retrieve("test", mock_db, "fake-key", k=1)
+            retrieve("test", mock_db, k=1)
 
         # Verify query() was called with the Transaction model
         mock_db.query.assert_called_once_with(Transaction)
