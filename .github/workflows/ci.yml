@@ -19,7 +19,7 @@ jobs:
           enable-cache: true
       - run: uv sync
       - run: uv run ruff check .
-      - run: uv run mypy app/
+      - run: uv run mypy app/ agent/ db/ rag/ insights/
       - run: uv run pytest -q
 
   frontend:
@@ -37,3 +37,4 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run type-check
+      - run: npm run build
