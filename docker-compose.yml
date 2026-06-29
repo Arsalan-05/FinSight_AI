@@ -43,6 +43,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
+    env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
