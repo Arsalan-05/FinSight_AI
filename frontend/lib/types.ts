@@ -43,18 +43,62 @@ export interface HealthResponse {
   environment: string;
 }
 
+export interface DbHealthResponse {
+  using_supabase_postgres: boolean;
+  use_supabase_db: boolean;
+  host: string;
+  configured: boolean;
+}
+
 export type ChatRole = "user" | "assistant";
 
 export interface ChatMessage {
   id: string;
   role: ChatRole;
   content: string;
+  citations?: TransactionCitation[];
+}
+
+export interface TransactionCitation {
+  id: string;
+  date?: string;
+  description?: string;
+  amount?: number;
+  category?: string;
+  merchant?: string | null;
+  source?: string;
 }
 
 export type ChatSSEEvent =
   | { type: "token"; content: string }
-  | { type: "done"; session_id: string; content: string }
+  | { type: "done"; session_id: string; content: string; citations?: TransactionCitation[] }
   | { type: "error"; message: string };
+
+export interface InsightCard {
+  id: string;
+  severity: "info" | "warning" | "success";
+  title: string;
+  body: string;
+  action: string | null;
+}
+
+export interface InsightsResponse {
+  generated_at: string;
+  insight_cards: InsightCard[];
+  subscriptions: { count: number; estimated_monthly_total: number };
+  cash_runway: { runway_months: number | null; message: string };
+  tfsa_rrsp: { tfsa: { remaining_room: number; limit: number } };
+}
+
+export interface FinancialGoal {
+  id: string;
+  title: string;
+  target_amount?: number | null;
+  deadline?: string | null;
+  notes?: string | null;
+  status: string;
+  created_at: string;
+}
 
 export const CATEGORY_COLORS: Record<string, string> = {
   Dining: "#f59e0b",

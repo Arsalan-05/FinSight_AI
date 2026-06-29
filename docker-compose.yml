@@ -23,7 +23,9 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://finsight:finsight@db:5432/finsight
+      DATABASE_URL: ${DATABASE_URL:-postgresql://finsight:finsight@db:5432/finsight}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
       LLM_PROVIDER: ollama
       EMBEDDING_PROVIDER: ollama
       OLLAMA_BASE_URL: http://host.docker.internal:11434
@@ -42,10 +44,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
     restart: unless-stopped
     env_file: .env
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
     ports:
       - "3000:3000"
     depends_on:

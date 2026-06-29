@@ -18,6 +18,7 @@ def disable_embeddings_in_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "embedding_provider", "voyage")
     monkeypatch.setattr(settings, "voyage_api_key", "")
     monkeypatch.setattr(settings, "require_auth", False)
+    monkeypatch.setattr(settings, "supabase_url", "")
 
 
 @pytest.fixture(scope="function")

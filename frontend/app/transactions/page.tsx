@@ -204,7 +204,7 @@ export default function TransactionsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+      <div className="flex flex-wrap gap-3 panel rounded-2xl p-4">
         <select value={filterAccount} onChange={(e) => { setFilterAccount(e.target.value); setPage(0); }} className={sel}>
           <option value="">All accounts</option>
           {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -255,7 +255,7 @@ export default function TransactionsPage() {
             {loading
               ? Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>{Array.from({ length: 7 }).map((_, j) => (
-                    <td key={j} className="px-4 py-3"><div className="h-3.5 animate-pulse rounded bg-zinc-800" /></td>
+                    <td key={j} className="px-4 py-3"><div className="h-3.5 shimmer rounded" /></td>
                   ))}</tr>
                 ))
               : sorted.length === 0 ? (

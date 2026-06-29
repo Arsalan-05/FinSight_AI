@@ -4,10 +4,10 @@ from collections.abc import Callable, Generator
 
 from sqlalchemy.orm import Session
 
-from agent.runner import run_agent
+from agent.runner import AgentResult, run_agent
 from db.base import SessionLocal
 
-AgentRunner = Callable[..., str]
+AgentRunner = Callable[..., AgentResult]
 
 
 def get_db() -> Generator[Session, None, None]:

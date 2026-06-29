@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import csv
-import io
 import logging
 from datetime import date
 
@@ -14,6 +12,8 @@ from app.dependencies import get_db
 from app.schemas import TransactionCreate, TransactionListOut, TransactionOut
 from app.scoping import assert_account_owned, scope_transactions
 from db.models import Transaction, TransactionEmbedding, User
+from ingest.bank_csv import detect_and_parse_csv, guess_merchant
+from ingest.interac import normalize_interac_transaction
 from rag.embedder import build_content, embed_texts
 
 logger = logging.getLogger(__name__)
@@ -82,31 +82,36 @@ async def upload_csv(
 
     content = await file.read()
     text = content.decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(text))
+    bank, rows, parse_errors = detect_and_parse_csv(text)
 
-    required = {"date", "description", "amount"}
-    if reader.fieldnames is None or not required.issubset(
-        {f.strip().lower() for f in reader.fieldnames}
-    ):
+    if bank == "unknown" and not rows:
         raise HTTPException(
             status_code=422,
-            detail=f"CSV must contain columns: {required}",
+            detail=parse_errors[0] if parse_errors else "Unrecognized CSV format",
         )
 
     created = 0
-    errors: list[str] = []
+    errors: list[str] = list(parse_errors)
     created_txs: list[Transaction] = []
 
-    for i, row in enumerate(reader, start=2):
+    for i, row in enumerate(rows, start=2):
         try:
+            desc, cat, merchant, notes = normalize_interac_transaction(
+                row["description"],
+                category=row.get("category", "Uncategorized"),
+                merchant=row.get("merchant"),
+                notes=row.get("notes"),
+            )
+            if not merchant:
+                merchant = guess_merchant(desc)
             tx = Transaction(
                 account_id=account_id,
-                transaction_date=date.fromisoformat(row["date"].strip()),
-                description=row["description"].strip(),
-                amount=float(row["amount"].strip()),
-                category=row.get("category", "Uncategorized").strip() or "Uncategorized",
-                merchant=row.get("merchant", "").strip() or None,
-                notes=row.get("notes", "").strip() or None,
+                transaction_date=row["date"],
+                description=desc,
+                amount=float(row["amount"]),
+                category=cat,
+                merchant=merchant,
+                notes=notes,
             )
             db.add(tx)
             created_txs.append(tx)
@@ -116,7 +121,7 @@ async def upload_csv(
 
     db.commit()
     _embed_and_store(created_txs, db)
-    return {"created": created, "errors": errors}
+    return {"created": created, "errors": errors, "bank_detected": bank}
 
 
 @router.get("/", response_model=TransactionListOut)

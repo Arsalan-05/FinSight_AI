@@ -11,7 +11,7 @@ from agent.state import AgentState
 from agent.tools import execute_tool
 
 
-def build_graph(db: Session) -> Any:
+def build_graph(db: Session, account_ids: list[str] | None = None) -> Any:
     """Compile a ReAct agent graph: call model → tools → model loop."""
 
     def agent_node(state: AgentState) -> dict[str, list[AIMessage]]:
@@ -25,7 +25,7 @@ def build_graph(db: Session) -> Any:
 
         tool_messages: list[ToolMessage] = []
         for tc in last.tool_calls:
-            result = execute_tool(tc["name"], tc["args"], db=db)
+            result = execute_tool(tc["name"], tc["args"], db=db, account_ids=account_ids)
             tool_messages.append(
                 ToolMessage(content=result, tool_call_id=tc["id"], name=tc["name"])
             )

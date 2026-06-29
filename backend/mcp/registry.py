@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Callable
 
-from mcp.currency import convert_currency
+from mcp.currency import convert_currency, get_exchange_rates
 from mcp.market import get_market_quote
 
 MCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
@@ -21,6 +21,11 @@ MCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_exchange_rates",
+        "description": "Get live USD/CAD, EUR/CAD, GBP/CAD from Bank of Canada.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
         "name": "get_market_quote",
         "description": "Get a demo stock/ETF quote (AAPL, MSFT, GOOGL, TSLA, SPY).",
         "input_schema": {
@@ -35,6 +40,7 @@ MCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
 
 _HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
     "convert_currency": convert_currency,
+    "get_exchange_rates": get_exchange_rates,
     "get_market_quote": get_market_quote,
 }
 
@@ -49,6 +55,8 @@ def execute_mcp_tool(name: str, args: dict[str, Any]) -> str:
             str(args.get("from_currency", "USD")),
             str(args.get("to_currency", "USD")),
         )
+    elif name == "get_exchange_rates":
+        result = handler()
     else:
         result = handler(str(args.get("symbol", "")))
     return json.dumps(result)

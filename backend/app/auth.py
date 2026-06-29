@@ -120,10 +120,17 @@ def get_current_user_optional(
 ) -> User | None:
     """Return linked user when a valid JWT is present; None in open dev mode."""
     if not authorization or not authorization.startswith("Bearer "):
-        if settings.require_auth:
+        if settings.auth_enforced:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Authentication required",
+            )
+        return None
+    if not settings.supabase_auth_enabled:
+        if settings.auth_enforced:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Supabase auth is not configured on the server",
             )
         return None
     token = authorization[7:].strip()

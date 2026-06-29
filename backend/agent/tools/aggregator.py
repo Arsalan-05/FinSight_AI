@@ -20,6 +20,7 @@ def aggregate_spending(
     group_by: GroupBy = "category",
     category: str | None = None,
     account_id: str | None = None,
+    account_ids: list[str] | None = None,
     transaction_type: TransactionType = "all",
 ) -> dict[str, Any]:
     """Run SQL aggregates over transactions and return a JSON-serializable summary."""
@@ -27,6 +28,20 @@ def aggregate_spending(
 
     if account_id:
         q = q.filter(Transaction.account_id == account_id)
+    elif account_ids is not None:
+        if not account_ids:
+            empty: dict[str, Any] = {
+                "group_by": group_by,
+                "count": 0,
+                "total": 0.0,
+                "filters": _filters_dict(
+                    start_date, end_date, account_id, transaction_type, category
+                ),
+            }
+            if group_by != "none":
+                empty["groups"] = []
+            return empty
+        q = q.filter(Transaction.account_id.in_(account_ids))
     if category:
         q = q.filter(Transaction.category.ilike(f"%{category}%"))
     if start_date:
@@ -47,9 +62,7 @@ def aggregate_spending(
             "group_by": "none",
             "count": int(row.tx_count),
             "total": round(float(row.total), 2),
-            "filters": _filters_dict(
-                start_date, end_date, account_id, transaction_type, category
-            ),
+            "filters": _filters_dict(start_date, end_date, account_id, transaction_type, category),
         }
 
     label_key: str

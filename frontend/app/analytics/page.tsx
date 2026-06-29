@@ -27,6 +27,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { api } from "@/lib/api";
 import type { Transaction } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
@@ -213,47 +214,47 @@ export default function AnalyticsPage() {
 
   return (
     <div className="page-container">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Analytics</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">
-            {txs.length.toLocaleString()} transactions · {period} view
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Period selector */}
-          <div className="flex rounded-lg border border-zinc-800 bg-zinc-900 p-0.5">
-            {PERIODS.map(({ label }) => (
-              <button
-                key={label}
-                onClick={() => handlePeriod(label)}
-                className={[
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                  period === label
-                    ? "bg-indigo-600 text-white"
-                    : "text-zinc-500 hover:text-zinc-300",
-                ].join(" ")}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-100"
-          >
-            Export CSV
-          </button>
-          <button
-            onClick={() => { setLoading(true); fetchData(period).then((d) => { setTxs(d); setLoading(false); }); }}
-            disabled={loading}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-100 disabled:opacity-40"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Insights"
+        title="Analytics"
+        subtitle={`${txs.length.toLocaleString()} transactions · ${period} view`}
+        actions={
+          <>
+            <div className="flex panel rounded-xl p-0.5">
+              {PERIODS.map(({ label }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => handlePeriod(label)}
+                  className={[
+                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                    period === label
+                      ? "bg-indigo-600 text-white"
+                      : "text-[var(--muted)] hover:text-[var(--foreground)]",
+                  ].join(" ")}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={handleExport}
+              className="btn-ghost flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLoading(true); fetchData(period).then((d) => { setTxs(d); setLoading(false); }); }}
+              disabled={loading}
+              className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            </button>
+          </>
+        }
+      />
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -391,7 +392,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Monthly summary table */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+      <section className="panel rounded-2xl p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-zinc-200">Monthly Breakdown</h2>
           <span className="text-xs text-zinc-600">{months.length} months</span>
@@ -411,7 +412,7 @@ export default function AnalyticsPage() {
                     <tr key={i}>
                       {Array.from({ length: 5 }).map((_, j) => (
                         <td key={j} className="py-3 pr-6">
-                          <div className="h-3.5 animate-pulse rounded bg-zinc-800" />
+                          <div className="h-3.5 shimmer rounded" />
                         </td>
                       ))}
                     </tr>
@@ -436,7 +437,7 @@ export default function AnalyticsPage() {
       </section>
 
       {/* Category detail table */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+      <section className="panel rounded-2xl p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-zinc-200">Category Detail</h2>
           <ShoppingBag size={14} className="text-zinc-600" />
@@ -454,7 +455,7 @@ export default function AnalyticsPage() {
               {loading
                 ? Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i}>{Array.from({ length: 4 }).map((_, j) => (
-                      <td key={j} className="py-3 pr-6"><div className="h-3.5 animate-pulse rounded bg-zinc-800" /></td>
+                      <td key={j} className="py-3 pr-6"><div className="h-3.5 shimmer rounded" /></td>
                     ))}</tr>
                   ))
                 : categories.map((c) => (
@@ -494,21 +495,21 @@ function KpiCard({ icon, label, value, accent, sub, neg }: {
   icon: React.ReactNode; label: string; value: string;
   accent: "rose" | "emerald" | "indigo"; sub: string; neg?: boolean;
 }) {
-  const cls: Record<string, string> = {
-    rose: "bg-rose-500/10 text-rose-400",
-    emerald: "bg-emerald-500/10 text-emerald-400",
-    indigo: "bg-indigo-500/10 text-indigo-400",
+  const accentCls: Record<string, string> = {
+    rose: "kpi-accent-rose",
+    emerald: "kpi-accent-emerald",
+    indigo: "kpi-accent-indigo",
   };
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+    <div className={`kpi-card panel-interactive ${accentCls[accent]}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-zinc-500">{label}</span>
-        <span className={`rounded-lg p-1.5 ${cls[accent]}`}>{icon}</span>
+        <span className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">{label}</span>
+        <span className="kpi-icon">{icon}</span>
       </div>
-      <p className={["text-2xl font-semibold tabular-nums", neg ? "text-rose-400" : "text-zinc-50"].join(" ")}>
-        {neg ? "-" : ""}{value}
+      <p className={["text-2xl font-semibold tabular-nums tracking-tight", neg ? "text-rose-400" : ""].join(" ")}>
+        {neg ? "−" : ""}{value}
       </p>
-      <p className="truncate text-xs text-zinc-600">{sub}</p>
+      <p className="truncate text-xs text-[var(--muted)]">{sub}</p>
     </div>
   );
 }
@@ -517,10 +518,10 @@ function ChartCard({ title, subtitle, children, className }: {
   title: string; subtitle?: string; children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className={["flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-5", className].join(" ")}>
+    <div className={["panel flex flex-col gap-4 rounded-2xl p-5", className].filter(Boolean).join(" ")}>
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-200">{title}</h2>
-        {subtitle && <span className="text-xs text-zinc-600">{subtitle}</span>}
+        <h2 className="section-title">{title}</h2>
+        {subtitle && <span className="text-xs text-[var(--muted)]">{subtitle}</span>}
       </div>
       {children}
     </div>
@@ -528,7 +529,7 @@ function ChartCard({ title, subtitle, children, className }: {
 }
 
 function Skeleton({ h }: { h: number }) {
-  return <div className="animate-pulse rounded-lg bg-zinc-800" style={{ height: h }} />;
+  return <div className="shimmer rounded-lg" style={{ height: h }} />;
 }
 
 function Empty({ text = "No data for this period" }: { text?: string }) {

@@ -98,7 +98,7 @@ function LoginForm() {
             {["RAG Search", "LangGraph Agent", "Real-time Analytics"].map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]"
+                className="tag-pill rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)] transition-colors hover:border-[var(--border-glow)]"
               >
                 {tag}
               </span>
@@ -123,7 +123,7 @@ function LoginForm() {
             </p>
           </div>
 
-          <div className="glass-elevated space-y-4 rounded-2xl p-6">
+          <div className="panel space-y-4 rounded-2xl p-6 panel-interactive">
             {authError && (
               <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
                 {authError}

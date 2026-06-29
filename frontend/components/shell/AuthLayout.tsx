@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import AppShell from "@/components/shell/AppShell";
+import AuthSync from "@/components/AuthSync";
 
 const PUBLIC_PREFIXES = ["/login", "/auth/"];
 
@@ -14,5 +15,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     return <>{children}</>;
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <>
+      <AuthSync />
+      <AppShell>{children}</AppShell>
+    </>
+  );
 }

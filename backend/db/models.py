@@ -26,6 +26,7 @@ class User(Base):
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    goals_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     accounts: Mapped[list[Account]] = relationship("Account", back_populates="user")
@@ -73,6 +74,9 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True, index=True
+    )
     # JSON-serialized LangChain message dicts for conversation history
     messages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     memory_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")

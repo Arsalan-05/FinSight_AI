@@ -12,16 +12,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, TransactionCitation } from "@/lib/types";
 
 const SESSION_KEY = "finsight_chat_session";
 
 const EXAMPLE_PROMPTS = [
   "How much did I spend on dining last month?",
-  "What are my top spending categories?",
-  "Convert $500 USD to CAD",
-  "What's the price of AAPL?",
-  "Show me my grocery spending",
+  "What are my subscriptions costing per month?",
+  "How much TFSA room do I have left?",
+  "What's my cash runway as a student?",
+  "Which credit card should I use for groceries?",
 ];
 
 function loadSessionId(): string {
@@ -72,7 +72,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         userMsg,
-        { id: assistantId, role: "assistant", content: "" },
+        { id: assistantId, role: "assistant", content: "", citations: [] },
       ]);
 
       const controller = new AbortController();
@@ -80,6 +80,7 @@ export default function ChatPage() {
 
       try {
         let reply = "";
+        let citations: TransactionCitation[] = [];
         let activeSession = sessionId;
 
         for await (const event of api.chatStream(message, sessionId || undefined, controller.signal)) {
@@ -92,10 +93,11 @@ export default function ChatPage() {
             );
           } else if (event.type === "done") {
             reply = event.content;
+            citations = event.citations ?? [];
             activeSession = event.session_id;
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId ? { ...m, content: reply } : m,
+                m.id === assistantId ? { ...m, content: reply, citations } : m,
               ),
             );
           } else if (event.type === "error") {
@@ -155,7 +157,7 @@ export default function ChatPage() {
         <button
           type="button"
           onClick={handleNewChat}
-          className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+          className="flex items-center gap-2 panel rounded-xl px-3 py-2 text-xs text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
         >
           <RotateCcw size={13} />
           New chat
@@ -207,7 +209,12 @@ export default function ChatPage() {
             msg.role === "user" ? (
               <UserBubble key={msg.id} text={msg.content} />
             ) : (
-              <AgentBubble key={msg.id} content={msg.content} streaming={loading && !msg.content} />
+              <AgentBubble
+                key={msg.id}
+                content={msg.content}
+                citations={msg.citations}
+                streaming={loading && !msg.content}
+              />
             ),
           )}
 
@@ -275,7 +282,15 @@ function UserBubble({ text }: { text: string }) {
   );
 }
 
-function AgentBubble({ content, streaming }: { content: string; streaming?: boolean }) {
+function AgentBubble({
+  content,
+  citations,
+  streaming,
+}: {
+  content: string;
+  citations?: TransactionCitation[];
+  streaming?: boolean;
+}) {
   return (
     <div className="flex items-start gap-3">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/20">
@@ -288,7 +303,31 @@ function AgentBubble({ content, streaming }: { content: string; streaming?: bool
             Agent is thinking…
           </span>
         ) : (
-          <p className="whitespace-pre-wrap text-sm text-zinc-300">{content}</p>
+          <>
+            <p className="whitespace-pre-wrap text-sm text-zinc-300">{content}</p>
+            {citations && citations.length > 0 && (
+              <div className="mt-3 border-t border-zinc-800 pt-3">
+                <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                  Based on transactions
+                </p>
+                <ul className="flex flex-col gap-1.5">
+                  {citations.map((c) => (
+                    <li key={c.id} className="text-xs text-zinc-500">
+                      <span className="text-zinc-400">{c.date ?? "—"}</span>
+                      {" · "}
+                      {c.description ?? c.merchant}
+                      {c.amount != null && (
+                        <span className={c.amount < 0 ? " text-rose-400" : " text-emerald-400"}>
+                          {" "}
+                          {c.amount < 0 ? "-" : "+"}${Math.abs(c.amount).toFixed(2)}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

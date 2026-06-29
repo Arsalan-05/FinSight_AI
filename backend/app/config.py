@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     pgvector_collection: str = "transaction_embeddings"
     environment: str = "development"
 
+    # When true, backend uses Supabase hosted Postgres (requires supabase_db_password)
+    use_supabase_db: bool = False
+    supabase_db_password: str = ""
+
     # Optional — when set, all routes except /health and docs require X-API-Key
     finsight_api_key: str = ""
 
@@ -37,6 +41,14 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = ""
     supabase_service_role_key: str = ""
     require_auth: bool = False
+
+    # Chat rate limit — requests per minute per client IP (0 = disabled)
+    chat_rate_limit_per_minute: int = 30
+
+    @property
+    def auth_enforced(self) -> bool:
+        """True when API routes should require a valid Supabase JWT."""
+        return self.require_auth or self.supabase_auth_enabled
 
     @property
     def supabase_auth_enabled(self) -> bool:
@@ -58,6 +70,28 @@ class Settings(BaseSettings):
         if self.llm_provider == "anthropic":
             return bool(self.anthropic_api_key)
         return True
+
+    @property
+    def database_url_resolved(self) -> str:
+        """Postgres URL — use DATABASE_URL if Supabase pooler/direct, else build from password."""
+        url = self.database_url
+        if "supabase.co" in url or "pooler.supabase.com" in url:
+            return url
+        if not self.use_supabase_db and not self.supabase_db_password:
+            return url
+        if not self.supabase_url or not self.supabase_db_password:
+            return url
+        from urllib.parse import quote_plus
+
+        host = self.supabase_url.rstrip("/").replace("https://", "").replace("http://", "")
+        ref = host.replace(".supabase.co", "")
+        pwd = quote_plus(self.supabase_db_password)
+        return f"postgresql://postgres:{pwd}@db.{ref}.supabase.co:5432/postgres"
+
+    @property
+    def using_supabase_postgres(self) -> bool:
+        url = self.database_url_resolved
+        return "supabase.co" in url or "pooler.supabase.com" in url
 
 
 settings = Settings()

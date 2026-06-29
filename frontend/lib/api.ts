@@ -1,19 +1,29 @@
 import type {
   Account,
   ChatSSEEvent,
+  FinancialGoal,
   HealthResponse,
+  DbHealthResponse,
+  InsightsResponse,
   SearchResponse,
   Transaction,
   TransactionList,
   User,
 } from "./types";
 import { authHeaders } from "./auth";
-import { getAccessToken } from "./supabase/session";
+import { getAccessTokenReady } from "./supabase/session";
+import { isSupabaseConfigured } from "./supabase/client";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-async function buildHeaders(extra?: HeadersInit): Promise<HeadersInit> {
-  const token = await getAccessToken();
+const PUBLIC_PATHS = new Set(["/health", "/health/db"]);
+
+async function buildHeaders(path: string, extra?: HeadersInit): Promise<HeadersInit> {
+  const needsAuth = isSupabaseConfigured() && !PUBLIC_PATHS.has(path);
+  const token = needsAuth ? await getAccessTokenReady() : null;
+  if (needsAuth && !token) {
+    throw new Error("Session not ready — sign in again or refresh the page.");
+  }
   return {
     "Content-Type": "application/json",
     ...authHeaders(),
@@ -27,7 +37,7 @@ async function request<T>(
   init?: RequestInit,
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: await buildHeaders(init?.headers),
+    headers: await buildHeaders(path, init?.headers),
     ...init,
   });
   if (!res.ok) {
@@ -42,7 +52,11 @@ async function request<T>(
 export const api = {
   health: (): Promise<HealthResponse> => request("/health"),
 
+  healthDb: (): Promise<DbHealthResponse> => request("/health/db"),
+
   getMe: (): Promise<User> => request("/auth/me"),
+
+  syncProfile: (): Promise<User> => request("/auth/sync", { method: "POST" }),
 
   // ── Users ───────────────────────────────────────────────────────────────
 
@@ -99,19 +113,39 @@ export const api = {
   deleteTransaction: (id: string): Promise<void> =>
     request(`/transactions/${id}`, { method: "DELETE" }),
 
-    uploadCsv: async (file: File, account_id: string): Promise<{ created: number; errors: string[] }> => {
+  uploadCsv: async (
+    file: File,
+    account_id: string,
+  ): Promise<{ created: number; errors: string[]; bank_detected?: string }> => {
     const form = new FormData();
     form.append("file", file);
-    const token = await getAccessToken();
+    const token = await getAccessTokenReady();
     return fetch(`${BASE}/transactions/upload?account_id=${account_id}`, {
       method: "POST",
       headers: { ...authHeaders(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: form,
     }).then((r) => {
       if (!r.ok) throw new Error(`Upload failed: ${r.statusText}`);
-      return r.json() as Promise<{ created: number; errors: string[] }>;
+      return r.json() as Promise<{ created: number; errors: string[]; bank_detected?: string }>;
     });
   },
+
+  // ── Insights & Goals ───────────────────────────────────────────────────────
+
+  getInsights: (): Promise<InsightsResponse> => request("/insights/"),
+
+  getGoals: (): Promise<FinancialGoal[]> => request("/goals/"),
+
+  createGoal: (data: {
+    title: string;
+    target_amount?: number;
+    deadline?: string;
+    notes?: string;
+  }): Promise<FinancialGoal> =>
+    request("/goals/", { method: "POST", body: JSON.stringify(data) }),
+
+  deleteGoal: (id: string): Promise<void> =>
+    request(`/goals/${id}`, { method: "DELETE" }),
 
   // ── Search ────────────────────────────────────────────────────────────────
 
@@ -128,7 +162,7 @@ export const api = {
     sessionId?: string,
     signal?: AbortSignal,
   ): AsyncGenerator<ChatSSEEvent> {
-    const token = await getAccessToken();
+    const token = await getAccessTokenReady();
     const res = await fetch(`${BASE}/chat/`, {
       method: "POST",
       headers: {
@@ -140,8 +174,17 @@ export const api = {
       signal,
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => res.statusText);
-      throw new Error(`API ${res.status}: ${text}`);
+      let detail = res.statusText;
+      try {
+        const body = (await res.json()) as { detail?: string };
+        if (typeof body.detail === "string") detail = body.detail;
+      } catch {
+        detail = await res.text().catch(() => detail);
+      }
+      if (res.status === 429) {
+        throw new Error(detail || "Too many chat requests. Please wait a moment.");
+      }
+      throw new Error(`API ${res.status}: ${detail}`);
     }
     if (!res.body) {
       throw new Error("No response body from chat endpoint");

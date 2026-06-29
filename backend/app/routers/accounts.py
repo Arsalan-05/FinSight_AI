@@ -53,5 +53,11 @@ def get_account(
 
 
 @router.get("/by-user/{user_id}", response_model=list[AccountOut])
-def list_accounts_for_user(user_id: str, db: Session = Depends(get_db)) -> list[Account]:
+def list_accounts_for_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> list[Account]:
+    if current_user and current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return db.query(Account).filter(Account.user_id == user_id).all()
