@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # Optional — when set, all routes except /health and docs require X-API-Key
     finsight_api_key: str = ""
 
+    # Supabase — set DATABASE_URL to your Supabase Postgres connection string
+    supabase_url: str = ""
+    supabase_jwt_secret: str = ""
+    require_auth: bool = False
+
     @property
     def embedding_dim(self) -> int:
         return 1024 if self.embedding_provider == "voyage" else 768

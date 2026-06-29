@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import agent._warn  # noqa: F401 — suppress third-party import warnings
 from app.config import settings
 from app.middleware.api_key import ApiKeyMiddleware
-from app.routers import accounts, chat, search, transactions, users
+from app.routers import accounts, auth, chat, search, transactions, users
 from mcp import register_mcp_tools
 
 
@@ -31,6 +31,7 @@ app.add_middleware(
 if settings.finsight_api_key:
     app.add_middleware(ApiKeyMiddleware, api_key=settings.finsight_api_key)
 
+app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(accounts.router)
 app.include_router(transactions.router)
