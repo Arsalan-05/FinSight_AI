@@ -4,11 +4,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.dependencies import get_db
 from app.main import app
 from db.base import Base
 
 SQLITE_URL = "sqlite://"
+
+
+@pytest.fixture(autouse=True)
+def disable_embeddings_in_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """API tests use SQLite without Ollama — skip embedding side effects."""
+    monkeypatch.setattr(settings, "embedding_provider", "voyage")
+    monkeypatch.setattr(settings, "voyage_api_key", "")
 
 
 @pytest.fixture(scope="function")

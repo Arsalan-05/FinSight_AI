@@ -24,6 +24,9 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://finsight:finsight@db:5432/finsight
+      LLM_PROVIDER: ollama
+      EMBEDDING_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
     ports:
       - "8000:8000"
     depends_on:

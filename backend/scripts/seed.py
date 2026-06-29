@@ -15,7 +15,35 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from datetime import date
 
 from db.base import Base, SessionLocal, engine
-from db.models import Account, Transaction, User
+from db.models import Account, Transaction, TransactionEmbedding, User
+
+
+def _embed_seeded_transactions(db, txs: list[Transaction]) -> None:
+    """Best-effort embedding of seeded transactions for semantic search."""
+    from app.config import settings
+    from rag.embedder import build_content, embed_texts, ollama_embeddings_available
+
+    if not settings.embeddings_configured:
+        return
+    if settings.embedding_provider == "ollama" and not ollama_embeddings_available():
+        print("Skipping embeddings — run: ollama pull nomic-embed-text")
+        return
+    try:
+        contents = [build_content(tx) for tx in txs]
+        vectors = embed_texts(contents, input_type="document")
+        for tx, content, vector in zip(txs, contents, vectors):
+            db.add(
+                TransactionEmbedding(
+                    transaction_id=tx.id,
+                    content=content,
+                    embedding=vector,
+                )
+            )
+        db.commit()
+        print(f"Embedded {len(txs)} transactions for semantic search.")
+    except Exception as exc:
+        db.rollback()
+        print(f"Embedding skipped ({exc})")
 
 
 def seed() -> None:
@@ -455,6 +483,9 @@ def seed() -> None:
 
     db.add_all(transactions)
     db.commit()
+
+    _embed_seeded_transactions(db, transactions)
+
     db.close()
     print(f"Seeded 1 user, 2 accounts, {len(transactions)} transactions.")
 

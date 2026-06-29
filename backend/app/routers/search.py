@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.dependencies import get_db
 from app.schemas import TransactionOut
+from rag.embedder import ollama_embeddings_available
 from rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
@@ -33,12 +34,15 @@ def semantic_search(
     payload: SearchRequest,
     db: Session = Depends(get_db),
 ) -> SearchResponse:
-    """Semantic search over transactions using the RAG retriever.
-
-    Returns an empty results list (not an error) when VOYAGE_API_KEY is
-    not configured — the UI can show a helpful message in that case.
-    """
-    if not settings.voyage_api_key:
+    """Semantic search over transactions using the RAG retriever."""
+    if not settings.embeddings_configured:
+        return SearchResponse(
+            results=[],
+            query=payload.query,
+            k=payload.k,
+            embedding_enabled=False,
+        )
+    if settings.embedding_provider == "ollama" and not ollama_embeddings_available():
         return SearchResponse(
             results=[],
             query=payload.query,
@@ -46,7 +50,7 @@ def semantic_search(
             embedding_enabled=False,
         )
     try:
-        txs = retrieve(payload.query, db, settings.voyage_api_key, k=payload.k)
+        txs = retrieve(payload.query, db, k=payload.k)
         return SearchResponse(
             results=txs,  # type: ignore[arg-type]
             query=payload.query,

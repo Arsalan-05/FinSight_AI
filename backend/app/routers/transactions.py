@@ -20,16 +20,16 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
 def _embed_and_store(txs: list[Transaction], db: Session) -> None:
-    """Embed *txs* via Voyage AI and persist to transaction_embeddings.
+    """Embed transactions and persist to transaction_embeddings.
 
-    Silently skips if VOYAGE_API_KEY is not configured or if the Voyage
-    API call fails — embedding is best-effort and must never block ingestion.
+    Uses Ollama (free) or Voyage AI depending on EMBEDDING_PROVIDER.
+    Silently skips if embeddings are unavailable or the call fails.
     """
-    if not settings.voyage_api_key:
+    if not settings.embeddings_configured:
         return
     try:
         contents = [build_content(tx) for tx in txs]
-        vectors = embed_texts(contents, settings.voyage_api_key, input_type="document")
+        vectors = embed_texts(contents, input_type="document")
         for tx, content, vector in zip(txs, contents, vectors):
             db.add(
                 TransactionEmbedding(
