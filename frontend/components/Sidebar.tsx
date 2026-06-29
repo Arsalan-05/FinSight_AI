@@ -19,13 +19,18 @@ import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const NAV = [
+const NAV: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  badge?: string;
+}[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/transactions", label: "Transactions", icon: CreditCard },
   { href: "/accounts", label: "Accounts", icon: Users },
   { href: "/search", label: "AI Search", icon: Search },
-  { href: "/chat", label: "Chat Agent", icon: MessageSquare, badge: "Week 4" },
+  { href: "/chat", label: "Chat Agent", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

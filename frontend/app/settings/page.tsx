@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
+import { getApiKey, setApiKey } from "@/lib/auth";
 import { exportToCsv } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -32,6 +33,9 @@ export default function SettingsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [apiKey, setApiKeyState] = useState(() =>
+    typeof window === "undefined" ? "" : getApiKey(),
+  );
 
   const fetchStats = useCallback(() => {
     return Promise.all([
@@ -131,12 +135,42 @@ export default function SettingsPage() {
           />
           <StatusRow
             icon={<BrainCircuit size={14} />}
-            label="Claude (Anthropic)"
-            description="Agent inference — configured in Week 4"
-            ok={null}
+            label="LangGraph Agent"
+            description="Ollama llama3.2 + ReAct tools — POST /chat SSE"
+            ok={stats?.apiHealthy ?? null}
             loading={loading}
-            badge="Week 4"
           />
+        </div>
+      </section>
+
+      {/* API Key */}
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+          <Server size={15} className="text-zinc-500" /> API Access
+        </h2>
+        <p className="mb-3 text-xs text-zinc-600">
+          Optional. Set <code className="text-zinc-400">FINSIGHT_API_KEY</code> on the backend to
+          require an <code className="text-zinc-400">X-API-Key</code> header on all routes except
+          /health.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKeyState(e.target.value)}
+            placeholder="API key (stored in browser localStorage)"
+            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/50 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setApiKey(apiKey);
+              toast(apiKey.trim() ? "API key saved" : "API key cleared");
+            }}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            Save key
+          </button>
         </div>
       </section>
 
@@ -201,9 +235,9 @@ export default function SettingsPage() {
             { week: "Week 1", title: "Scaffolding & Docker", done: true },
             { week: "Week 2", title: "Data Layer (CRUD, CSV, Migrations)", done: true },
             { week: "Week 3", title: "RAG Pipeline (Voyage AI + pgvector)", done: true },
-            { week: "Week 4", title: "LangGraph Agent Core", done: false },
-            { week: "Week 5", title: "FastAPI /chat SSE Endpoint + MCP", done: false },
-            { week: "Week 6", title: "Streaming Chat UI", done: false },
+            { week: "Week 4", title: "LangGraph Agent Core", done: true },
+            { week: "Week 5", title: "FastAPI /chat SSE Endpoint + MCP", done: true },
+            { week: "Week 6", title: "Streaming Chat UI", done: true },
             { week: "Week 7", title: "Railway Deployment + CI/CD", done: false },
             { week: "Week 8", title: "Testing, Polish, HNSW Index", done: false },
           ].map(({ week, title, done }) => (
