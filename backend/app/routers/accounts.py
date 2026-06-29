@@ -21,6 +21,11 @@ def create_account(payload: AccountCreate, db: Session = Depends(get_db)) -> Acc
     return account
 
 
+@router.get("/", response_model=list[AccountOut])
+def list_accounts(db: Session = Depends(get_db)) -> list[Account]:
+    return db.query(Account).order_by(Account.created_at.desc()).all()
+
+
 @router.get("/{account_id}", response_model=AccountOut)
 def get_account(account_id: str, db: Session = Depends(get_db)) -> Account:
     account = db.query(Account).filter(Account.id == account_id).first()
