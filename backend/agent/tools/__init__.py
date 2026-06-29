@@ -11,9 +11,10 @@ from agent.tools.aggregator import aggregate_spending
 from agent.tools.dates import last_month_range, resolve_aggregate_dates
 from agent.tools.summarize import is_empty_aggregate, summarize_aggregate
 from app.config import settings
+from mcp.registry import MCP_TOOL_DEFINITIONS, execute_mcp_tool
 from rag.retriever import retrieve
 
-TOOL_DEFINITIONS: list[dict[str, Any]] = [
+CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "search_transactions",
         "description": (
@@ -92,6 +93,13 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
 ]
+
+TOOL_DEFINITIONS: list[dict[str, Any]] = CORE_TOOL_DEFINITIONS + MCP_TOOL_DEFINITIONS
+
+
+def get_tool_definitions() -> list[dict[str, Any]]:
+    """All agent tools: core finance tools + MCP stubs."""
+    return list(TOOL_DEFINITIONS)
 
 
 def _parse_date(value: str | None) -> date | None:
@@ -213,6 +221,9 @@ def execute_tool(
 
         result["summary"] = summarize_aggregate(result)
         return json.dumps(result)
+
+    if name in {"convert_currency", "get_market_quote"}:
+        return execute_mcp_tool(name, args)
 
     return json.dumps({"error": f"Unknown tool: {name}"})
 

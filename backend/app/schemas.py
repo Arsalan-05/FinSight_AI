@@ -80,3 +80,11 @@ class TransactionOut(BaseModel):
 class TransactionListOut(BaseModel):
     total: int
     items: list[TransactionOut]
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
+
+class ChatRequest(BaseModel):
+    message: str
+    session_id: str | None = None

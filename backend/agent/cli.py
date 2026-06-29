@@ -11,12 +11,11 @@ Requires Ollama (free) by default:
 
 from __future__ import annotations
 
-import agent._warn  # noqa: F401 — must run before httpx/langgraph imports
-
 import argparse
 import sys
 import uuid
 
+import agent._warn  # noqa: F401 — must run before httpx/langgraph imports
 from agent.llm import ollama_llm_available
 from agent.runner import run_agent
 from app.config import settings

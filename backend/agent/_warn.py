@@ -3,7 +3,4 @@
 import warnings
 
 warnings.filterwarnings("ignore", module="urllib3")
-
-from langchain_core._api.deprecation import LangChainPendingDeprecationWarning
-
-warnings.filterwarnings("ignore", category=LangChainPendingDeprecationWarning)
+warnings.filterwarnings("ignore", message="The default value of `allowed_objects`")
