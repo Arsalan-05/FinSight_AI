@@ -96,7 +96,7 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 pt-16 md:pt-6">
+    <div className="page-container">
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">

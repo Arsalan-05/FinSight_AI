@@ -3,6 +3,7 @@
 import { Building2, Plus, RefreshCw, User2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import type { Account, User } from "@/lib/types";
@@ -13,17 +14,29 @@ export default function AccountsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authUser, setAuthUser] = useState<User | null>(null);
   const [showNewUser, setShowNewUser] = useState(false);
   const [showNewAccount, setShowNewAccount] = useState(false);
 
-  const fetchAll = useCallback(
-    () => Promise.all([api.getUsers(), api.getAccounts()]),
-    [],
-  );
+  const fetchAll = useCallback(() => {
+    return api
+      .getMe()
+      .then((me) => {
+        setAuthUser(me);
+        return api.getAccounts().then((accs) => ({ users: [me], accounts: accs }));
+      })
+      .catch(() => {
+        setAuthUser(null);
+        return Promise.all([api.getUsers(), api.getAccounts()]).then(([u, a]) => ({
+          users: u,
+          accounts: a,
+        }));
+      });
+  }, []);
 
   useEffect(() => {
     let active = true;
-    fetchAll().then(([u, a]) => {
+    fetchAll().then(({ users: u, accounts: a }) => {
       if (!active) return;
       setUsers(u);
       setAccounts(a);
@@ -34,7 +47,7 @@ export default function AccountsPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetchAll().then(([u, a]) => {
+    fetchAll().then(({ users: u, accounts: a }) => {
       setUsers(u);
       setAccounts(a);
       setLoading(false);
@@ -47,58 +60,65 @@ export default function AccountsPage() {
   }));
 
   return (
-    <div className="flex flex-col gap-6 p-6 pt-16 md:pt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Accounts</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">
-            {users.length} user{users.length !== 1 ? "s" : ""} ·{" "}
-            {accounts.length} account{accounts.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => void load()}
-            disabled={loading}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-100 disabled:opacity-40"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-          <button
-            onClick={() => setShowNewAccount(true)}
-            disabled={users.length === 0}
-            className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white disabled:opacity-40"
-          >
-            <Building2 size={13} />
-            New Account
-          </button>
-          <button
-            onClick={() => setShowNewUser(true)}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500"
-          >
-            <Plus size={13} />
-            New User
-          </button>
-        </div>
-      </div>
+    <div className="page-container">
+      <PageHeader
+        eyebrow="Finance"
+        title="Accounts"
+        subtitle={`${users.length} user${users.length !== 1 ? "s" : ""} · ${accounts.length} account${accounts.length !== 1 ? "s" : ""}`}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowNewAccount(true)}
+              disabled={users.length === 0}
+              className="btn-ghost flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium disabled:opacity-40"
+            >
+              <Building2 size={13} />
+              New Account
+            </button>
+            {!authUser && (
+              <button
+                type="button"
+                onClick={() => setShowNewUser(true)}
+                className="btn-primary flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium"
+              >
+                <Plus size={13} />
+                New User
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* No data hint */}
       {!loading && users.length === 0 && (
-        <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-zinc-800 py-16 text-center">
-          <User2 size={32} className="text-zinc-700" />
+        <div className="card flex flex-col items-center gap-4 border-dashed py-16 text-center">
+          <User2 size={32} className="text-[var(--muted)]" />
           <div>
-            <p className="text-sm font-medium text-zinc-400">No users yet</p>
-            <p className="mt-1 text-xs text-zinc-600">
-              Create a user first, then add financial accounts to it.
+            <p className="text-sm font-medium text-[var(--foreground)]">No profile yet</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {authUser
+                ? "Add your first financial account to get started."
+                : "Sign in or create a user, then add financial accounts."}
             </p>
           </div>
-          <button
-            onClick={() => setShowNewUser(true)}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-          >
-            Create User
-          </button>
+          {!authUser && (
+            <button
+              type="button"
+              onClick={() => setShowNewUser(true)}
+              className="btn-primary rounded-xl px-4 py-2 text-sm font-medium"
+            >
+              Create User
+            </button>
+          )}
         </div>
       )}
 

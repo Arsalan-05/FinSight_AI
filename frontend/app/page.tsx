@@ -20,6 +20,7 @@ import {
   Tooltip,
 } from "recharts";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { api } from "@/lib/api";
 import type { Account, Transaction } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
@@ -120,33 +121,34 @@ export default function DashboardPage() {
   const maxCat = topCategories[0]?.[1] ?? 1;
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">Overview</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            {new Date().toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={["flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium glass",
-            apiOk === true ? "text-emerald-400" :
-            apiOk === false ? "text-red-400" : "text-[var(--muted)]",
-          ].join(" ")}>
-            <span className={["h-1.5 w-1.5 rounded-full",
-              apiOk === true ? "bg-emerald-400 animate-pulse" : apiOk === false ? "bg-red-400" : "bg-[var(--muted)]",
-            ].join(" ")} />
-            {apiOk === true ? "Connected" : apiOk === false ? "Offline" : "Checking…"}
-          </span>
-          <button type="button" onClick={reload} disabled={loading}
-            className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40">
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
-      </div>
+    <div className="page-container gap-8">
+      <PageHeader
+        eyebrow="Overview"
+        title={`Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}`}
+        subtitle={new Date().toLocaleDateString("en-CA", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })}
+        actions={
+          <>
+            <span className={["flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium glass",
+              apiOk === true ? "text-emerald-400" :
+              apiOk === false ? "text-red-400" : "text-[var(--muted)]",
+            ].join(" ")}>
+              <span className={["h-1.5 w-1.5 rounded-full",
+                apiOk === true ? "bg-emerald-400 animate-pulse" : apiOk === false ? "bg-red-400" : "bg-[var(--muted)]",
+              ].join(" ")} />
+              {apiOk === true ? "Connected" : apiOk === false ? "Offline" : "Checking…"}
+            </span>
+            <button type="button" onClick={reload} disabled={loading}
+              className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40">
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            </button>
+          </>
+        }
+      />
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
