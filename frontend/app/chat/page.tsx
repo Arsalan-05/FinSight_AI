@@ -5,6 +5,9 @@ import {
   History,
   Loader2,
   MessageSquarePlus,
+  Pencil,
+  Pin,
+  PinOff,
   RotateCcw,
   Send,
   Sparkles,
@@ -27,6 +30,13 @@ const EXAMPLE_PROMPTS = [
   "How much TFSA room do I have left?",
   "What's my cash runway as a student?",
   "Which credit card should I use for groceries?",
+];
+
+const FALLBACK_STATUS = [
+  "Connecting to your transaction data…",
+  "Checking accounts and recent activity…",
+  "Preparing spending tools…",
+  "Almost ready — pulling your numbers…",
 ];
 
 function loadSessionId(): string {
@@ -68,13 +78,17 @@ export default function ChatPage() {
   const [historyLoading, setHistoryLoading] = useState(isSupabaseConfigured);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState(() =>
     typeof window === "undefined" ? "" : loadSessionId(),
   );
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const statusIdx = useRef(0);
 
   const refreshSessions = useCallback(async () => {
     if (!authReady) return;
@@ -82,7 +96,7 @@ export default function ChatPage() {
       const rows = await api.listChatSessions();
       setSessions(rows);
     } catch {
-      // History is optional when auth is off in dev
+      // optional in dev without auth
     }
   }, [authReady]);
 
@@ -95,9 +109,7 @@ export default function ChatPage() {
         const detail = await api.getChatSession(id);
         setSessionId(detail.id);
         saveSessionId(detail.id);
-        setMessages(
-          detail.messages.map((m) => newMessage(m.role, m.content)),
-        );
+        setMessages(detail.messages.map((m) => newMessage(m.role, m.content)));
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Could not load chat";
         setError(msg);
@@ -143,7 +155,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, loading, agentStatus]);
 
   const sendMessage = useCallback(
     async (text?: string) => {
@@ -153,6 +165,7 @@ export default function ChatPage() {
       setInput("");
       setError(null);
       setLoading(true);
+      setAgentStatus(FALLBACK_STATUS[0]);
 
       const userMsg = newMessage("user", message);
       const assistantId = crypto.randomUUID();
@@ -164,6 +177,10 @@ export default function ChatPage() {
 
       const controller = new AbortController();
       abortRef.current = controller;
+      const fallbackTimer = setInterval(() => {
+        statusIdx.current = (statusIdx.current + 1) % FALLBACK_STATUS.length;
+        setAgentStatus((prev) => prev ?? FALLBACK_STATUS[statusIdx.current]);
+      }, 2200);
 
       try {
         let reply = "";
@@ -171,7 +188,9 @@ export default function ChatPage() {
         let activeSession = sessionId;
 
         for await (const event of api.chatStream(message, sessionId || undefined, controller.signal)) {
-          if (event.type === "token") {
+          if (event.type === "status") {
+            setAgentStatus(event.detail || event.phase);
+          } else if (event.type === "token") {
             reply += event.content;
             setMessages((prev) =>
               prev.map((m) =>
@@ -204,7 +223,9 @@ export default function ChatPage() {
         toast(msg, "error");
         setMessages((prev) => prev.filter((m) => m.id !== assistantId));
       } finally {
+        clearInterval(fallbackTimer);
         setLoading(false);
+        setAgentStatus(null);
         abortRef.current = null;
         inputRef.current?.focus();
       }
@@ -215,6 +236,7 @@ export default function ChatPage() {
   const handleStop = () => {
     abortRef.current?.abort();
     setLoading(false);
+    setAgentStatus(null);
   };
 
   const handleNewChat = () => {
@@ -226,15 +248,57 @@ export default function ChatPage() {
     inputRef.current?.focus();
   };
 
-  const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteSession = async (id: string) => {
+    const previous = sessions;
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (sessionId === id) {
+      setMessages([]);
+      setSessionId("");
+      localStorage.removeItem(SESSION_KEY);
+    }
     try {
       await api.deleteChatSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      if (sessionId === id) handleNewChat();
       toast("Conversation deleted");
     } catch {
+      setSessions(previous);
+      if (sessionId === id) {
+        void loadSession(id);
+      }
       toast("Could not delete conversation", "error");
+    }
+  };
+
+  const handleTogglePin = async (s: ChatSessionSummary) => {
+    try {
+      const updated = await api.updateChatSession(s.id, { pinned: !s.pinned });
+      setSessions((prev) => {
+        const next = prev.map((x) => (x.id === s.id ? updated : x));
+        return [...next].sort((a, b) => {
+          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+          return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
+        });
+      });
+      toast(updated.pinned ? "Conversation pinned" : "Unpinned");
+    } catch {
+      toast("Could not update conversation", "error");
+    }
+  };
+
+  const startRename = (s: ChatSessionSummary) => {
+    setRenamingId(s.id);
+    setRenameValue(s.title);
+  };
+
+  const commitRename = async (id: string) => {
+    const title = renameValue.trim();
+    setRenamingId(null);
+    if (!title) return;
+    try {
+      const updated = await api.updateChatSession(id, { title });
+      setSessions((prev) => prev.map((x) => (x.id === id ? updated : x)));
+      toast("Renamed");
+    } catch {
+      toast("Could not rename conversation", "error");
     }
   };
 
@@ -279,31 +343,66 @@ export default function ChatPage() {
                   <li key={s.id}>
                     <div
                       className={[
-                        "group flex w-full items-start gap-2 rounded-lg px-2.5 py-2 transition-colors",
+                        "group flex w-full items-start gap-1 rounded-lg px-2 py-2 transition-colors",
                         sessionId === s.id
                           ? "bg-indigo-500/10 text-indigo-200"
                           : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200",
                       ].join(" ")}
                     >
-                      <button
-                        type="button"
-                        onClick={() => void loadSession(s.id)}
-                        className="min-w-0 flex-1 text-left"
-                      >
-                        <p className="truncate text-xs font-medium">{s.title}</p>
-                        <p className="mt-0.5 text-[10px] text-zinc-600">
-                          {formatSessionDate(s.updated_at)}
-                          {s.message_count > 0 ? ` · ${s.message_count} msgs` : ""}
-                        </p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => void handleDeleteSession(s.id, e)}
-                        aria-label="Delete conversation"
-                        className="shrink-0 rounded p-1 text-zinc-700 opacity-0 transition-opacity hover:text-rose-400 group-hover:opacity-100"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      {renamingId === s.id ? (
+                        <input
+                          autoFocus
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={() => void commitRename(s.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void commitRename(s.id);
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                          className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void loadSession(s.id)}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <p className="flex items-center gap-1 truncate text-xs font-medium">
+                            {s.pinned && <Pin size={10} className="shrink-0 text-amber-400" />}
+                            {s.title}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-zinc-600">
+                            {formatSessionDate(s.updated_at)}
+                            {s.message_count > 0 ? ` · ${s.message_count} msgs` : ""}
+                          </p>
+                        </button>
+                      )}
+                      <div className="flex shrink-0 flex-col gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => void handleTogglePin(s)}
+                          aria-label={s.pinned ? "Unpin" : "Pin"}
+                          className="rounded p-1 text-zinc-600 hover:text-amber-400"
+                        >
+                          {s.pinned ? <PinOff size={11} /> : <Pin size={11} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startRename(s)}
+                          aria-label="Rename"
+                          className="rounded p-1 text-zinc-600 hover:text-zinc-300"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteSession(s.id)}
+                          aria-label="Delete"
+                          className="rounded p-1 text-zinc-600 hover:text-rose-400"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
                     </div>
                   </li>
                 ))}
@@ -318,7 +417,7 @@ export default function ChatPage() {
           <div>
             <h1 className="text-xl font-semibold text-zinc-50">Finance Agent</h1>
             <p className="mt-0.5 text-sm text-zinc-500">
-              Ask about your spending — answers are grounded in your transaction data
+              Grounded in your transactions — spending, search, insights, and goals
             </p>
           </div>
           <button
@@ -349,7 +448,7 @@ export default function ChatPage() {
                 <div>
                   <p className="text-sm font-medium text-zinc-300">Ask anything about your finances</p>
                   <p className="mt-1 text-xs text-zinc-600">
-                    Spending totals, category breakdowns, subscriptions, and more
+                    Try spending totals, subscriptions, TFSA room, or category breakdowns
                   </p>
                 </div>
                 <div className="flex max-w-lg flex-wrap justify-center gap-2">
@@ -383,12 +482,13 @@ export default function ChatPage() {
                   content={msg.content}
                   citations={msg.citations}
                   streaming={loading && !msg.content}
+                  statusText={loading && !msg.content ? agentStatus : null}
                 />
               ),
             )}
 
             {loading && messages[messages.length - 1]?.role !== "assistant" && (
-              <AgentBubble content="" streaming />
+              <AgentBubble content="" streaming statusText={agentStatus} />
             )}
 
             {error && (
@@ -400,6 +500,22 @@ export default function ChatPage() {
           </div>
 
           <div className="border-t border-zinc-800 p-4">
+            {loading && agentStatus && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-[11px] text-indigo-300">
+                  <Loader2 size={11} className="animate-spin" />
+                  {agentStatus}
+                </span>
+                {EXAMPLE_PROMPTS.slice(0, 3).map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-full border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] text-zinc-600"
+                  >
+                    Try next: {p.split("?")[0]}?
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="flex items-end gap-2 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 focus-within:border-indigo-500/50">
               <textarea
                 ref={inputRef}
@@ -433,7 +549,7 @@ export default function ChatPage() {
               )}
             </div>
             <p className="mt-2 text-center text-[10px] text-zinc-600">
-              Enter to send · Shift+Enter for new line · Chats saved to your account
+              Enter to send · Shift+Enter for new line · Pin, rename, or delete chats in the sidebar
             </p>
           </div>
         </div>
@@ -456,10 +572,12 @@ function AgentBubble({
   content,
   citations,
   streaming,
+  statusText,
 }: {
   content: string;
   citations?: TransactionCitation[];
   streaming?: boolean;
+  statusText?: string | null;
 }) {
   return (
     <div className="flex items-start gap-3">
@@ -468,10 +586,15 @@ function AgentBubble({
       </div>
       <div className="max-w-[90%] rounded-2xl rounded-tl-sm border border-zinc-800 bg-zinc-950 px-4 py-3 sm:max-w-[80%]">
         {streaming && !content ? (
-          <span className="flex items-center gap-2 text-sm text-zinc-500">
-            <Loader2 size={14} className="animate-spin" />
-            Working on it…
-          </span>
+          <div className="flex flex-col gap-2">
+            <span className="flex items-center gap-2 text-sm text-zinc-400">
+              <Loader2 size={14} className="animate-spin text-indigo-400" />
+              {statusText ?? "Working on it…"}
+            </span>
+            <p className="text-[11px] text-zinc-600">
+              Querying your accounts — answers use real transaction data, not estimates.
+            </p>
+          </div>
         ) : (
           <>
             <p className="whitespace-pre-wrap text-sm text-zinc-300">{content}</p>

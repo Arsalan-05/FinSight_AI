@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "FinSight AI backend — FastAPI + LangGraph finance agent"
+description = "FinSight AI backend — personal finance API, agent, and RAG pipeline"
 requires-python = ">=3.9"
 dependencies = [
     "alembic>=1.16.5",

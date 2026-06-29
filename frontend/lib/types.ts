@@ -74,6 +74,7 @@ export interface TransactionCitation {
 export interface ChatSessionSummary {
   id: string;
   title: string;
+  pinned: boolean;
   updated_at: string | null;
   message_count: number;
 }
@@ -81,11 +82,13 @@ export interface ChatSessionSummary {
 export interface ChatSessionDetail {
   id: string;
   title: string;
+  pinned: boolean;
   messages: Array<{ role: ChatRole; content: string }>;
   updated_at: string | null;
 }
 
 export type ChatSSEEvent =
+  | { type: "status"; phase: string; detail: string }
   | { type: "token"; content: string }
   | { type: "done"; session_id: string; content: string; citations?: TransactionCitation[] }
   | { type: "error"; message: string };

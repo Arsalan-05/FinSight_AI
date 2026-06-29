@@ -3,11 +3,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import queue
 import uuid
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from agent.runner import AgentResult, run_agent
@@ -15,7 +17,7 @@ from app.auth import get_current_user, get_current_user_optional
 from app.chat_history import session_to_detail, session_to_summary
 from app.dependencies import get_db
 from app.middleware.chat_rate_limit import enforce_chat_rate_limit
-from app.schemas import ChatRequest
+from app.schemas import ChatRequest, ChatSessionUpdate
 from db.models import ChatSession, User
 
 logger = logging.getLogger(__name__)
@@ -27,36 +29,84 @@ def _sse(payload: dict[str, object]) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
+def _chunk_reply(text: str, size: int = 48) -> list[str]:
+    """Stream in multi-word chunks for snappier perceived speed."""
+    words = text.split()
+    if not words:
+        return [""]
+    chunks: list[str] = []
+    for i in range(0, len(words), size):
+        part = " ".join(words[i : i + size])
+        chunks.append(part + (" " if i + size < len(words) else ""))
+    return chunks
+
+
 async def _stream_reply(
     message: str,
     session_id: str,
     db: Session,
     user_id: str | None,
 ) -> AsyncIterator[str]:
-    try:
-        result: AgentResult = await asyncio.to_thread(
-            run_agent,
-            message,
-            session_id,
-            db,
-            user_id=user_id,
-        )
-        for word in result.reply.split():
-            yield _sse({"type": "token", "content": word + " "})
-            await asyncio.sleep(0)
-        yield _sse(
-            {
-                "type": "done",
-                "session_id": session_id,
-                "content": result.reply,
-                "citations": result.citations,
-            }
-        )
-    except PermissionError:
-        yield _sse({"type": "error", "message": "You do not have access to this chat session."})
-    except Exception:
-        logger.exception("Chat agent failed")
-        yield _sse({"type": "error", "message": "Agent failed to generate a response."})
+    status_queue: queue.SimpleQueue[tuple[str, str]] = queue.SimpleQueue()
+    result_holder: list[AgentResult] = []
+    error_holder: list[Exception] = []
+
+    def on_status(phase: str, detail: str) -> None:
+        status_queue.put((phase, detail))
+
+    def run() -> None:
+        try:
+            result_holder.append(
+                run_agent(
+                    message,
+                    session_id,
+                    db,
+                    user_id=user_id,
+                    on_status=on_status,
+                )
+            )
+        except PermissionError as exc:
+            error_holder.append(exc)
+        except Exception as exc:
+            logger.exception("Chat agent failed")
+            error_holder.append(exc)
+
+    yield _sse({"type": "status", "phase": "start", "detail": "Connecting to your data"})
+
+    task = asyncio.create_task(asyncio.to_thread(run))
+
+    while not task.done():
+        try:
+            phase, detail = status_queue.get_nowait()
+            yield _sse({"type": "status", "phase": phase, "detail": detail})
+        except queue.Empty:
+            await asyncio.sleep(0.05)
+
+    while not status_queue.empty():
+        phase, detail = status_queue.get_nowait()
+        yield _sse({"type": "status", "phase": phase, "detail": detail})
+
+    if error_holder:
+        exc = error_holder[0]
+        if isinstance(exc, PermissionError):
+            yield _sse({"type": "error", "message": "You do not have access to this chat session."})
+        else:
+            yield _sse({"type": "error", "message": "Agent failed to generate a response."})
+        return
+
+    result = result_holder[0]
+    for chunk in _chunk_reply(result.reply):
+        yield _sse({"type": "token", "content": chunk})
+        await asyncio.sleep(0)
+
+    yield _sse(
+        {
+            "type": "done",
+            "session_id": session_id,
+            "content": result.reply,
+            "citations": result.citations,
+        }
+    )
 
 
 @router.post("/")
@@ -90,7 +140,10 @@ def list_chat_sessions(
     rows = (
         db.query(ChatSession)
         .filter(ChatSession.user_id == current_user.id)
-        .order_by(ChatSession.updated_at.desc())
+        .order_by(
+            case((ChatSession.pinned.is_(True), 0), else_=1),
+            ChatSession.updated_at.desc(),
+        )
         .limit(50)
         .all()
     )
@@ -110,6 +163,34 @@ def get_chat_session(
     return session_to_detail(session)
 
 
+@router.patch("/sessions/{session_id}")
+def update_chat_session(
+    session_id: str,
+    payload: ChatSessionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    """Rename or pin/unpin a saved chat session."""
+    session = db.get(ChatSession, session_id)
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    if payload.title is not None:
+        title = payload.title.strip()
+        if not title:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Title cannot be empty",
+            )
+        session.title = title[:255]
+    if payload.pinned is not None:
+        session.pinned = payload.pinned
+
+    db.commit()
+    db.refresh(session)
+    return session_to_summary(session)
+
+
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_chat_session(
     session_id: str,
@@ -117,7 +198,9 @@ def delete_chat_session(
     current_user: User = Depends(get_current_user),
 ) -> None:
     session = db.get(ChatSession, session_id)
-    if not session or session.user_id != current_user.id:
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    if session.user_id and session.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     db.delete(session)
     db.commit()

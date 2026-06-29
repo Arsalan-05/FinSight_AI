@@ -46,7 +46,14 @@ async function request<T>(
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`API ${res.status}: ${text}`);
   }
-  return res.json() as Promise<T>;
+  if (res.status === 204) {
+    return undefined as T;
+  }
+  const text = await res.text();
+  if (!text) {
+    return undefined as T;
+  }
+  return JSON.parse(text) as T;
 }
 
 // ── Health ─────────────────────────────────────────────────────────────────
@@ -156,6 +163,15 @@ export const api = {
 
   deleteChatSession: (id: string): Promise<void> =>
     request(`/chat/sessions/${id}`, { method: "DELETE" }),
+
+  updateChatSession: (
+    id: string,
+    data: { title?: string; pinned?: boolean },
+  ): Promise<ChatSessionSummary> =>
+    request(`/chat/sessions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
 
   // ── Search ────────────────────────────────────────────────────────────────
 

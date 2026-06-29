@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -14,6 +15,8 @@ from agent.memory import load_messages, load_session, save_session
 from app.config import settings
 from app.scoping import account_ids_for_user
 from db.models import User
+
+StatusCallback = Callable[[str, str], None]
 
 
 @dataclass
@@ -73,6 +76,12 @@ def _extract_citations(messages: list[BaseMessage]) -> list[dict[str, Any]]:
     return citations[:12]
 
 
+def _should_update_memory(messages: list[BaseMessage]) -> bool:
+    """Summarize on first turn, then every other turn, to balance speed and context."""
+    human_turns = sum(1 for m in messages if isinstance(m, HumanMessage))
+    return human_turns == 1 or (human_turns > 0 and human_turns % 2 == 0)
+
+
 def run_agent(
     user_message: str,
     session_id: str,
@@ -80,8 +89,12 @@ def run_agent(
     *,
     user_id: str | None = None,
     update_memory: bool = True,
+    on_status: StatusCallback | None = None,
 ) -> AgentResult:
     """Run one agent turn: load → invoke → persist → return reply + citations."""
+    if on_status:
+        on_status("loading", "Loading your conversation")
+
     session = load_session(db, session_id, user_id=user_id)
     messages = load_messages(session)
     messages.append(HumanMessage(content=user_message))
@@ -98,19 +111,20 @@ def run_agent(
     if goals_text:
         memory = f"{memory}\n\n{goals_text}".strip()
 
-    graph = build_graph(db, account_ids=account_ids)
+    graph = build_graph(db, account_ids=account_ids, on_status=on_status)
     result = graph.invoke(
         {
             "messages": messages,
             "memory_summary": memory,
             "session_id": session_id,
-        }
+        },
+        config={"recursion_limit": 10},
     )
 
     final_messages: list[BaseMessage] = result["messages"]
     memory_summary: str = result.get("memory_summary", session.memory_summary or "")
 
-    if update_memory and settings.llm_configured:
+    if update_memory and settings.llm_configured and _should_update_memory(final_messages):
         memory_summary = summarize_memory(final_messages, memory_summary)
 
     save_session(db, session_id, final_messages, memory_summary, user_id=user_id)

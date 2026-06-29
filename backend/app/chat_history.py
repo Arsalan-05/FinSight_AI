@@ -13,6 +13,7 @@ def session_to_summary(session: ChatSession) -> dict[str, Any]:
     return {
         "id": session.id,
         "title": session.title or "New conversation",
+        "pinned": bool(session.pinned),
         "updated_at": session.updated_at.isoformat() if session.updated_at else None,
         "message_count": len(raw),
     }
@@ -32,6 +33,7 @@ def session_to_detail(session: ChatSession) -> dict[str, Any]:
     return {
         "id": session.id,
         "title": session.title or "New conversation",
+        "pinned": bool(session.pinned),
         "messages": messages,
         "updated_at": session.updated_at.isoformat() if session.updated_at else None,
     }

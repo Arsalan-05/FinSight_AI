@@ -155,6 +155,11 @@ def _call_ollama(messages: list[BaseMessage], memory_summary: str) -> AIMessage:
         + _to_ollama_messages(messages),
         "tools": _ollama_tools(),
         "stream": False,
+        "options": {
+            "temperature": 0.15,
+            "num_predict": 1024,
+        },
+        "keep_alive": "10m",
     }
     with httpx.Client(timeout=180.0) as client:
         response = client.post(url, json=payload)

@@ -97,6 +97,7 @@ class TestChatSessionRoutes:
 
             deleted = client.delete("/chat/sessions/hist-session-1")
             assert deleted.status_code == 204
+            assert deleted.content == b""
             assert client.get("/chat/sessions/hist-session-1").status_code == 404
         finally:
             app.dependency_overrides.pop(get_current_user, None)
@@ -112,3 +113,55 @@ class TestChatSessionRoutes:
         session = db_session.get(ChatSession, "title-test")
         assert session is not None
         assert session.title == "What did I spend on groceries?"
+
+    @patch("agent.graph.call_llm")
+    def test_patch_pin_and_rename(self, mock_llm: MagicMock, client, db_session) -> None:
+        mock_llm.return_value = AIMessage(content="Done.")
+
+        user = User(id="user-patch", email="patch@test.com", name="Patch User")
+        db_session.add(user)
+        session = ChatSession(id="patch-session", user_id=user.id, title="Old title", pinned=False)
+        db_session.add(session)
+        db_session.commit()
+
+        def override_user() -> User:
+            return user
+
+        app.dependency_overrides[get_current_user] = override_user
+        try:
+            renamed = client.patch(
+                "/chat/sessions/patch-session",
+                json={"title": "Rent planning"},
+            )
+            assert renamed.status_code == 200
+            assert renamed.json()["title"] == "Rent planning"
+
+            pinned = client.patch(
+                "/chat/sessions/patch-session",
+                json={"pinned": True},
+            )
+            assert pinned.status_code == 200
+            assert pinned.json()["pinned"] is True
+
+            listed = client.get("/chat/sessions").json()
+            assert listed[0]["id"] == "patch-session"
+            assert listed[0]["pinned"] is True
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
+
+    def test_delete_orphan_session_without_user_id(self, client, db_session) -> None:
+        user = User(id="orphan-user", email="orphan@test.com", name="Orphan")
+        db_session.add(user)
+        orphan = ChatSession(id="orphan-session", user_id=None, title="Old chat")
+        db_session.add(orphan)
+        db_session.commit()
+
+        def override_user() -> User:
+            return user
+
+        app.dependency_overrides[get_current_user] = override_user
+        try:
+            assert client.delete("/chat/sessions/orphan-session").status_code == 204
+            assert db_session.get(ChatSession, "orphan-session") is None
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
