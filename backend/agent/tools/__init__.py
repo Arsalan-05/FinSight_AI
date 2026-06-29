@@ -1,0 +1,256 @@
+from __future__ import annotations
+
+import json
+from datetime import date
+from typing import Any
+
+from langchain_core.tools import StructuredTool
+from sqlalchemy.orm import Session
+
+from agent.tools.aggregator import aggregate_spending
+from agent.tools.dates import last_month_range, resolve_aggregate_dates
+from agent.tools.summarize import is_empty_aggregate, summarize_aggregate
+from app.config import settings
+from rag.retriever import retrieve
+
+TOOL_DEFINITIONS: list[dict[str, Any]] = [
+    {
+        "name": "search_transactions",
+        "description": (
+            "Semantic search over transaction history. Use for natural-language queries "
+            "like 'coffee shops last month' or 'subscription payments'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural language search query.",
+                },
+                "k": {
+                    "type": "integer",
+                    "description": "Number of results to return (default 5).",
+                    "default": 5,
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "aggregate_spending",
+        "description": (
+            "SQL aggregate over transactions — totals, counts, grouped by category, "
+            "merchant, or month. Use for ALL 'how much did I spend' questions. "
+            "Set period='last_month' for 'last month' questions (do not guess dates)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "period": {
+                    "type": "string",
+                    "enum": ["last_month", "this_month", "last_30_days", "all"],
+                    "description": (
+                        "Relative time window. Use last_month when the user says 'last month'. "
+                        "Prefer this over start_date/end_date."
+                    ),
+                },
+                "start_date": {
+                    "type": "string",
+                    "description": "Start date (YYYY-MM-DD). Only if period is not set.",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "End date (YYYY-MM-DD). Only if period is not set.",
+                },
+                "group_by": {
+                    "type": "string",
+                    "enum": ["category", "merchant", "month", "none"],
+                    "description": (
+                        "Use 'none' for a single total (recommended with category filter)."
+                    ),
+                    "default": "none",
+                },
+                "account_id": {
+                    "type": "string",
+                    "description": "Optional account UUID to filter by.",
+                },
+                "category": {
+                    "type": "string",
+                    "description": (
+                        "Filter by category name (Dining, Groceries, etc.). "
+                        "OMIT this field for all-categories breakdowns — never pass 'none'."
+                    ),
+                },
+                "transaction_type": {
+                    "type": "string",
+                    "enum": ["all", "debit", "credit"],
+                    "description": "Filter debits (expenses), credits (income), or all.",
+                    "default": "all",
+                },
+            },
+            "required": [],
+        },
+    },
+]
+
+
+def _parse_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    return date.fromisoformat(value)
+
+
+_INVALID_CATEGORY_VALUES = frozenset({"none", "all", "any", "null", "n/a", ""})
+
+
+def _normalize_category(value: Any) -> str | None:
+    """Drop bogus category values small models pass (e.g. category='none')."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in _INVALID_CATEGORY_VALUES:
+        return None
+    return text
+
+
+def _normalize_account_id(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in _INVALID_CATEGORY_VALUES:
+        return None
+    return text
+
+
+def _run_aggregate(
+    db: Session,
+    *,
+    start_date: date | None,
+    end_date: date | None,
+    group_by: str,
+    category: str | None,
+    account_id: str | None,
+    transaction_type: str,
+) -> dict[str, Any]:
+    return aggregate_spending(
+        db,
+        start_date=start_date,
+        end_date=end_date,
+        group_by=group_by,  # type: ignore[arg-type]
+        category=category,
+        account_id=account_id,
+        transaction_type=transaction_type,  # type: ignore[arg-type]
+    )
+
+
+def _format_transaction(tx: Any) -> dict[str, Any]:
+    return {
+        "id": tx.id,
+        "date": tx.transaction_date.isoformat(),
+        "description": tx.description,
+        "amount": float(tx.amount),
+        "category": tx.category,
+        "merchant": tx.merchant,
+        "account_id": tx.account_id,
+    }
+
+
+def execute_tool(
+    name: str,
+    args: dict[str, Any],
+    *,
+    db: Session,
+) -> str:
+    """Execute a named agent tool and return a JSON string result."""
+    if name == "search_transactions":
+        query = str(args.get("query", ""))
+        k = int(args.get("k") or 5)
+        if not settings.embeddings_configured:
+            return json.dumps(
+                {"error": "Semantic search unavailable — embeddings provider not configured."}
+            )
+        try:
+            txs = retrieve(query, db, k=k)
+            return json.dumps(
+                {"results": [_format_transaction(tx) for tx in txs], "count": len(txs)}
+            )
+        except Exception as exc:
+            return json.dumps({"error": f"Semantic search failed: {exc}"})
+
+    if name == "aggregate_spending":
+        start_date, end_date = resolve_aggregate_dates(args)
+        category = _normalize_category(args.get("category"))
+        account_id = _normalize_account_id(args.get("account_id"))
+        txn_type = str(args.get("transaction_type") or "all")
+        group_by = str(args.get("group_by") or ("none" if category else "category"))
+
+        result = _run_aggregate(
+            db,
+            start_date=start_date,
+            end_date=end_date,
+            group_by=group_by,
+            category=category,
+            account_id=account_id,
+            transaction_type=txn_type,
+        )
+        if args.get("period"):
+            result["filters"]["period"] = args["period"]
+
+        # Small models pass wrong dates, category='none', or bad account IDs — retry safely.
+        if is_empty_aggregate(result):
+            retry_start, retry_end = last_month_range()
+            result = _run_aggregate(
+                db,
+                start_date=retry_start,
+                end_date=retry_end,
+                group_by="none" if category else "category",
+                category=category,
+                account_id=None,
+                transaction_type="debit",
+            )
+            result["filters"]["period"] = "last_month"
+            result["auto_retried"] = True
+
+        result["summary"] = summarize_aggregate(result)
+        return json.dumps(result)
+
+    return json.dumps({"error": f"Unknown tool: {name}"})
+
+
+def build_langchain_tools(db: Session) -> list[StructuredTool]:
+    """LangChain StructuredTool wrappers (used by ToolNode if needed)."""
+
+    def search_transactions(query: str, k: int = 5) -> str:
+        return execute_tool("search_transactions", {"query": query, "k": k}, db=db)
+
+    def aggregate_spending_tool(
+        start_date: str | None = None,
+        end_date: str | None = None,
+        group_by: str = "category",
+        account_id: str | None = None,
+        transaction_type: str = "all",
+    ) -> str:
+        return execute_tool(
+            "aggregate_spending",
+            {
+                "start_date": start_date,
+                "end_date": end_date,
+                "group_by": group_by,
+                "account_id": account_id,
+                "transaction_type": transaction_type,
+            },
+            db=db,
+        )
+
+    return [
+        StructuredTool.from_function(
+            func=search_transactions,
+            name="search_transactions",
+            description=TOOL_DEFINITIONS[0]["description"],
+        ),
+        StructuredTool.from_function(
+            func=aggregate_spending_tool,
+            name="aggregate_spending",
+            description=TOOL_DEFINITIONS[1]["description"],
+        ),
+    ]
