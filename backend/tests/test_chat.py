@@ -60,3 +60,41 @@ class TestChatEndpoint:
         result = convert_currency(100, "USD", "CAD")
         assert result["converted_amount"] > 0
         assert result["from_currency"] == "USD"
+
+
+class TestApiKeyMiddleware:
+    def test_rejects_missing_key(self) -> None:
+        from starlette.applications import Starlette
+        from starlette.responses import PlainTextResponse
+        from starlette.routing import Route
+        from starlette.testclient import TestClient
+
+        from app.middleware.api_key import ApiKeyMiddleware
+
+        async def homepage(_request: object) -> PlainTextResponse:
+            return PlainTextResponse("ok")
+
+        mini = Starlette(routes=[Route("/", homepage)])
+        mini.add_middleware(ApiKeyMiddleware, api_key="secret")
+        tc = TestClient(mini)
+
+        assert tc.get("/").status_code == 401
+        assert tc.get("/", headers={"X-API-Key": "wrong"}).status_code == 401
+        assert tc.get("/", headers={"X-API-Key": "secret"}).status_code == 200
+
+    def test_public_paths_skip_auth(self) -> None:
+        from starlette.applications import Starlette
+        from starlette.responses import PlainTextResponse
+        from starlette.routing import Route
+        from starlette.testclient import TestClient
+
+        from app.middleware.api_key import ApiKeyMiddleware
+
+        async def health(_request: object) -> PlainTextResponse:
+            return PlainTextResponse("ok")
+
+        mini = Starlette(routes=[Route("/health", health)])
+        mini.add_middleware(ApiKeyMiddleware, api_key="secret")
+        tc = TestClient(mini)
+
+        assert tc.get("/health").status_code == 200

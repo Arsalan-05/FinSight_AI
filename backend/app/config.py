@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     pgvector_collection: str = "transaction_embeddings"
     environment: str = "development"
 
+    # Optional — when set, all routes except /health and docs require X-API-Key
+    finsight_api_key: str = ""
+
     @property
     def embedding_dim(self) -> int:
         return 1024 if self.embedding_provider == "voyage" else 768
