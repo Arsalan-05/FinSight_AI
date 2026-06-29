@@ -17,6 +17,7 @@ def disable_embeddings_in_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     """API tests use SQLite without Ollama — skip embedding side effects."""
     monkeypatch.setattr(settings, "embedding_provider", "voyage")
     monkeypatch.setattr(settings, "voyage_api_key", "")
+    monkeypatch.setattr(settings, "require_auth", False)
 
 
 @pytest.fixture(scope="function")
