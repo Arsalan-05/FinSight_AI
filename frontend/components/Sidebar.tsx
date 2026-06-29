@@ -7,17 +7,16 @@ import {
   LineChart,
   Menu,
   MessageSquare,
-  Moon,
   Search,
   Settings,
-  Sun,
   Users,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV: {
   href: string;
@@ -37,8 +36,6 @@ const NAV: {
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const { setTheme, resolvedTheme } = useTheme();
-  const isDark = resolvedTheme !== "light";
 
   return (
     <>
@@ -110,16 +107,7 @@ export default function Sidebar() {
             <p className="text-[11px] text-zinc-600">Personal Finance Agent</p>
             <p className="text-[11px] text-zinc-700">Claude + Voyage AI</p>
           </div>
-          {/* Theme toggle — hidden until hydration (resolvedTheme is undefined on server) */}
-          {resolvedTheme && (
-            <button
-              onClick={() => setTheme(isDark ? "light" : "dark")}
-              aria-label="Toggle theme"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-500 transition-colors hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
-            >
-              {isDark ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-          )}
+          <ThemeToggle />
         </div>
       </aside>
     </>
