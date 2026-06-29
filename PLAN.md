@@ -132,15 +132,34 @@
 
 ---
 
-## Week 5 (Jul 26 – Aug 1) — FastAPI Chat Endpoint + MCP Tools
+## Week 5 (Jul 26 – Aug 1) — FastAPI Chat Endpoint + MCP Tools ✅ DONE
 
 **Deliverable:** `POST /chat` streams a response from the agent.
 
-- [ ] `/chat` endpoint: loads session, runs agent graph, streams response (SSE)
-- [ ] FastAPI dependency injection for DB session and agent instance
-- [ ] MCP tool servers in `backend/mcp/`: currency conversion, market data (stubs acceptable)
-- [ ] Agent registered with MCP tools at startup
-- [ ] Integration tests: full request → agent → Claude → response
+- [x] `/chat` endpoint: loads session, runs agent graph, streams response (SSE)
+- [x] FastAPI dependency injection for DB session and agent instance
+- [x] MCP tool servers in `backend/mcp/`: currency conversion, market data (stubs acceptable)
+- [x] Agent registered with MCP tools at startup
+- [x] Integration tests: full request → agent → Claude → response
+
+**Shipped:**
+- `app/routers/chat.py` — `POST /chat/` SSE stream (`token` + `done` events)
+- `app/dependencies.py` — `get_db()` + `get_agent_runner()` injection
+- `app/schemas.py` — `ChatRequest` (`message`, optional `session_id`)
+- `mcp/currency.py` — `convert_currency` stub (USD/CAD/EUR/GBP/PKR demo rates)
+- `mcp/market.py` — `get_market_quote` stub (AAPL, MSFT, GOOGL, TSLA, SPY)
+- `mcp/registry.py` — MCP tool definitions registered at app startup via lifespan
+- `agent/tools/__init__.py` — merges MCP tools into agent tool list
+- `tests/test_chat.py` — 4 integration tests (SSE stream, session id, MCP registration)
+- `tests/test_mcp.py` — 4 unit tests for MCP stubs
+- 53 pytest passing
+
+**Try it:**
+```bash
+curl -N -X POST http://localhost:8000/chat/ \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"How much did I spend on dining last month?","session_id":"api-test"}'
+```
 
 ---
 
@@ -189,7 +208,7 @@
 | 3 | Jul 12 – Jul 18 | RAG | Semantic retrieval works | ✅ Done |
 | — | (parallel) | UI | Full frontend + light/dark theme | ✅ Done |
 | 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions | ✅ Done |
-| 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams | ⬜ Pending |
+| 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams | ✅ Done |
 | 6 | Aug 2 – Aug 8 | UI | Wire chat UI to real agent | ⬜ Pending |
 | 7 | Aug 9 – Aug 15 | Deploy | Live on Railway | ⬜ Pending |
 | 8 | Aug 16 – Aug 23 | Polish | Demo-ready, tested, documented | ⬜ Pending |
