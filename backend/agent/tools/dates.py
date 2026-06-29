@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import Any
 
 Period = str  # last_month | this_month | last_30_days | all
 
@@ -36,7 +37,7 @@ def resolve_period(period: str | None) -> tuple[date | None, date | None]:
     return None, None
 
 
-def resolve_aggregate_dates(args: dict) -> tuple[date | None, date | None]:
+def resolve_aggregate_dates(args: dict[str, Any]) -> tuple[date | None, date | None]:
     """Resolve start/end from period (preferred) or explicit ISO date strings."""
     period = args.get("period")
     if period:
