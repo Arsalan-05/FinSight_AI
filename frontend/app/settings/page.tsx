@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import type { FinancialGoal } from "@/lib/types";
 import { getApiKey, setApiKey } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -40,6 +41,7 @@ interface Stats {
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const authReady = useAuthReady();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -83,6 +85,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    if (!authReady) return;
     let active = true;
     fetchStats().then((s) => {
       if (active) { setStats(s); setLoading(false); }
@@ -93,7 +96,7 @@ export default function SettingsPage() {
       api.getGoals().then((g) => { if (active) setGoals(g); }).catch(() => {});
     }
     return () => { active = false; };
-  }, [fetchStats]);
+  }, [authReady, fetchStats]);
 
   const handleRefresh = () => {
     setLoading(true);

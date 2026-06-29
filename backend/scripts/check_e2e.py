@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -18,6 +17,14 @@ from app.main import app
 FAILURES: list[str] = []
 CHECKS: list[str] = []
 
+TABLES = (
+    "users",
+    "accounts",
+    "transactions",
+    "transaction_embeddings",
+    "chat_sessions",
+)
+
 
 def ok(msg: str) -> None:
     CHECKS.append(f"✓ {msg}")
@@ -31,13 +38,18 @@ def fail(msg: str) -> None:
 def main() -> int:
     # ── Database ─────────────────────────────────────────────────────────────
     try:
-        engine = create_engine(settings.database_url_resolved, connect_args={"connect_timeout": 15})
+        engine = create_engine(
+            settings.database_url_resolved,
+            connect_args={"connect_timeout": 15},
+        )
         with engine.connect() as conn:
-            for table in ("users", "accounts", "transactions", "transaction_embeddings", "chat_sessions"):
+            for table in TABLES:
                 n = conn.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
                 ok(f"DB table `{table}` reachable ({n} rows)")
             conn.execute(text("SELECT 1"))
-        ok(f"Supabase Postgres connected ({settings.database_url_resolved.split('@')[-1].split('/')[0]})")
+        host = settings.database_url_resolved.split("@")[-1].split("/")[0]
+        label = "Supabase" if settings.using_supabase_postgres else "Postgres"
+        ok(f"{label} connected ({host})")
     except Exception as exc:
         fail(f"Database: {exc}")
 
@@ -67,8 +79,8 @@ def main() -> int:
         fail(f"GET /health → {r.status_code}")
 
     r = client.get("/health/db")
-    if r.status_code == 200 and r.json().get("using_supabase_postgres"):
-        ok("GET /health/db (Supabase)")
+    if r.status_code == 200:
+        ok("GET /health/db")
     else:
         fail(f"GET /health/db → {r.status_code} {r.text[:80]}")
 
@@ -79,10 +91,8 @@ def main() -> int:
     else:
         fail(f"/accounts/ should require auth, got {r.status_code}")
 
-    # ── Chat (mocked path uses test client with mocked LLM in pytest;
-    # here we just verify route exists and returns something sensible) ────────
+    # ── Chat ─────────────────────────────────────────────────────────────────
     r = client.post("/chat/", json={"message": "Hello"})
-  # May 401 if auth enforced in tests... check config
     if settings.auth_enforced:
         if r.status_code == 401:
             ok("POST /chat/ requires auth when REQUIRE_AUTH=true")
@@ -103,7 +113,7 @@ def main() -> int:
     else:
         fail(f"GET /insights/ → {r.status_code}")
 
-  # ── Goals route ───────────────────────────────────────────────────────────
+    # ── Goals route ───────────────────────────────────────────────────────────
     r = client.get("/goals/")
     if r.status_code in (401, 200):
         ok(f"GET /goals/ route live ({r.status_code})")

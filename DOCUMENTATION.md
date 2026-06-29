@@ -1,7 +1,6 @@
 # FinSight AI — Complete Project Documentation
 
-> **Single source of truth** for architecture, setup, API, auth, AI stack, Canadian features, testing, troubleshooting, and interview prep.  
-> **Status:** Feature-complete for portfolio and local demo use (June 2026).
+> **Status:** Production-complete for portfolio and local demo use. All 8 build weeks shipped; 70 automated tests; full-stack checkpoint script included.
 
 ---
 

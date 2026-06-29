@@ -5,12 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/contexts/ToastContext";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
 import type { Account, User } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 export default function AccountsPage() {
   const { toast } = useToast();
+  const authReady = useAuthReady();
   const [users, setUsers] = useState<User[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,31 +21,29 @@ export default function AccountsPage() {
   const [showNewAccount, setShowNewAccount] = useState(false);
 
   const fetchAll = useCallback(() => {
-    return api
-      .getMe()
-      .then((me) => {
-        setAuthUser(me);
-        return api.getAccounts().then((accs) => ({ users: [me], accounts: accs }));
-      })
-      .catch(() => {
-        setAuthUser(null);
-        return Promise.all([api.getUsers(), api.getAccounts()]).then(([u, a]) => ({
-          users: u,
-          accounts: a,
-        }));
-      });
+    return api.getMe().then((me) => {
+      setAuthUser(me);
+      return api.getAccounts().then((accs) => ({ users: [me], accounts: accs }));
+    });
   }, []);
 
   useEffect(() => {
+    if (!authReady) return;
     let active = true;
-    fetchAll().then(({ users: u, accounts: a }) => {
-      if (!active) return;
-      setUsers(u);
-      setAccounts(a);
-      setLoading(false);
-    });
-    return () => { active = false; };
-  }, [fetchAll]);
+    fetchAll()
+      .then(({ users: u, accounts: a }) => {
+        if (!active) return;
+        setUsers(u);
+        setAccounts(a);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [authReady, fetchAll]);
 
   const load = useCallback(() => {
     setLoading(true);

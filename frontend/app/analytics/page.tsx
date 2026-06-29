@@ -28,6 +28,7 @@ import {
 } from "recharts";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
 import type { Transaction } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
@@ -165,6 +166,7 @@ function ChartTooltip({ active, payload, label }: {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
+  const authReady = useAuthReady();
   const [period, setPeriod] = useState<Period>("6M");
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,12 +181,13 @@ export default function AnalyticsPage() {
   }, []);
 
   useEffect(() => {
+    if (!authReady) return;
     let active = true;
     fetchData(period).then((data) => {
       if (active) { setTxs(data); setLoading(false); }
-    });
+    }).catch(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [fetchData, period]);
+  }, [authReady, fetchData, period]);
 
   const handlePeriod = (p: Period) => {
     setPeriod(p);

@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import type { Account, Transaction } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
 import { exportToCsv, formatCurrency, formatDate } from "@/lib/utils";
@@ -44,6 +45,7 @@ function sortTransactions(items: Transaction[], key: SortKey, dir: SortDir): Tra
 
 export default function TransactionsPage() {
   const { toast } = useToast();
+  const authReady = useAuthReady();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -80,6 +82,7 @@ export default function TransactionsPage() {
   }, [filterAccount, filterCategory, filterFrom, filterTo, page]);
 
   useEffect(() => {
+    if (!authReady) return;
     let active = true;
     fetchPage().then(({ accs, txList }) => {
       if (!active) return;
@@ -90,7 +93,7 @@ export default function TransactionsPage() {
       setLoading(false);
     }).catch(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [fetchPage]);
+  }, [authReady, fetchPage]);
 
   const loadData = useCallback(() => {
     setLoading(true);
