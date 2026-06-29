@@ -1,53 +1,167 @@
 @import "tailwindcss";
 
-/* ── Dark theme (default) ───────────────────────────────────────────────────
-   Tailwind v4 already sets zinc variables to their dark-friendly defaults.
-   We only need to define our semantic aliases.                               */
+/* ── FinSight Premium Design System ───────────────────────────────────────── */
 
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --chart-grid: #3f3f46;
-  --chart-tooltip-bg: #18181b;
-  --chart-tooltip-border: #3f3f46;
-  --chart-axis: #a1a1aa;
+  --background: #030712;
+  --foreground: #f8fafc;
+  --surface: rgba(15, 23, 42, 0.72);
+  --surface-elevated: rgba(30, 41, 59, 0.55);
+  --border: rgba(148, 163, 184, 0.12);
+  --border-strong: rgba(148, 163, 184, 0.22);
+  --accent: #6366f1;
+  --accent-soft: rgba(99, 102, 241, 0.14);
+  --accent-glow: rgba(99, 102, 241, 0.35);
+  --violet: #8b5cf6;
+  --success: #34d399;
+  --danger: #f87171;
+  --muted: #94a3b8;
+  --chart-grid: rgba(148, 163, 184, 0.15);
+  --chart-tooltip-bg: rgba(15, 23, 42, 0.95);
+  --chart-tooltip-border: rgba(148, 163, 184, 0.2);
+  --chart-axis: #94a3b8;
+  --mesh-1: rgba(99, 102, 241, 0.18);
+  --mesh-2: rgba(139, 92, 246, 0.12);
+  --mesh-3: rgba(56, 189, 248, 0.08);
+}
+
+[data-theme="light"] {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-elevated: rgba(255, 255, 255, 0.95);
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --accent-soft: rgba(99, 102, 241, 0.1);
+  --accent-glow: rgba(99, 102, 241, 0.2);
+  --muted: #64748b;
+  --chart-grid: rgba(15, 23, 42, 0.08);
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: rgba(15, 23, 42, 0.1);
+  --chart-axis: #64748b;
+  --mesh-1: rgba(99, 102, 241, 0.08);
+  --mesh-2: rgba(139, 92, 246, 0.06);
+  --mesh-3: rgba(56, 189, 248, 0.05);
+
+  --color-zinc-950: oklch(0.985 0 0);
+  --color-zinc-900: oklch(1 0 0);
+  --color-zinc-800: oklch(0.958 0 0);
+  --color-zinc-700: oklch(0.895 0 0);
+  --color-zinc-600: oklch(0.60 0.005 0);
+  --color-zinc-500: oklch(0.52 0.005 0);
+  --color-zinc-400: oklch(0.46 0.005 0);
+  --color-zinc-300: oklch(0.38 0.005 0);
+  --color-zinc-200: oklch(0.30 0.005 0);
+  --color-zinc-100: oklch(0.21 0.005 0);
+  --color-zinc-50: oklch(0.14 0 0);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* ── Light theme ────────────────────────────────────────────────────────────
-   Re-map zinc vars so every bg-zinc-* / text-zinc-* / border-zinc-* class
-   adapts automatically — zero component changes needed.                      */
-
-[data-theme="light"] {
-  --background: #fafafa;
-  --foreground: #09090b;
-  --chart-grid: #e4e4e7;
-  --chart-tooltip-bg: #ffffff;
-  --chart-tooltip-border: #e4e4e7;
-  --chart-axis: #52525b;
-
-  /* Backgrounds: darkest→lightest, lightest→darkest */
-  --color-zinc-950: oklch(0.985 0 0);   /* page bg  → near-white   */
-  --color-zinc-900: oklch(1 0 0);       /* card bg  → pure white   */
-  --color-zinc-800: oklch(0.958 0 0);   /* hover bg → very light   */
-  --color-zinc-700: oklch(0.895 0 0);   /* border   → light gray   */
-
-  /* Text: lightest→darkest */
-  --color-zinc-600: oklch(0.60 0.005 0);  /* muted labels   */
-  --color-zinc-500: oklch(0.52 0.005 0);  /* placeholder    */
-  --color-zinc-400: oklch(0.46 0.005 0);  /* subdued text   */
-  --color-zinc-300: oklch(0.38 0.005 0);  /* secondary text */
-  --color-zinc-200: oklch(0.30 0.005 0);  /* primary text   */
-  --color-zinc-100: oklch(0.21 0.005 0);  /* important text */
-  --color-zinc-50:  oklch(0.14 0 0);      /* headings       */
+/* Ambient mesh background */
+.mesh-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--background);
 }
 
-/* ── Scrollbar ──────────────────────────────────────────────────────────────*/
+.mesh-bg::before,
+.mesh-bg::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+
+.mesh-bg::before {
+  width: 600px;
+  height: 600px;
+  top: -120px;
+  right: -80px;
+  background: radial-gradient(circle, var(--mesh-1), transparent 70%);
+}
+
+.mesh-bg::after {
+  width: 500px;
+  height: 500px;
+  bottom: -100px;
+  left: -60px;
+  background: radial-gradient(circle, var(--mesh-2), transparent 70%);
+}
+
+/* Glass surfaces */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 20px 50px -20px rgba(0, 0, 0, 0.45);
+}
+
+.glow-accent {
+  box-shadow: 0 0 40px -10px var(--accent-glow);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #e0e7ff 0%, #a5b4fc 40%, #c4b5fd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-theme="light"] .text-gradient {
+  background: linear-gradient(135deg, #312e81 0%, #4f46e5 50%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  font-weight: 500;
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  box-shadow: 0 8px 24px -8px var(--accent-glow);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px -8px var(--accent-glow);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.btn-ghost:hover {
+  background: var(--surface-elevated);
+  border-color: var(--border-strong);
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
@@ -56,13 +170,8 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--chart-axis); }
 
-/* ── Smooth theme transitions ───────────────────────────────────────────────*/
-*, *::before, *::after {
-  transition-property: background-color, border-color, color;
+button, a, [role="button"] {
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
   transition-duration: 150ms;
   transition-timing-function: ease;
-}
-/* Don't transition layout/transform/opacity (would slow animations) */
-button, a, [role="button"] {
-  transition-property: background-color, border-color, color, opacity, transform;
 }

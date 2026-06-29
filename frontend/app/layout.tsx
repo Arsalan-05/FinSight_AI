@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
-import Sidebar from "@/components/Sidebar";
+import AuthLayout from "@/components/shell/AuthLayout";
 import { ToastProvider } from "@/contexts/ToastContext";
 import "./globals.css";
 
@@ -34,10 +34,9 @@ export default function RootLayout({
           {`(function(){try{var t=localStorage.getItem("finsight-theme");document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark")}catch(e){document.documentElement.setAttribute("data-theme","dark")}})()`}
         </Script>
       </head>
-      <body className="flex min-h-full bg-zinc-950 text-zinc-50 transition-colors duration-200">
+      <body className="min-h-full antialiased">
         <ToastProvider>
-          <Sidebar />
-          <main className="flex-1 md:ml-60 min-h-screen">{children}</main>
+          <AuthLayout>{children}</AuthLayout>
         </ToastProvider>
       </body>
     </html>
