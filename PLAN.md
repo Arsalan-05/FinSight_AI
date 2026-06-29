@@ -163,14 +163,22 @@ curl -N -X POST http://localhost:8000/chat/ \
 
 ---
 
-## Week 6 (Aug 2 – Aug 8) — Frontend Chat UI
+## Week 6 (Aug 2 – Aug 8) — Frontend Chat UI ✅ DONE
 
 **Deliverable:** Working chat interface in the browser, connected to the real agent.
 
-- [ ] Next.js chat page: message thread, streaming response display
-- [ ] Transaction upload UI: drag-and-drop CSV, progress feedback
-- [ ] Basic auth (API key header or HTTP Basic) — private use only
-- [ ] Error states, loading states, mobile-responsive layout
+- [x] Next.js chat page: message thread, streaming response display
+- [x] Transaction upload UI: drag-and-drop CSV, progress feedback *(shipped in parallel UI work — `/transactions`)*
+- [x] Basic auth (API key header) — optional `FINSIGHT_API_KEY` + `X-API-Key` header
+- [x] Error states, loading states, mobile-responsive layout
+
+**Shipped:**
+- `frontend/app/chat/page.tsx` — live chat with SSE streaming, example prompts, new-chat reset
+- `frontend/lib/api.ts` — `chatStream()` async generator parsing SSE events
+- `frontend/lib/auth.ts` — API key storage (localStorage) + `authHeaders()` on all requests
+- `frontend/app/settings/page.tsx` — API key config UI, updated build progress
+- `backend/app/middleware/api_key.py` — optional `X-API-Key` gate when `FINSIGHT_API_KEY` is set
+- 55 pytest passing
 
 ---
 
