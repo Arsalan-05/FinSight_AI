@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
@@ -78,6 +78,7 @@ class ChatSession(Base):
         String(36), ForeignKey("users.id"), nullable=True, index=True
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # JSON-serialized LangChain message dicts for conversation history
     messages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     memory_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")

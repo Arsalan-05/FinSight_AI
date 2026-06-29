@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) REFERENCES users(id),
     title VARCHAR(255) NOT NULL DEFAULT '',
+    pinned BOOLEAN NOT NULL DEFAULT FALSE,
     messages_json TEXT NOT NULL DEFAULT '[]',
     memory_summary TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP DEFAULT NOW(),

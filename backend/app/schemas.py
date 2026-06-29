@@ -88,3 +88,8 @@ class TransactionListOut(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+
+
+class ChatSessionUpdate(BaseModel):
+    title: str | None = None
+    pinned: bool | None = None

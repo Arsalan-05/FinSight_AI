@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,7 +60,7 @@ def health_db() -> dict[str, object]:
     url = DATABASE_URL
     host = url.split("@")[-1].split("/")[0] if "@" in url else "unknown"
     connected = False
-    error: str | None = None
+    error: Optional[str] = None
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
