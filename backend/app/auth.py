@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from typing import Any
 
 import jwt
 from fastapi import Depends, Header, HTTPException, status
+from jwt import PyJWKClient
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -14,17 +16,39 @@ from db.models import User
 logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=1)
+def _jwks_client() -> PyJWKClient:
+    if not settings.supabase_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Supabase URL is not configured on the server",
+        )
+    jwks_url = f"{settings.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+    return PyJWKClient(jwks_url, cache_keys=True)
+
+
 def _decode_supabase_token(token: str) -> dict[str, Any]:
-    if not settings.supabase_jwt_secret:
+    """Verify Supabase user JWTs — ES256 via JWKS (new) or HS256 via shared secret (legacy)."""
+    if not settings.supabase_auth_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Supabase auth is not configured on the server",
         )
+
     try:
+        if settings.supabase_jwt_secret:
+            return jwt.decode(
+                token,
+                settings.supabase_jwt_secret,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+
+        signing_key = _jwks_client().get_signing_key_from_jwt(token)
         return jwt.decode(
             token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
+            signing_key.key,
+            algorithms=["ES256", "RS256"],
             audience="authenticated",
         )
     except jwt.PyJWTError as exc:
@@ -85,7 +109,7 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing bearer token",
         )
-    token = authorization[7:].strip() if authorization.startswith("Bearer ") else ""
+    token = authorization[7:].strip()
     claims = _decode_supabase_token(token)
     return _sync_user_from_claims(db, claims)
 
@@ -102,6 +126,6 @@ def get_current_user_optional(
                 detail="Authentication required",
             )
         return None
-    token = authorization[7:].strip() if authorization.startswith("Bearer ") else ""
+    token = authorization[7:].strip()
     claims = _decode_supabase_token(token)
     return _sync_user_from_claims(db, claims)

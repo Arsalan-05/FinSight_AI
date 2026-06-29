@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     require_auth: bool = False
 
     @property
+    def supabase_auth_enabled(self) -> bool:
+        """True when Supabase URL (JWKS / ES256) or legacy JWT secret is set."""
+        return bool(self.supabase_url or self.supabase_jwt_secret)
+
+    @property
     def embedding_dim(self) -> int:
         return 1024 if self.embedding_provider == "voyage" else 768
 
