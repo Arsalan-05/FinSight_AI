@@ -182,18 +182,17 @@ curl -N -X POST http://localhost:8000/chat/ \
 
 ---
 
-## Week 7 (Aug 9 – Aug 15) — Supabase Auth + Premium UI 🚧 IN PROGRESS
+## Week 7 (Aug 9 – Aug 15) — Supabase Auth + Premium UI + Private CI ✅ DONE
 
-**Deliverable:** Production-ready auth and premium fintech UI.
+**Deliverable:** Private, auth-gated app with polished UI — local only (no public deploy).
 
-- [x] Supabase Google OAuth login page + callback route
-- [x] JWT validation on backend + user sync (`auth_id` on users)
-- [x] Premium design system (glass surfaces, mesh gradients, AppShell)
-- [x] Dashboard visual refresh
-- [ ] User provides Supabase keys + Google OAuth configured in dashboard
-- [ ] Migrate `DATABASE_URL` to Supabase Postgres + run Alembic
-- [ ] Scope all data queries per authenticated user
-- [ ] Railway deployment + CI/CD
+- [x] Supabase Google OAuth + email magic link login
+- [x] ES256 JWT verification via JWKS on backend
+- [x] User sync (`auth_id`) + per-user data scoping on accounts/transactions
+- [x] Premium design system (glass, mesh, AppShell, PageHeader)
+- [x] UI polish: light/dark readability, sidebar overlap fixes, consistent page layout
+- [x] GitHub Actions CI (ruff, mypy, pytest, ESLint, tsc)
+- [x] **No Railway** — private local/Docker use only
 
 ---
 
@@ -204,7 +203,7 @@ curl -N -X POST http://localhost:8000/chat/ \
 - [ ] Full test coverage: unit (retriever, aggregator), integration (chat endpoint), E2E (upload → chat)
 - [ ] pgvector HNSW index for fast retrieval at scale
 - [ ] Demo dataset: 3–6 months of realistic transactions (synthetic)
-- [ ] README with architecture diagram, setup guide, and live URL
+- [ ] README with architecture diagram and local setup guide (no live URL)
 - [ ] Rate limiting on `/chat` to prevent runaway Claude API costs
 - [ ] Final QA pass: golden-path demo, edge cases, error recovery
 
@@ -221,7 +220,7 @@ curl -N -X POST http://localhost:8000/chat/ \
 | 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions | ✅ Done |
 | 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams | ✅ Done |
 | 6 | Aug 2 – Aug 8 | UI | Wire chat UI to real agent | ✅ Done |
-| 7 | Aug 9 – Aug 15 | Deploy | Live on Railway | ⬜ Pending |
+| 7 | Aug 9 – Aug 15 | Auth + UI | Supabase login, premium UI, CI | ✅ Done |
 | 8 | Aug 16 – Aug 23 | Polish | Demo-ready, tested, documented | ⬜ Pending |
 
 ---
