@@ -8,10 +8,12 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user_optional
 from app.config import settings
 from app.dependencies import get_db
 from app.schemas import TransactionCreate, TransactionListOut, TransactionOut
-from db.models import Account, Transaction, TransactionEmbedding
+from app.scoping import assert_account_owned, scope_transactions
+from db.models import Transaction, TransactionEmbedding, User
 from rag.embedder import build_content, embed_texts
 
 logger = logging.getLogger(__name__)
@@ -45,9 +47,15 @@ def _embed_and_store(txs: list[Transaction], db: Session) -> None:
 
 
 @router.post("/", response_model=TransactionOut, status_code=status.HTTP_201_CREATED)
-def create_transaction(payload: TransactionCreate, db: Session = Depends(get_db)) -> Transaction:
-    if not db.query(Account).filter(Account.id == payload.account_id).first():
-        raise HTTPException(status_code=404, detail="Account not found")
+def create_transaction(
+    payload: TransactionCreate,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> Transaction:
+    try:
+        assert_account_owned(db, payload.account_id, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     tx = Transaction(**payload.model_dump())
     db.add(tx)
     db.commit()
@@ -61,13 +69,16 @@ async def upload_csv(
     file: UploadFile,
     account_id: str = Query(..., description="Account to attach transactions to"),
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
 ) -> dict[str, object]:
     """
     Upload a CSV with columns:
       date, description, amount, category (opt), merchant (opt), notes (opt)
     """
-    if not db.query(Account).filter(Account.id == account_id).first():
-        raise HTTPException(status_code=404, detail="Account not found")
+    try:
+        assert_account_owned(db, account_id, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     content = await file.read()
     text = content.decode("utf-8-sig")
@@ -117,8 +128,9 @@ def list_transactions(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
 ) -> TransactionListOut:
-    q = db.query(Transaction)
+    q = scope_transactions(db.query(Transaction), db, current_user)
     if account_id:
         q = q.filter(Transaction.account_id == account_id)
     if category:
@@ -134,16 +146,26 @@ def list_transactions(
 
 
 @router.get("/{transaction_id}", response_model=TransactionOut)
-def get_transaction(transaction_id: str, db: Session = Depends(get_db)) -> Transaction:
-    tx = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+def get_transaction(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> Transaction:
+    q = scope_transactions(db.query(Transaction), db, current_user)
+    tx = q.filter(Transaction.id == transaction_id).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return tx
 
 
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_transaction(transaction_id: str, db: Session = Depends(get_db)) -> None:
-    tx = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+def delete_transaction(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> None:
+    q = scope_transactions(db.query(Transaction), db, current_user)
+    tx = q.filter(Transaction.id == transaction_id).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
     db.delete(tx)

@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user_optional
 from app.dependencies import get_db
 from app.schemas import UserCreate, UserOut
 from db.models import User
@@ -22,7 +23,12 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
 
 
 @router.get("/", response_model=list[UserOut])
-def list_users(db: Session = Depends(get_db)) -> list[User]:
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> list[User]:
+    if current_user is not None:
+        return [current_user]
     return db.query(User).order_by(User.created_at.desc()).all()
 
 

@@ -3,18 +3,27 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user_optional
 from app.dependencies import get_db
 from app.schemas import AccountCreate, AccountOut
+from app.scoping import accounts_for_user
 from db.models import Account, User
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
 @router.post("/", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
-def create_account(payload: AccountCreate, db: Session = Depends(get_db)) -> Account:
-    if not db.query(User).filter(User.id == payload.user_id).first():
+def create_account(
+    payload: AccountCreate,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> Account:
+    owner_id = current_user.id if current_user else payload.user_id
+    if not db.query(User).filter(User.id == owner_id).first():
         raise HTTPException(status_code=404, detail="User not found")
-    account = Account(**payload.model_dump())
+    data = payload.model_dump()
+    data["user_id"] = owner_id
+    account = Account(**data)
     db.add(account)
     db.commit()
     db.refresh(account)
@@ -22,14 +31,23 @@ def create_account(payload: AccountCreate, db: Session = Depends(get_db)) -> Acc
 
 
 @router.get("/", response_model=list[AccountOut])
-def list_accounts(db: Session = Depends(get_db)) -> list[Account]:
-    return db.query(Account).order_by(Account.created_at.desc()).all()
+def list_accounts(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> list[Account]:
+    return accounts_for_user(db, current_user)
 
 
 @router.get("/{account_id}", response_model=AccountOut)
-def get_account(account_id: str, db: Session = Depends(get_db)) -> Account:
+def get_account(
+    account_id: str,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> Account:
     account = db.query(Account).filter(Account.id == account_id).first()
     if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if current_user and account.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Account not found")
     return account
 
