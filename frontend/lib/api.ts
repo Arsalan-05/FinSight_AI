@@ -1,5 +1,7 @@
 import type {
   Account,
+  ChatSessionDetail,
+  ChatSessionSummary,
   ChatSSEEvent,
   FinancialGoal,
   HealthResponse,
@@ -146,6 +148,14 @@ export const api = {
 
   deleteGoal: (id: string): Promise<void> =>
     request(`/goals/${id}`, { method: "DELETE" }),
+
+  listChatSessions: (): Promise<ChatSessionSummary[]> => request("/chat/sessions"),
+
+  getChatSession: (id: string): Promise<ChatSessionDetail> =>
+    request(`/chat/sessions/${id}`),
+
+  deleteChatSession: (id: string): Promise<void> =>
+    request(`/chat/sessions/${id}`, { method: "DELETE" }),
 
   // ── Search ────────────────────────────────────────────────────────────────
 

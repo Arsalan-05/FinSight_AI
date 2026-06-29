@@ -91,11 +91,11 @@ function LoginForm() {
             <span className="text-gradient"> understood.</span>
           </h1>
           <p className="text-base leading-relaxed text-[var(--muted)]">
-            AI-powered spending insights, semantic search over transactions, and a
-            conversational agent that knows your money — all in one private workspace.
+            Spending insights, semantic search over your transactions, and a
+            finance agent that works from your real data — all in one private workspace.
           </p>
           <div className="flex flex-wrap gap-2">
-            {["RAG Search", "LangGraph Agent", "Real-time Analytics"].map((tag) => (
+            {["Smart Search", "Finance Agent", "Analytics"].map((tag) => (
               <span
                 key={tag}
                 className="tag-pill rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)] transition-colors hover:border-[var(--border-glow)]"

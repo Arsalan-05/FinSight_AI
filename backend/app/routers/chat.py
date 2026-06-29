@@ -6,16 +6,17 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from agent.runner import AgentResult, run_agent
-from app.auth import get_current_user_optional
+from app.auth import get_current_user, get_current_user_optional
+from app.chat_history import session_to_detail, session_to_summary
 from app.dependencies import get_db
 from app.middleware.chat_rate_limit import enforce_chat_rate_limit
 from app.schemas import ChatRequest
-from db.models import User
+from db.models import ChatSession, User
 
 logger = logging.getLogger(__name__)
 
@@ -78,3 +79,45 @@ async def chat(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/sessions")
+def list_chat_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict[str, object]]:
+    """List saved chat sessions for the logged-in user."""
+    rows = (
+        db.query(ChatSession)
+        .filter(ChatSession.user_id == current_user.id)
+        .order_by(ChatSession.updated_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [session_to_summary(s) for s in rows]
+
+
+@router.get("/sessions/{session_id}")
+def get_chat_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    """Load a saved chat session with message history."""
+    session = db.get(ChatSession, session_id)
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return session_to_detail(session)
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_chat_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    session = db.get(ChatSession, session_id)
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    db.delete(session)
+    db.commit()

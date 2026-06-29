@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     use_supabase_db: bool = False
     supabase_db_password: str = ""
 
+    # Local Postgres used when Supabase direct/pooler is unreachable (campus Wi-Fi, etc.)
+    database_fallback_url: str = "postgresql://finsight:finsight@localhost:5432/finsight"
+    database_fallback_enabled: bool = True
+
     # Optional — when set, all routes except /health and docs require X-API-Key
     finsight_api_key: str = ""
 

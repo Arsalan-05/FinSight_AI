@@ -77,6 +77,7 @@ class ChatSession(Base):
     user_id: Mapped[Optional[str]] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=True, index=True
     )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     # JSON-serialized LangChain message dicts for conversation history
     messages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     memory_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")

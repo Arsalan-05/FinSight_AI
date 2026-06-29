@@ -3,11 +3,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 import agent._warn  # noqa: F401 — suppress third-party import warnings
 from app.config import settings
 from app.middleware.api_key import ApiKeyMiddleware
 from app.routers import accounts, auth, chat, goals, insights, search, transactions, users
+from db.base import DATABASE_URL, engine
 from mcp import register_mcp_tools
 
 
@@ -53,12 +55,24 @@ def health() -> dict[str, str]:
 
 @app.get("/health/db")
 def health_db() -> dict[str, object]:
-    """Report which Postgres backend the API is using (no secrets)."""
-    url = settings.database_url_resolved
+    """Report Postgres connectivity (no secrets)."""
+    url = DATABASE_URL
     host = url.split("@")[-1].split("/")[0] if "@" in url else "unknown"
+    connected = False
+    error: str | None = None
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        connected = True
+    except Exception as exc:
+        error = exc.__class__.__name__
+
+    using_fallback = settings.using_supabase_postgres and "supabase" not in host
     return {
-        "using_supabase_postgres": settings.using_supabase_postgres,
+        "connected": connected,
+        "using_supabase_postgres": settings.using_supabase_postgres and not using_fallback,
+        "using_fallback": using_fallback,
         "use_supabase_db": settings.use_supabase_db,
         "host": host,
-        "configured": bool(settings.supabase_db_password) if settings.use_supabase_db else True,
+        "error": error,
     }

@@ -58,16 +58,33 @@ export default function DashboardPage() {
       };
     })();
     const thirtyRange = getDateRange(1);
+    const emptyList: TransactionList = { total: 0, items: [] };
 
     let healthOk = false;
+    let dbConnected = true;
     try {
       const health = await api.health();
       healthOk = health.status === "ok";
+      const dbHealth = await api.healthDb();
+      dbConnected = dbHealth.connected;
+      if (!dbConnected) {
+        return {
+          healthOk,
+          accs: [],
+          recentList: emptyList,
+          curList: emptyList,
+          prevList: emptyList,
+          dailyData: [],
+          dataError: dbHealth.using_fallback
+            ? "Database fallback active but not connected — run: docker compose up -d db"
+            : "Cannot reach Supabase Postgres. Use phone hotspot, or set the session pooler URL in .env",
+          insightCards: [],
+        };
+      }
     } catch {
       healthOk = false;
     }
 
-    const emptyList: TransactionList = { total: 0, items: [] };
     let accs: Account[] = [];
     let recentList = emptyList;
     let curList = emptyList;
@@ -327,7 +344,7 @@ export default function DashboardPage() {
           {[
             { href: "/analytics", icon: <BarChart2 size={15} />, label: "Analytics", desc: "Charts, trends, merchants" },
             { href: "/transactions", icon: <CreditCard size={15} />, label: "Transactions", desc: "Browse, filter, upload" },
-            { href: "/search", icon: <TrendingUp size={15} />, label: "AI Search", desc: "Semantic RAG search" },
+            { href: "/search", icon: <TrendingUp size={15} />, label: "Search", desc: "Semantic transaction search" },
           ].map(({ href, icon, label, desc }, i) => (
             <Link
               key={href}
