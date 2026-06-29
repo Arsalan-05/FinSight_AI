@@ -217,7 +217,7 @@ curl -N -X POST http://localhost:8000/chat/ \
 | — | (parallel) | UI | Full frontend + light/dark theme | ✅ Done |
 | 4 | Jul 19 – Jul 25 | Agent | LangGraph answers questions | ✅ Done |
 | 5 | Jul 26 – Aug 1 | API | `/chat` endpoint streams | ✅ Done |
-| 6 | Aug 2 – Aug 8 | UI | Wire chat UI to real agent | ⬜ Pending |
+| 6 | Aug 2 – Aug 8 | UI | Wire chat UI to real agent | ✅ Done |
 | 7 | Aug 9 – Aug 15 | Deploy | Live on Railway | ⬜ Pending |
 | 8 | Aug 16 – Aug 23 | Polish | Demo-ready, tested, documented | ⬜ Pending |
 
