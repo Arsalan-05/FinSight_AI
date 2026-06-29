@@ -25,8 +25,8 @@ const NAV = [
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/transactions", label: "Transactions", icon: CreditCard },
   { href: "/accounts", label: "Accounts", icon: Users },
-  { href: "/search", label: "AI Search", icon: Search },
-  { href: "/chat", label: "AI Agent", icon: MessageSquare },
+  { href: "/search", label: "Search", icon: Search },
+  { href: "/chat", label: "Agent", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

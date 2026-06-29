@@ -100,10 +100,7 @@ export default function SearchPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold text-zinc-50">AI Search</h1>
-          <span className="flex items-center gap-1 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs text-indigo-400">
-            <Sparkles size={10} /> Voyage AI voyage-3
-          </span>
+          <h1 className="text-xl font-semibold text-zinc-50">Transaction Search</h1>
         </div>
         <p className="mt-1 text-sm text-zinc-500">
           Ask a natural-language question to semantically retrieve your most relevant transactions.

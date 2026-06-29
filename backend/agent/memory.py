@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from langchain_core.messages import BaseMessage, messages_from_dict, messages_to_dict
+from langchain_core.messages import BaseMessage, HumanMessage, messages_from_dict, messages_to_dict
 from sqlalchemy.orm import Session
 
 from db.models import ChatSession
@@ -45,4 +45,9 @@ def save_session(
     session = load_session(db, session_id, user_id=user_id)
     session.messages_json = json.dumps(messages_to_dict(messages))
     session.memory_summary = memory_summary
+    if not session.title:
+        for msg in messages:
+            if isinstance(msg, HumanMessage) and msg.content:
+                session.title = str(msg.content)[:80]
+                break
     db.commit()

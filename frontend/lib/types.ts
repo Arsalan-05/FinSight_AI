@@ -44,10 +44,12 @@ export interface HealthResponse {
 }
 
 export interface DbHealthResponse {
+  connected: boolean;
   using_supabase_postgres: boolean;
+  using_fallback?: boolean;
   use_supabase_db: boolean;
   host: string;
-  configured: boolean;
+  error?: string | null;
 }
 
 export type ChatRole = "user" | "assistant";
@@ -67,6 +69,20 @@ export interface TransactionCitation {
   category?: string;
   merchant?: string | null;
   source?: string;
+}
+
+export interface ChatSessionSummary {
+  id: string;
+  title: string;
+  updated_at: string | null;
+  message_count: number;
+}
+
+export interface ChatSessionDetail {
+  id: string;
+  title: string;
+  messages: Array<{ role: ChatRole; content: string }>;
+  updated_at: string | null;
 }
 
 export type ChatSSEEvent =

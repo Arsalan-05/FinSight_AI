@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FinSight AI — Personal Finance Agent",
-  description: "AI-powered personal finance intelligence. Powered by Claude and Voyage AI.",
+  title: "FinSight — Personal Finance Intelligence",
+  description: "Transaction intelligence, semantic search, and a finance agent grounded in your data.",
 };
 
 export default function RootLayout({

@@ -36,7 +36,8 @@ interface Stats {
   profileSynced: boolean;
   dbHost: string | null;
   usingSupabaseDb: boolean;
-  dbConfigured: boolean;
+  dbConnected: boolean;
+  usingFallback: boolean;
 }
 
 export default function SettingsPage() {
@@ -80,7 +81,8 @@ export default function SettingsPage() {
         profileSynced: prof.synced,
         dbHost: dbHealth.host,
         usingSupabaseDb: dbHealth.using_supabase_postgres,
-        dbConfigured: dbHealth.configured,
+        dbConnected: dbHealth.connected,
+        usingFallback: dbHealth.using_fallback ?? false,
       }));
   }, []);
 
@@ -169,32 +171,34 @@ export default function SettingsPage() {
             icon={<Database size={14} />}
             label="PostgreSQL + pgvector"
             description={
-              stats?.usingSupabaseDb
-                ? `Supabase hosted — ${stats.dbHost ?? "connected"}`
-                : !stats?.dbConfigured && stats?.supabaseConfigured
-                  ? "Set DATABASE_URL in .env — see DOCUMENTATION.md §14"
-                  : "Local Docker — data not in Supabase cloud"
+              stats?.usingFallback
+                ? `Local fallback — ${stats.dbHost ?? "connected"}`
+                : stats?.usingSupabaseDb
+                  ? `Supabase hosted — ${stats.dbHost ?? "connected"}`
+                  : !stats?.dbConnected && stats?.supabaseConfigured
+                    ? "Cannot reach Supabase — using local fallback or check hotspot"
+                    : "Local Docker — data not in Supabase cloud"
             }
             ok={
-              stats?.usingSupabaseDb
+              stats?.dbConnected
                 ? true
-                : stats?.dbConfigured === false
+                : stats?.apiHealthy === false
                   ? false
-                  : stats?.apiHealthy ?? null
+                  : null
             }
             loading={loading}
           />
           <StatusRow
             icon={<Sparkles size={14} />}
-            label="Voyage AI Embeddings"
-            description={stats?.embeddingEnabled ? "voyage-3 (1024-dim) — ready" : "Set VOYAGE_API_KEY to enable semantic search"}
-            ok={stats?.embeddingEnabled ?? null}
+            label="Semantic Embeddings"
+            description={stats?.embeddingEnabled ? "Vector search enabled" : "Ollama nomic-embed-text (local) or set VOYAGE_API_KEY"}
+            ok={stats?.embeddingEnabled ?? stats?.apiHealthy ?? null}
             loading={loading}
           />
           <StatusRow
             icon={<BrainCircuit size={14} />}
-            label="LangGraph Agent"
-            description="Ollama llama3.2 + ReAct tools — POST /chat SSE"
+            label="Finance Agent"
+            description="ReAct agent with spending tools — POST /chat SSE"
             ok={stats?.apiHealthy ?? null}
             loading={loading}
           />
@@ -358,36 +362,21 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Roadmap */}
+      {/* Features */}
       <section className="panel rounded-2xl p-5">
-        <h2 className="mb-4 text-sm font-semibold text-zinc-200">Build Progress</h2>
+        <h2 className="mb-4 text-sm font-semibold text-zinc-200">What&apos;s included</h2>
         <div className="flex flex-col gap-2">
           {[
-            { week: "Week 1", title: "Scaffolding & Docker", done: true },
-            { week: "Week 2", title: "Data Layer (CRUD, CSV, Migrations)", done: true },
-            { week: "Week 3", title: "RAG Pipeline (Voyage AI + pgvector)", done: true },
-            { week: "Week 4", title: "LangGraph Agent Core", done: true },
-            { week: "Week 5", title: "FastAPI /chat SSE Endpoint + MCP", done: true },
-            { week: "Week 6", title: "Streaming Chat UI", done: true },
-            { week: "Week 7", title: "Supabase Auth + Premium UI + CI", done: true },
-            { week: "Week 8", title: "Testing, Polish, HNSW Index", done: true },
-            { week: "Complete", title: "Canadian banks, insights, citations, goals", done: true },
-          ].map(({ week, title, done }) => (
-            <div key={week} className="flex items-center gap-3 rounded-lg px-3 py-2.5">
-              {done ? (
-                <CheckCircle2 size={15} className="text-emerald-500" />
-              ) : (
-                <div className="h-3.5 w-3.5 rounded-full border border-zinc-700" />
-              )}
-              <span className="w-16 shrink-0 text-xs text-zinc-600">{week}</span>
-              <span className={["text-sm", done ? "text-zinc-300" : "text-zinc-600"].join(" ")}>
-                {title}
-              </span>
-              {done && (
-                <span className="ml-auto rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">
-                  Done
-                </span>
-              )}
+            "Canadian bank CSV import (RBC, TD, CIBC, Scotiabank, BMO, Simplii)",
+            "Semantic transaction search with pgvector",
+            "Finance agent with spending tools and transaction citations",
+            "Saved chat history per account",
+            "Proactive insights — subscriptions, runway, TFSA, anomalies",
+            "Google OAuth via Supabase with per-user data scoping",
+          ].map((title) => (
+            <div key={title} className="flex items-center gap-3 rounded-lg px-3 py-2.5">
+              <CheckCircle2 size={15} className="shrink-0 text-emerald-500" />
+              <span className="text-sm text-zinc-300">{title}</span>
             </div>
           ))}
         </div>

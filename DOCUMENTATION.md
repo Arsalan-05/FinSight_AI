@@ -1,6 +1,44 @@
-# FinSight AI — Complete Project Documentation
+# FinSight AI — Project Documentation
 
-> **Status:** Production-complete for portfolio and local demo use. All 8 build weeks shipped; 70 automated tests; full-stack checkpoint script included.
+> **Author:** Arsalan Amir Ali — portfolio project, built and maintained by me.  
+> **Status:** Complete — full-stack personal finance agent with Supabase auth, pgvector RAG, saved chat history, and Canadian bank support.
+
+---
+
+## Startup Guide (read this first)
+
+I run FinSight locally in four steps. Copy this block when you need a clean start:
+
+```bash
+# 1 — Environment
+cp .env.example .env
+cp frontend/.env.local.example frontend/.env.local
+# Fill DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY in both files
+
+# 2 — Database (Supabase direct connection — use hotspot if campus Wi-Fi blocks port 5432)
+chmod +x infra/supabase/setup-e2e.sh
+./infra/supabase/setup-e2e.sh
+
+# 3 — Ollama models (one-time)
+ollama pull llama3.2
+ollama pull nomic-embed-text
+
+# 4 — Run services (two terminals)
+cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000
+cd frontend && npm install && npm run dev
+```
+
+Open **http://localhost:3000** → sign in with Google → dashboard loads your data.
+
+**Verify everything:**
+
+```bash
+cd backend && set -a && source ../.env && set +a && uv run python scripts/check_e2e.py
+cd backend && uv run pytest -q
+cd frontend && npm run lint && npm run type-check && npm run build
+```
+
+Expected: **16/16** e2e checkpoints, **74** tests passing, frontend build clean.
 
 ---
 
@@ -31,9 +69,11 @@
 
 ## 1. Overview
 
-### What it is
+### What I built
 
-**FinSight AI** is a personal finance intelligence agent. You upload bank transactions (or use seeded demo data), and an AI assistant answers questions like *"How much did I spend on dining last month?"* or *"Find my Interac rent payments"* — grounded in your real data, not hallucinated numbers.
+**FinSight AI** is my personal finance intelligence app. I upload bank transactions (or use seeded demo data), and a finance agent answers questions like *"How much did I spend on dining last month?"* or *"Find my Interac rent payments"* — grounded in real data, not made-up numbers.
+
+Every chat is saved to Postgres. The agent reads my transactions through scoped SQL and RAG tools, so answers stay tied to what is actually in the database.
 
 ### Core capabilities
 
@@ -233,7 +273,7 @@ User (1) ──► (N) ChatSession
 | `accounts` | Financial accounts | `user_id` FK, `institution`, `account_type` (checking/savings/credit) |
 | `transactions` | Transaction rows | `account_id` FK, `transaction_date`, `amount` (negative=debit), `category`, `merchant` |
 | `transaction_embeddings` | RAG vectors | `transaction_id` FK UNIQUE, `content`, `embedding vector(768)` |
-| `chat_sessions` | Agent history | `user_id` FK, `messages_json`, `memory_summary` |
+| `chat_sessions` | Agent history | `user_id` FK, `title`, `messages_json`, `memory_summary` |
 | `alembic_version` | Migration tracking | `version_num` |
 
 ### Indexes
@@ -245,7 +285,7 @@ User (1) ──► (N) ChatSession
 
 **Negative = expense (debit). Positive = income (credit).** Matches most bank CSV exports.
 
-### Migrations (Alembic head: `g7b8c9d0e1f2`)
+### Migrations (Alembic head: `h8c9d0e1f2a3`)
 
 1. `603770f84793` — users, accounts, transactions
 2. `a1b2c3d4e5f6` — transaction_embeddings + pgvector
@@ -255,8 +295,7 @@ User (1) ──► (N) ChatSession
 6. `e5f6a7b8c9d0` — user_id on chat_sessions
 7. `f6a7b8c9d0e1` — HNSW index (replaces IVFFlat)
 8. `g7b8c9d0e1f2` — goals_json on users
-
----
+9. `h8c9d0e1f2a3` — title on chat_sessions (history sidebar)
 
 ## 6. Authentication & User Scoping
 
@@ -365,11 +404,14 @@ Auth: `Authorization: Bearer <supabase_access_token>` on all routes except `/hea
 | POST | `/goals/` | Create goal |
 | DELETE | `/goals/{id}` | Delete goal |
 
-### Chat (SSE)
+### Chat (SSE + history)
 
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
-| POST | `/chat/` | `{"message":"...","session_id":"optional"}` | SSE stream |
+| POST | `/chat/` | `{"message":"...","session_id":"optional"}` | SSE stream; persists session after each turn |
+| GET | `/chat/sessions` | — | List saved conversations for current user (newest first) |
+| GET | `/chat/sessions/{id}` | — | Load messages for history sidebar / resume |
+| DELETE | `/chat/sessions/{id}` | — | Delete a saved conversation |
 
 **SSE events:** `token`, `tool_call`, `citation`, `done`, `error`
 
@@ -429,6 +471,7 @@ User message → Agent node (LLM + tool schemas)
 
 ### Session memory
 
+- `chat_sessions.title` — first user message (truncated), shown in history sidebar
 - `chat_sessions.messages_json` — full LangChain message history
 - `memory_summary` — compressed context across long conversations
 - `goals_json` on user — injected into system prompt
@@ -667,7 +710,7 @@ On first login, `POST /auth/sync` clones demo data (accounts + transactions + em
 
 ```bash
 cd backend
-uv run pytest -q                    # 70 tests
+uv run pytest -q                    # 74 tests
 uv run ruff check .                 # lint
 uv run ruff format .                # format
 uv run mypy app/ agent/ db/ rag/ insights/   # type check
