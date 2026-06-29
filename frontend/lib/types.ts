@@ -43,6 +43,19 @@ export interface HealthResponse {
   environment: string;
 }
 
+export type ChatRole = "user" | "assistant";
+
+export interface ChatMessage {
+  id: string;
+  role: ChatRole;
+  content: string;
+}
+
+export type ChatSSEEvent =
+  | { type: "token"; content: string }
+  | { type: "done"; session_id: string; content: string }
+  | { type: "error"; message: string };
+
 export const CATEGORY_COLORS: Record<string, string> = {
   Dining: "#f59e0b",
   Groceries: "#22c55e",

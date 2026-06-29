@@ -1,11 +1,13 @@
 import type {
   Account,
+  ChatSSEEvent,
   HealthResponse,
   SearchResponse,
   Transaction,
   TransactionList,
   User,
 } from "./types";
+import { authHeaders } from "./auth";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -14,7 +16,7 @@ async function request<T>(
   init?: RequestInit,
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", ...authHeaders(), ...init?.headers },
     ...init,
   });
   if (!res.ok) {
@@ -89,6 +91,7 @@ export const api = {
     form.append("file", file);
     return fetch(`${BASE}/transactions/upload?account_id=${account_id}`, {
       method: "POST",
+      headers: authHeaders(),
       body: form,
     }).then((r) => {
       if (!r.ok) throw new Error(`Upload failed: ${r.statusText}`);
@@ -103,6 +106,45 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ query, k }),
     }),
+
+  // ── Chat (SSE) ────────────────────────────────────────────────────────────
+
+  chatStream: async function* (
+    message: string,
+    sessionId?: string,
+    signal?: AbortSignal,
+  ): AsyncGenerator<ChatSSEEvent> {
+    const res = await fetch(`${BASE}/chat/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ message, session_id: sessionId }),
+      signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText);
+      throw new Error(`API ${res.status}: ${text}`);
+    }
+    if (!res.body) {
+      throw new Error("No response body from chat endpoint");
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+      for (const block of parts) {
+        const line = block.trim();
+        if (!line.startsWith("data: ")) continue;
+        yield JSON.parse(line.slice(6)) as ChatSSEEvent;
+      }
+    }
+  },
 
   // ── Analytics helpers ─────────────────────────────────────────────────────
 
