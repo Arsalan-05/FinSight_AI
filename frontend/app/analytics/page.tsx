@@ -4,7 +4,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart2,
-  RefreshCw,
   ShoppingBag,
   TrendingDown,
   TrendingUp,
@@ -28,6 +27,7 @@ import {
 } from "recharts";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import { KpiCard } from "@/components/ui/KpiCard";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
 import type { Transaction } from "@/lib/types";
@@ -232,7 +232,7 @@ export default function AnalyticsPage() {
                   className={[
                     "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                     period === label
-                      ? "bg-indigo-600 text-white"
+                      ? "btn-primary text-white"
                       : "text-[var(--muted)] hover:text-[var(--foreground)]",
                   ].join(" ")}
                 >
@@ -247,14 +247,6 @@ export default function AnalyticsPage() {
             >
               Export CSV
             </button>
-            <button
-              type="button"
-              onClick={() => { setLoading(true); fetchData(period).then((d) => { setTxs(d); setLoading(false); }); }}
-              disabled={loading}
-              className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40"
-            >
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            </button>
           </>
         }
       />
@@ -264,7 +256,7 @@ export default function AnalyticsPage() {
         <KpiCard icon={<TrendingDown size={15} />} label="Total Spend" value={formatCurrency(totalSpend)} accent="rose" sub={`Avg ${formatCurrency(avgMonthlySpend)}/mo`} />
         <KpiCard icon={<TrendingUp size={15} />} label="Total Income" value={formatCurrency(totalIncome)} accent="emerald" sub={`${txs.filter(t => t.amount > 0).length} credits`} />
         <KpiCard icon={<Wallet size={15} />} label="Net Savings" value={formatCurrency(Math.abs(netSavings))} accent={netSavings >= 0 ? "emerald" : "rose"} sub={netSavings >= 0 ? "Surplus" : "Deficit"} neg={netSavings < 0} />
-        <KpiCard icon={<BarChart2 size={15} />} label="Transactions" value={txs.length.toLocaleString()} accent="indigo" sub={`${months.length} months`} />
+        <KpiCard icon={<BarChart2 size={15} />} label="Transactions" value={txs.length.toLocaleString()} accent="teal" sub={`${months.length} months`} />
       </div>
 
       {/* Charts row */}
@@ -381,7 +373,7 @@ export default function AnalyticsPage() {
                       </div>
                       <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-800">
                         <div
-                          className="h-full rounded-full bg-indigo-500/70 transition-all duration-500"
+                          className="h-full rounded-full bg-teal-500/70 transition-all duration-500"
                           style={{ width: `${(m.total / max) * 100}%` }}
                         />
                       </div>
@@ -493,29 +485,6 @@ export default function AnalyticsPage() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-function KpiCard({ icon, label, value, accent, sub, neg }: {
-  icon: React.ReactNode; label: string; value: string;
-  accent: "rose" | "emerald" | "indigo"; sub: string; neg?: boolean;
-}) {
-  const accentCls: Record<string, string> = {
-    rose: "kpi-accent-rose",
-    emerald: "kpi-accent-emerald",
-    indigo: "kpi-accent-indigo",
-  };
-  return (
-    <div className={`kpi-card panel-interactive ${accentCls[accent]}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">{label}</span>
-        <span className="kpi-icon">{icon}</span>
-      </div>
-      <p className={["text-2xl font-semibold tabular-nums tracking-tight", neg ? "text-rose-400" : ""].join(" ")}>
-        {neg ? "−" : ""}{value}
-      </p>
-      <p className="truncate text-xs text-[var(--muted)]">{sub}</p>
-    </div>
-  );
-}
 
 function ChartCard({ title, subtitle, children, className }: {
   title: string; subtitle?: string; children: React.ReactNode; className?: string;

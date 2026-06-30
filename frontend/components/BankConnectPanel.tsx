@@ -115,18 +115,16 @@ export default function BankConnectPanel() {
         onReady={() => setScriptReady(true)}
       />
       <section className="panel panel-glow overflow-hidden rounded-2xl p-0">
-        <div className="border-b border-[var(--border)] bg-gradient-to-r from-indigo-500/10 via-violet-500/5 to-transparent px-5 py-4">
+        <div className="border-b border-[var(--border)] bg-gradient-to-r from-teal-500/10 via-blue-600/5 to-transparent px-5 py-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/15 text-teal-400">
               <Landmark size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-semibold text-zinc-100">Connect your bank</h2>
-              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                Secure, read-only sync via{" "}
-                <span className="text-zinc-400">Plaid</span> — the same regulated provider used by
-                major fintech apps. You consent in Plaid&apos;s flow; FinSight never sees your bank
-                password. Canada + US supported.
+              <h2 className="section-title">Connected banks</h2>
+              <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                Secure read-only sync via Plaid. Your credentials stay with your bank —
+                FinSight only receives transaction data you authorize.
               </p>
             </div>
             <ShieldCheck size={18} className="shrink-0 text-emerald-500/80" aria-hidden />
@@ -137,21 +135,11 @@ export default function BankConnectPanel() {
           {loading ? (
             <div className="h-20 shimmer rounded-xl" />
           ) : !status?.enabled ? (
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-              <p className="text-sm font-medium text-amber-200/90">Plaid sandbox setup</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Add <code className="text-zinc-400">PLAID_CLIENT_ID</code> and{" "}
-                <code className="text-zinc-400">PLAID_SECRET</code> to{" "}
-                <code className="text-zinc-400">.env</code> (free at{" "}
-                <a
-                  href="https://dashboard.plaid.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-indigo-400 hover:underline"
-                >
-                  dashboard.plaid.com
-                </a>
-                ). Until then, use CSV import — fully supported.
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+              <p className="text-sm font-medium text-[var(--foreground)]">Bank linking unavailable</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Connect a bank account once linking is enabled for your workspace, or import
+                transactions via CSV from Accounts.
               </p>
             </div>
           ) : (
@@ -180,21 +168,21 @@ export default function BankConnectPanel() {
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex gap-3 rounded-xl border border-[var(--border)] bg-zinc-950/40 px-4 py-3">
-              <FileSpreadsheet size={16} className="mt-0.5 shrink-0 text-zinc-500" />
+            <div className="flex gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+              <FileSpreadsheet size={16} className="mt-0.5 shrink-0 text-[var(--accent)]" />
               <div>
-                <p className="text-xs font-medium text-zinc-300">CSV import</p>
-                <p className="mt-0.5 text-[11px] text-zinc-600">
-                  RBC, TD, CIBC, BMO, Simplii — no API keys needed
+                <p className="text-xs font-medium text-[var(--foreground)]">Import statements</p>
+                <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+                  Upload CSV exports from RBC, TD, CIBC, BMO, and more
                 </p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl border border-[var(--border)] bg-zinc-950/40 px-4 py-3">
-              <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-500/70" />
+            <div className="flex gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+              <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-400" />
               <div>
-                <p className="text-xs font-medium text-zinc-300">Compliant linking</p>
-                <p className="mt-0.5 text-[11px] text-zinc-600">
-                  OAuth via Plaid — not screen-scraping; user-consented read-only access
+                <p className="text-xs font-medium text-[var(--foreground)]">Bank-level security</p>
+                <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+                  Read-only access — you approve every connection
                 </p>
               </div>
             </div>
@@ -208,8 +196,8 @@ export default function BankConnectPanel() {
                   className="flex items-center justify-between rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-4 py-3"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-zinc-200">{c.institution_name}</p>
-                    <p className="text-[11px] text-zinc-600">
+                    <p className="truncate text-sm font-medium text-[var(--foreground)]">{c.institution_name}</p>
+                    <p className="text-[11px] text-[var(--muted)]">
                       {c.last_synced_at
                         ? `Last sync ${new Date(c.last_synced_at).toLocaleString()}`
                         : "Connected"}
