@@ -122,9 +122,16 @@ class Settings(BaseSettings):
 
     @property
     def llm_configured(self) -> bool:
+        return self.effective_llm_provider == "anthropic" and bool(self.anthropic_api_key)
+
+    @property
+    def effective_llm_provider(self) -> str:
+        """Use Anthropic on cloud when a key is set; Ollama is local-only."""
         if self.llm_provider == "anthropic":
-            return bool(self.anthropic_api_key)
-        return True
+            return "anthropic"
+        if self.environment == "production" and self.anthropic_api_key:
+            return "anthropic"
+        return "ollama"
 
     @property
     def database_url_resolved(self) -> str:

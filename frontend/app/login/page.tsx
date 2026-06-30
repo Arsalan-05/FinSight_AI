@@ -109,11 +109,11 @@ function LoginForm() {
 
       <div className="relative z-10 flex flex-1 items-center justify-center p-6 sm:p-8">
         <div className="w-full max-w-md space-y-6">
-          <div className="space-y-3 text-center lg:text-left">
+          <div className="space-y-4 text-center lg:text-left">
             <div className="flex justify-center lg:justify-start">
-              <Logo size={44} compact subtitle="" />
+              <Logo size={40} compact subtitle="" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
               <p className="text-sm text-[var(--muted)]">
                 Sign in to your FinSight account
@@ -161,22 +161,20 @@ function LoginForm() {
                 </div>
 
                 <form onSubmit={(e) => void signInWithEmail(e)} className="space-y-3">
-                  <label className="block text-xs font-medium text-[var(--muted)]">
+                  <label htmlFor="login-email" className="block text-xs font-medium text-[var(--muted)]">
                     Email sign-in link
                   </label>
-                  <div className="relative">
-                    <Mail
-                      size={14}
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"
-                    />
+                  <div className="input-field flex items-center gap-3 !py-0 !pl-3 !pr-3">
+                    <Mail size={16} className="shrink-0 text-[var(--muted)]" aria-hidden />
                     <input
+                      id="login-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       required
                       autoComplete="email"
-                      className="input-field w-full py-2.5 pl-10 pr-3"
+                      className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
                     />
                   </div>
                   <button
