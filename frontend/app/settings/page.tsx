@@ -1,120 +1,84 @@
 "use client";
 
 import {
-  Activity,
-  BrainCircuit,
-  CheckCircle2,
-  ChevronRight,
-  Database,
   Download,
-  RefreshCw,
-  Server,
-  Sparkles,
-  Target,
-  Trash2,
-  XCircle,
+  Lock,
+  Palette,
+  Shield,
+  User,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
-import { api } from "@/lib/api";
+import BankConnectPanel from "@/components/BankConnectPanel";
+import ThemeToggle from "@/components/ThemeToggle";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
-import type { FinancialGoal } from "@/lib/types";
-import { getApiKey, setApiKey } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { exportToCsv } from "@/lib/utils";
-import { useToast } from "@/contexts/ToastContext";
-import BankConnectPanel from "@/components/BankConnectPanel";
-
-interface Stats {
-  users: number;
-  accounts: number;
-  transactions: number;
-  embeddingEnabled: boolean;
-  apiHealthy: boolean;
-  environment: string;
-  supabaseConfigured: boolean;
-  profileEmail: string | null;
-  profileSynced: boolean;
-  dbHost: string | null;
-  usingSupabaseDb: boolean;
-  dbConnected: boolean;
-  usingFallback: boolean;
-}
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const authReady = useAuthReady();
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [profile, setProfile] = useState<{ email: string; name: string } | null>(null);
+  const [dataCounts, setDataCounts] = useState({ accounts: 0, transactions: 0 });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const [apiKey, setApiKeyState] = useState(() =>
-    typeof window === "undefined" ? "" : getApiKey(),
-  );
-  const [goals, setGoals] = useState<FinancialGoal[]>([]);
-  const [goalTitle, setGoalTitle] = useState("");
-  const [goalAmount, setGoalAmount] = useState("");
 
-  const fetchStats = useCallback(() => {
-    const supabaseConfigured = isSupabaseConfigured();
-    const base = Promise.all([
-      api.health(),
-      api.healthDb(),
-      api.getAccounts(),
-      api.getTransactions({ limit: 1 }),
-      api.search("test", 1),
+  const fetchAll = useCallback(async () => {
+    const [accounts, txList] = await Promise.all([
+      api.getAccounts().catch(() => []),
+      api.getTransactions({ limit: 1 }).catch(() => ({ total: 0, items: [] })),
     ]);
-    const profile = supabaseConfigured
-      ? api.getMe()
-          .then((u) => ({ email: u.email, synced: true, userCount: 1 }))
-          .catch(() => ({ email: null as string | null, synced: false, userCount: 0 }))
-      : Promise.resolve({ email: null as string | null, synced: false, userCount: 0 });
 
-    return Promise.all([base, profile, supabaseConfigured ? Promise.resolve(null) : api.getUsers()])
-      .then(([[health, dbHealth, accounts, txList, searchRes], prof, users]) => ({
-        users: supabaseConfigured ? prof.userCount : (users?.length ?? 0),
-        accounts: accounts.length,
-        transactions: txList.total,
-        embeddingEnabled: searchRes.embedding_enabled,
-        apiHealthy: health.status === "ok",
-        environment: health.environment,
-        supabaseConfigured,
-        profileEmail: prof.email,
-        profileSynced: prof.synced,
-        dbHost: dbHealth.host,
-        usingSupabaseDb: dbHealth.using_supabase_postgres,
-        dbConnected: dbHealth.connected,
-        usingFallback: dbHealth.using_fallback ?? false,
-      }));
+    let prof: { email: string; name: string } | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        const u = await api.getMe();
+        prof = { email: u.email, name: u.name };
+      } catch {
+        prof = null;
+      }
+    }
+
+    return {
+      profile: prof,
+      accounts: accounts.length,
+      transactions: txList.total,
+    };
   }, []);
 
   useEffect(() => {
     if (!authReady) return;
     let active = true;
-    fetchStats().then((s) => {
-      if (active) { setStats(s); setLoading(false); }
-    }).catch(() => {
-      if (active) setLoading(false);
-    });
-    if (isSupabaseConfigured()) {
-      api.getGoals().then((g) => { if (active) setGoals(g); }).catch(() => {});
-    }
+    fetchAll()
+      .then((data) => {
+        if (!active) return;
+        setProfile(data.profile);
+        setDataCounts({ accounts: data.accounts, transactions: data.transactions });
+        setLoading(false);
+      })
+      .catch(() => {
+        if (active) setLoading(false);
+      });
     return () => { active = false; };
-  }, [authReady, fetchStats]);
-
-  const handleRefresh = () => {
-    setLoading(true);
-    fetchStats().then((s) => { setStats(s); setLoading(false); });
-  };
+  }, [authReady, fetchAll]);
 
   const handleExportAll = async () => {
     setExporting(true);
     try {
       const txs = await api.getAllTransactions("2000-01-01", new Date().toISOString().slice(0, 10));
-      exportToCsv("finsight-all-transactions.csv", [
-        ["ID", "Account ID", "Date", "Description", "Amount", "Category", "Merchant", "Notes"],
+      exportToCsv("finsight-transactions.csv", [
+        ["Date", "Description", "Amount", "Category", "Merchant", "Account"],
         ...txs.map((t) => [
-          t.id, t.account_id, t.transaction_date, t.description,
-          String(t.amount), t.category, t.merchant ?? "", t.notes ?? "",
+          t.transaction_date,
+          t.description,
+          String(t.amount),
+          t.category,
+          t.merchant ?? "",
+          t.account_id,
         ]),
       ]);
       toast(`Exported ${txs.length} transactions`);
@@ -127,342 +91,100 @@ export default function SettingsPage() {
 
   return (
     <div className="page-container max-w-3xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Settings</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">System status and data management</p>
+      <PageHeader
+        eyebrow="Preferences"
+        title="Settings"
+        subtitle="Your account, connected banks, and data."
+      />
+
+      <section className="panel settings-card stagger-item" style={{ "--stagger": 1 } as CSSProperties}>
+        <div className="mb-4 flex items-center gap-2">
+          <User size={16} className="text-[var(--accent)]" />
+          <h2 className="section-title">Profile</h2>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={loading}
-          className="flex h-8 w-8 items-center justify-center panel rounded-xl text-zinc-400 hover:text-zinc-100 disabled:opacity-40"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-        </button>
-      </div>
-
-      <BankConnectPanel />
-
-      {/* System Health */}
-      <section className="panel rounded-2xl p-5">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <Activity size={15} className="text-zinc-500" /> System Status
-        </h2>
-        <div className="flex flex-col gap-3">
-          <StatusRow
-            icon={<Server size={14} />}
-            label="FastAPI Backend"
-            description="http://localhost:8000"
-            ok={stats?.apiHealthy ?? null}
-            loading={loading}
-            detail={stats?.environment}
-          />
-          <StatusRow
-            icon={<Sparkles size={14} />}
-            label="Supabase Auth"
-            description={
-              stats?.supabaseConfigured
-                ? "Google OAuth + JWT → backend user sync"
-                : "Set NEXT_PUBLIC_SUPABASE_* in frontend/.env.local"
-            }
-            ok={stats?.supabaseConfigured ? (stats.profileSynced ? true : null) : null}
-            loading={loading}
-            detail={stats?.profileEmail ?? undefined}
-          />
-          <StatusRow
-            icon={<Database size={14} />}
-            label="PostgreSQL + pgvector"
-            description={
-              stats?.usingFallback
-                ? `Local fallback — ${stats.dbHost ?? "connected"}`
-                : stats?.usingSupabaseDb
-                  ? `Supabase hosted — ${stats.dbHost ?? "connected"}`
-                  : !stats?.dbConnected && stats?.supabaseConfigured
-                    ? "Cannot reach Supabase — using local fallback or check hotspot"
-                    : "Local Docker — data not in Supabase cloud"
-            }
-            ok={
-              stats?.dbConnected
-                ? true
-                : stats?.apiHealthy === false
-                  ? false
-                  : null
-            }
-            loading={loading}
-          />
-          <StatusRow
-            icon={<Sparkles size={14} />}
-            label="Semantic Embeddings"
-            description={stats?.embeddingEnabled ? "Vector search enabled" : "Ollama nomic-embed-text (local) or set VOYAGE_API_KEY"}
-            ok={stats?.embeddingEnabled ?? stats?.apiHealthy ?? null}
-            loading={loading}
-          />
-          <StatusRow
-            icon={<BrainCircuit size={14} />}
-            label="Finance Agent"
-            description="ReAct agent with spending tools — POST /chat SSE"
-            ok={stats?.apiHealthy ?? null}
-            loading={loading}
-          />
-        </div>
-      </section>
-
-      {/* API Key */}
-      <section className="panel rounded-2xl p-5">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <Server size={15} className="text-zinc-500" /> API Access
-        </h2>
-        <p className="mb-3 text-xs text-zinc-600">
-          Optional. Set <code className="text-zinc-400">FINSIGHT_API_KEY</code> on the backend to
-          require an <code className="text-zinc-400">X-API-Key</code> header on all routes except
-          /health.
-        </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKeyState(e.target.value)}
-            placeholder="API key (stored in browser localStorage)"
-            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/50 focus:outline-none"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setApiKey(apiKey);
-              toast(apiKey.trim() ? "API key saved" : "API key cleared");
-            }}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-          >
-            Save key
-          </button>
-        </div>
-      </section>
-
-      {/* Financial Goals */}
-      {stats?.supabaseConfigured && (
-        <section className="panel rounded-2xl p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-            <Target size={15} className="text-zinc-500" /> Financial Goals
-          </h2>
-          <p className="mb-4 text-xs text-zinc-500">
-            Goals persist across chat sessions — the agent remembers what you are saving for.
-          </p>
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-            <input
-              value={goalTitle}
-              onChange={(e) => setGoalTitle(e.target.value)}
-              placeholder="e.g. Fall 2026 rent buffer"
-              className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200"
-            />
-            <input
-              value={goalAmount}
-              onChange={(e) => setGoalAmount(e.target.value)}
-              placeholder="Target $"
-              type="number"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 sm:w-28"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                if (!goalTitle.trim()) return;
-                void api
-                  .createGoal({
-                    title: goalTitle.trim(),
-                    target_amount: goalAmount ? parseFloat(goalAmount) : undefined,
-                  })
-                  .then((g) => {
-                    setGoals((prev) => [...prev, g]);
-                    setGoalTitle("");
-                    setGoalAmount("");
-                    toast("Goal saved");
-                  })
-                  .catch(() => toast("Sign in to save goals", "error"));
-              }}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-500"
-            >
-              Add goal
-            </button>
-          </div>
-          <ul className="flex flex-col gap-2">
-            {goals.map((g) => (
-              <li key={g.id} className="flex items-center justify-between rounded-lg bg-zinc-950 px-3 py-2">
-                <div>
-                  <p className="text-sm text-zinc-300">{g.title}</p>
-                  {g.target_amount != null && (
-                    <p className="text-xs text-zinc-600">Target ${g.target_amount.toLocaleString()}</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void api.deleteGoal(g.id).then(() => {
-                    setGoals((prev) => prev.filter((x) => x.id !== g.id));
-                  })}
-                  className="text-zinc-600 hover:text-rose-400"
-                  aria-label="Delete goal"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </li>
-            ))}
-            {goals.length === 0 && (
-              <p className="text-xs text-zinc-600">No goals yet — add one above.</p>
-            )}
-          </ul>
-        </section>
-      )}
-
-      {/* Data Statistics */}
-      <section className="panel rounded-2xl p-5">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <Database size={15} className="text-zinc-500" /> Data
-        </h2>
-        <div className="grid grid-cols-3 gap-4">
-          <DataStat label="Users" value={stats?.users ?? null} loading={loading} />
-          <DataStat label="Accounts" value={stats?.accounts ?? null} loading={loading} />
-          <DataStat label="Transactions" value={stats?.transactions ?? null} loading={loading} />
-        </div>
-      </section>
-
-      {/* Actions */}
-      <section className="panel rounded-2xl p-5">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <Download size={15} className="text-zinc-500" /> Data Management
-        </h2>
-        <div className="flex flex-col gap-2">
-          <ActionRow
-            icon={<Download size={14} />}
-            label="Export All Transactions"
-            description="Download every transaction as a CSV file"
-            onClick={() => void handleExportAll()}
-            loading={exporting}
-          />
-          <ActionRow
-            icon={<RefreshCw size={14} />}
-            label="API Documentation"
-            description="Open Swagger UI for the FastAPI backend"
-            onClick={() => window.open("http://localhost:8000/docs", "_blank")}
-          />
-        </div>
-      </section>
-
-      {/* Environment info */}
-      <section className="panel rounded-2xl p-5">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <Server size={15} className="text-zinc-500" /> Environment
-        </h2>
-        <div className="flex flex-col gap-2 font-mono text-xs text-zinc-500">
-          {[
-            ["NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"],
-            ["NODE_ENV", process.env.NODE_ENV ?? "development"],
-            ["Backend env", stats?.environment ?? "…"],
-          ].map(([k, v]) => (
-            <div key={k} className="flex gap-4">
-              <span className="w-44 shrink-0 text-zinc-600">{k}</span>
-              <span className="text-zinc-400">{v}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="panel rounded-2xl p-5">
-        <h2 className="mb-4 text-sm font-semibold text-zinc-200">What&apos;s included</h2>
-        <div className="flex flex-col gap-2">
-          {[
-            "Canadian bank CSV import (RBC, TD, CIBC, Scotiabank, BMO, Simplii)",
-            "Live bank linking via Plaid (OAuth, read-only — compliant US + Canada)",
-            "Semantic transaction search with pgvector",
-            "Finance agent with spending tools and transaction citations",
-            "Saved chat history per account",
-            "Proactive insights — subscriptions, runway, TFSA, anomalies",
-            "Google OAuth via Supabase with per-user data scoping",
-          ].map((title) => (
-            <div key={title} className="flex items-center gap-3 rounded-lg px-3 py-2.5">
-              <CheckCircle2 size={15} className="shrink-0 text-emerald-500" />
-              <span className="text-sm text-zinc-300">{title}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function StatusRow({
-  icon, label, description, ok, loading, detail, badge,
-}: {
-  icon: React.ReactNode; label: string; description: string;
-  ok: boolean | null; loading: boolean; detail?: string; badge?: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg border border-zinc-800/50 bg-zinc-800/30 px-4 py-3">
-      <span className="mt-0.5 text-zinc-500">{icon}</span>
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-zinc-300">{label}</p>
-          {badge && (
-            <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-500">{badge}</span>
-          )}
-          {detail && <span className="text-xs text-zinc-600">{detail}</span>}
-        </div>
-        <p className="mt-0.5 text-xs text-zinc-600">{description}</p>
-      </div>
-      <div className="mt-0.5">
         {loading ? (
-          <div className="h-4 w-16 shimmer rounded" />
-        ) : ok === null ? (
-          <span className="flex items-center gap-1 text-xs text-zinc-600">
-            <div className="h-1.5 w-1.5 rounded-full bg-zinc-700" /> Pending
-          </span>
-        ) : ok ? (
-          <span className="flex items-center gap-1 text-xs text-emerald-400">
-            <CheckCircle2 size={13} /> OK
-          </span>
+          <div className="h-12 shimmer rounded-xl" />
+        ) : profile ? (
+          <div className="settings-row border-0 pt-0">
+            <div>
+              <p className="text-sm font-medium text-[var(--foreground)]">{profile.name}</p>
+              <p className="mt-0.5 text-sm text-[var(--muted)]">{profile.email}</p>
+            </div>
+            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+              Active
+            </span>
+          </div>
         ) : (
-          <span className="flex items-center gap-1 text-xs text-red-400">
-            <XCircle size={13} /> Error
-          </span>
+          <p className="text-sm text-[var(--muted)]">
+            Sign in with Google to secure your financial data.
+          </p>
         )}
+      </section>
+
+      <div className="stagger-item" style={{ "--stagger": 2 } as CSSProperties}>
+        <BankConnectPanel />
       </div>
+
+      <div className="settings-grid settings-grid--2">
+        <section className="panel settings-card stagger-item" style={{ "--stagger": 3 } as CSSProperties}>
+          <div className="mb-4 flex items-center gap-2">
+            <Palette size={16} className="text-[var(--accent)]" />
+            <h2 className="section-title">Appearance</h2>
+          </div>
+          <div className="settings-row border-0 pt-0">
+            <div>
+              <p className="text-sm font-medium text-[var(--foreground)]">Theme</p>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">Dark or light</p>
+            </div>
+            <ThemeToggle />
+          </div>
+        </section>
+
+        <section className="panel settings-card stagger-item" style={{ "--stagger": 4 } as CSSProperties}>
+          <div className="mb-4 flex items-center gap-2">
+            <Shield size={16} className="text-[var(--accent)]" />
+            <h2 className="section-title">Your data</h2>
+          </div>
+          <div className="space-y-3">
+            <DataRow label="Linked accounts" value={loading ? "—" : String(dataCounts.accounts)} />
+            <DataRow
+              label="Transactions"
+              value={loading ? "—" : dataCounts.transactions.toLocaleString()}
+            />
+          </div>
+        </section>
+      </div>
+
+      <section className="panel settings-card stagger-item" style={{ "--stagger": 5 } as CSSProperties}>
+        <div className="mb-4 flex items-center gap-2">
+          <Lock size={16} className="text-[var(--accent)]" />
+          <h2 className="section-title">Privacy</h2>
+        </div>
+        <p className="mb-4 text-sm leading-relaxed text-[var(--muted)]">
+          Only you can see your transactions and chat history. Download a full copy anytime.
+        </p>
+        <button
+          type="button"
+          onClick={() => void handleExportAll()}
+          disabled={exporting}
+          className="btn-ghost inline-flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"
+        >
+          <Download size={15} className={exporting ? "animate-pulse" : ""} />
+          {exporting ? "Exporting…" : "Download transactions (CSV)"}
+        </button>
+        <Link href="/privacy" className="link-accent mt-4 inline-block text-sm">
+          Read our privacy policy →
+        </Link>
+      </section>
     </div>
   );
 }
 
-function DataStat({ label, value, loading }: { label: string; value: number | null; loading: boolean }) {
+function DataRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-zinc-800/50 bg-zinc-800/30 p-4">
-      <p className="text-xs text-zinc-500">{label}</p>
-      {loading ? (
-        <div className="h-7 w-12 shimmer rounded" />
-      ) : (
-        <p className="text-2xl font-semibold text-zinc-100">{value?.toLocaleString() ?? "—"}</p>
-      )}
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span className="text-[var(--muted)]">{label}</span>
+      <span className="font-medium tabular-nums text-[var(--foreground)]">{value}</span>
     </div>
-  );
-}
-
-function ActionRow({ icon, label, description, onClick, loading }: {
-  icon: React.ReactNode; label: string; description: string; onClick: () => void; loading?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className="flex w-full items-center gap-3 rounded-lg border border-zinc-800/50 bg-zinc-800/30 px-4 py-3 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-800 disabled:opacity-40"
-    >
-      <span className="text-zinc-400">{icon}</span>
-      <div className="flex-1">
-        <p className="text-sm font-medium text-zinc-300">{label}</p>
-        <p className="mt-0.5 text-xs text-zinc-600">{description}</p>
-      </div>
-      {loading ? (
-        <RefreshCw size={14} className="animate-spin text-zinc-500" />
-      ) : (
-        <ChevronRight size={14} className="text-zinc-700" />
-      )}
-    </button>
   );
 }
