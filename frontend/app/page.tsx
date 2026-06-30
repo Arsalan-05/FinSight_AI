@@ -5,7 +5,6 @@ import {
   ArrowUpRight,
   BarChart2,
   CreditCard,
-  RefreshCw,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -20,9 +19,14 @@ import {
 } from "recharts";
 
 import { KpiCard } from "@/components/ui/KpiCard";
-import { StatusPill } from "@/components/ui/StatusPill";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { DataStatusBanner } from "@/components/DataStatusBanner";
+import { FinancialGoalsPanel } from "@/components/FinancialGoalsPanel";
+import {
+  SpendAlertsPanel,
+  TfsaRoomCard,
+  WeeklyBriefPanel,
+} from "@/components/dashboard/InsightsPanels";
 import { api } from "@/lib/api";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import type { Account, InsightCard, Transaction, TransactionList } from "@/lib/types";
@@ -44,11 +48,8 @@ export default function DashboardPage() {
   const [lastMonth, setLastMonth] = useState<Transaction[]>([]);
   const [daily, setDaily] = useState<{ day: string; spend: number }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [insightCards, setInsightCards] = useState<InsightCard[]>([]);
-  const [usingFallback, setUsingFallback] = useState(false);
-  const [dbHost, setDbHost] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
     const { from: curFrom, to: curTo } = getCurrentMonthRange();
@@ -63,43 +64,11 @@ export default function DashboardPage() {
     const thirtyRange = getDateRange(1);
     const emptyList: TransactionList = { total: 0, items: [] };
 
-    let healthOk = false;
-    let dbConnected = true;
-    let fallback = false;
-    let host: string | null = null;
-    try {
-      const health = await api.health();
-      healthOk = health.status === "ok";
-      const dbHealth = await api.healthDb();
-      dbConnected = dbHealth.connected;
-      fallback = dbHealth.using_fallback ?? false;
-      host = dbHealth.host;
-      if (!dbConnected) {
-        return {
-          healthOk,
-          accs: [],
-          recentList: emptyList,
-          curList: emptyList,
-          prevList: emptyList,
-          dailyData: [],
-          dataError: dbHealth.using_fallback
-            ? "Database fallback active but not connected — run: docker compose up -d db"
-            : "Cannot reach Supabase Postgres. Use phone hotspot, or set the session pooler URL in .env",
-          insightCards: [],
-          usingFallback: fallback,
-          dbHost: host,
-        };
-      }
-    } catch {
-      healthOk = false;
-    }
-
     let accs: Account[] = [];
     let recentList = emptyList;
     let curList = emptyList;
     let prevList = emptyList;
     let thirtyList: Transaction[] = [];
-
     let insightCards: InsightCard[] = [];
 
     try {
@@ -115,22 +84,20 @@ export default function DashboardPage() {
           const insights = await api.getInsights();
           insightCards = insights.insight_cards;
         } catch {
-          // insights optional when auth/data missing
+          // insights optional
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load data";
+      const raw = err instanceof Error ? err.message : "Failed to load data";
+      const msg = raw.replace(/^API \d+:\s*/i, "").slice(0, 180);
       return {
-        healthOk,
         accs,
         recentList,
         curList,
         prevList,
         dailyData: [],
-        dataError: msg,
+        dataError: msg || "We couldn't load your finances right now. Please try again.",
         insightCards: [],
-        usingFallback: fallback,
-        dbHost: host,
       };
     }
 
@@ -144,7 +111,6 @@ export default function DashboardPage() {
       .map(([day, spend]) => ({ day: day.slice(5), spend }));
 
     return {
-      healthOk,
       accs,
       recentList,
       curList,
@@ -152,20 +118,29 @@ export default function DashboardPage() {
       dailyData,
       dataError: null,
       insightCards,
-      usingFallback: fallback,
-      dbHost: host,
     };
   }, []);
+
+  const reload = useCallback(() => {
+    setLoading(true);
+    fetchAll().then(({ accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards }) => {
+      setDataError(err);
+      setAccounts(accs);
+      setRecent(recentList.items);
+      setCurMonth(curList.items);
+      setLastMonth(prevList.items);
+      setDaily(dailyData);
+      setInsightCards(cards);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [fetchAll]);
 
   useEffect(() => {
     if (!authReady) return;
     let active = true;
-    fetchAll().then(({ healthOk, accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards, usingFallback: fb, dbHost: h }) => {
+    fetchAll().then(({ accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards }) => {
       if (!active) return;
-      setApiOk(healthOk);
       setDataError(err);
-      setUsingFallback(fb);
-      setDbHost(h);
       setAccounts(accs);
       setRecent(recentList.items);
       setCurMonth(curList.items);
@@ -173,26 +148,9 @@ export default function DashboardPage() {
       setDaily(dailyData);
       setInsightCards(cards);
       setLoading(false);
-    }).catch(() => { if (active) { setApiOk(false); setLoading(false); } });
+    }).catch(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [authReady, fetchAll]);
-
-  const reload = useCallback(() => {
-    setLoading(true);
-    fetchAll().then(({ healthOk, accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards, usingFallback: fb, dbHost: h }) => {
-      setApiOk(healthOk);
-      setDataError(err);
-      setUsingFallback(fb);
-      setDbHost(h);
-      setAccounts(accs);
-      setRecent(recentList.items);
-      setCurMonth(curList.items);
-      setLastMonth(prevList.items);
-      setDaily(dailyData);
-      setInsightCards(cards);
-      setLoading(false);
-    }).catch(() => { setApiOk(false); setLoading(false); });
-  }, [fetchAll]);
 
   const curSpend = curMonth.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const curIncome = curMonth.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
@@ -232,28 +190,18 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <StatusPill ok={apiOk} />
-          <button
-            type="button"
-            onClick={reload}
-            disabled={loading}
-            className="btn-ghost flex h-9 w-9 items-center justify-center rounded-xl disabled:opacity-40"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
       </header>
 
-      <DataStatusBanner
-        error={dataError}
-        usingFallback={usingFallback && !dataError}
-        dbHost={dbHost}
-        onRetry={reload}
-        loading={loading}
-      />
+      <DataStatusBanner error={dataError} onRetry={reload} loading={loading} />
 
       {!loading && accounts.length === 0 && !dataError && <OnboardingBanner />}
+
+      {accounts.length > 0 && !dataError && (
+        <>
+          <WeeklyBriefPanel stagger={1} />
+          <SpendAlertsPanel stagger={2} />
+        </>
+      )}
 
       {insightCards.length > 0 && (
         <section className="grid gap-3 sm:grid-cols-2">
@@ -266,10 +214,10 @@ export default function DashboardPage() {
                 card.severity === "success" && "border-emerald-500/30",
               ].filter(Boolean).join(" ")}
             >
-              <p className="text-sm font-medium text-zinc-200">{card.title}</p>
-              <p className="mt-1 text-xs text-zinc-500">{card.body}</p>
+              <p className="text-sm font-medium text-[var(--foreground)]">{card.title}</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">{card.body}</p>
               {card.action && (
-                <Link href="/chat" className="mt-2 inline-block text-xs text-indigo-400 hover:text-indigo-300">
+                <Link href="/chat" className="link-accent mt-2 inline-block text-xs">
                   {card.action}
                 </Link>
               )}
@@ -278,6 +226,10 @@ export default function DashboardPage() {
         </section>
       )}
 
+      <FinancialGoalsPanel stagger={3} />
+
+      {accounts.length > 0 && !dataError && <TfsaRoomCard stagger={4} />}
+
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
@@ -285,7 +237,7 @@ export default function DashboardPage() {
           label="Accounts"
           value={String(accounts.length)}
           sub={accounts.length ? accounts.map((a) => a.name).join(", ") : "No accounts yet"}
-          accent="indigo"
+          accent="teal"
           loading={loading}
           stagger={1}
         />
@@ -330,7 +282,7 @@ export default function DashboardPage() {
         >
           <div className="flex items-center justify-between">
             <h2 className="section-title">Daily Spending (30 days)</h2>
-            <Link href="/analytics" className="text-xs font-medium text-indigo-400 transition-colors hover:text-indigo-300">
+            <Link href="/analytics" className="link-accent text-xs">
               Full analytics →
             </Link>
           </div>
@@ -343,11 +295,11 @@ export default function DashboardPage() {
               <AreaChart data={daily}>
                 <defs>
                   <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <Area type="monotone" dataKey="spend" stroke="#6366f1" strokeWidth={2} fill="url(#spendGrad)" dot={false} />
+                <Area type="monotone" dataKey="spend" stroke="#14b8a6" strokeWidth={2} fill="url(#spendGrad)" dot={false} />
                 <Tooltip
                   formatter={(v) => [formatCurrency(v as number), "Spend"]}
                   contentStyle={{ background: chart.tooltipBg, border: `1px solid ${chart.tooltipBorder}`, borderRadius: "8px", fontSize: "11px" }}
@@ -434,7 +386,7 @@ export default function DashboardPage() {
         >
           <div className="flex items-center justify-between">
             <h2 className="section-title">Recent Transactions</h2>
-            <Link href="/transactions" className="text-xs font-medium text-indigo-400 transition-colors hover:text-indigo-300">
+            <Link href="/transactions" className="link-accent text-xs">
               View all →
             </Link>
           </div>

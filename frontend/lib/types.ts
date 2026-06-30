@@ -45,6 +45,20 @@ export interface HealthResponse {
   llm_provider?: string;
 }
 
+export interface CapabilitiesResponse {
+  product: string;
+  version: string;
+  environment: string;
+  stack: Record<string, string>;
+  agent: {
+    tool_count: number;
+    tools: string[];
+    features: string[];
+    max_tool_rounds: number;
+  };
+  integrations: Record<string, boolean>;
+}
+
 export interface DbHealthResponse {
   connected: boolean;
   using_supabase_postgres: boolean;
@@ -144,7 +158,21 @@ export interface InsightsResponse {
   insight_cards: InsightCard[];
   subscriptions: { count: number; estimated_monthly_total: number };
   cash_runway: { runway_months: number | null; message: string };
-  tfsa_rrsp: { tfsa: { remaining_room: number; limit: number } };
+  tfsa_rrsp: { tfsa: { remaining_room: number; limit: number; estimated_contributions: number } };
+}
+
+export interface WeeklyBrief {
+  generated_at: string;
+  week_start: string;
+  week_end: string;
+  headline: string;
+  this_week_spend: number;
+  prev_week_spend: number;
+  spend_change_pct: number | null;
+  sections: Array<{ id: string; label: string; value: string }>;
+  alerts: Array<{ id: string; severity: string; title: string; body: string }>;
+  tfsa: { limit: number; estimated_contributions: number; remaining_room: number; note?: string };
+  subscriptions_monthly: number;
 }
 
 export interface FinancialGoal {
