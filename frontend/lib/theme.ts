@@ -18,12 +18,12 @@ function subscribe(onChange: () => void) {
 }
 
 export function getStoredTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "light" ? "light" : "dark";
+    return stored === "dark" ? "dark" : "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 
@@ -42,5 +42,5 @@ export function setTheme(theme: Theme) {
 }
 
 export function useThemeState(): Theme {
-  return useSyncExternalStore(subscribe, getStoredTheme, () => "dark");
+  return useSyncExternalStore(subscribe, getStoredTheme, () => "light");
 }

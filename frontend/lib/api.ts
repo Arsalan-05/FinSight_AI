@@ -56,6 +56,11 @@ async function request<T>(
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
+    if (text.includes("Service Suspended") || text.trimStart().startsWith("<!DOCTYPE")) {
+      throw new Error(
+        "API unavailable — the backend may be offline. Resume the Render service and try again.",
+      );
+    }
     throw new Error(`API ${res.status}: ${text}`);
   }
   if (res.status === 204) {
