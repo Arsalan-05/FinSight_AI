@@ -61,6 +61,15 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
     web_search_enabled: bool = True
 
+    # Plaid — compliant live bank linking (optional; sandbox free at dashboard.plaid.com)
+    plaid_client_id: str = ""
+    plaid_secret: str = ""
+    plaid_env: str = "sandbox"  # sandbox | development | production
+
+    @property
+    def plaid_enabled(self) -> bool:
+        return bool(self.plaid_client_id and self.plaid_secret)
+
     @property
     def cors_origin_list(self) -> list[str]:
         defaults = [

@@ -11,7 +11,17 @@ from app.config import settings
 from app.logging_config import configure_logging
 from app.middleware.api_key import ApiKeyMiddleware
 from app.middleware.request_id import RequestIdMiddleware
-from app.routers import accounts, auth, chat, goals, insights, search, transactions, users
+from app.routers import (
+    accounts,
+    auth,
+    chat,
+    goals,
+    insights,
+    integrations,
+    search,
+    transactions,
+    users,
+)
 from db.base import DATABASE_URL, engine
 from mcp import register_mcp_tools
 
@@ -51,6 +61,7 @@ app.include_router(search.router)
 app.include_router(insights.router)
 app.include_router(goals.router)
 app.include_router(chat.router)
+app.include_router(integrations.router)
 
 
 @app.get("/health")

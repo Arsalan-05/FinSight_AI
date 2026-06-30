@@ -23,6 +23,7 @@ import { getApiKey, setApiKey } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { exportToCsv } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
+import BankConnectPanel from "@/components/BankConnectPanel";
 
 interface Stats {
   users: number;
@@ -140,6 +141,8 @@ export default function SettingsPage() {
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
+
+      <BankConnectPanel />
 
       {/* System Health */}
       <section className="panel rounded-2xl p-5">
@@ -368,6 +371,7 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-2">
           {[
             "Canadian bank CSV import (RBC, TD, CIBC, Scotiabank, BMO, Simplii)",
+            "Live bank linking via Plaid (OAuth, read-only — compliant US + Canada)",
             "Semantic transaction search with pgvector",
             "Finance agent with spending tools and transaction citations",
             "Saved chat history per account",
