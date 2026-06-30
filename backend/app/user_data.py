@@ -43,6 +43,8 @@ def export_user_data(db: Session, user: User) -> dict[str, Any]:
         },
         "goals": json.loads(user.goals_json or "[]"),
         "alert_preferences": json.loads(user.alert_prefs_json or "{}"),
+        "agent_profile": json.loads(user.agent_profile_json or "{}"),
+        "category_rules": json.loads(user.category_rules_json or "[]"),
         "accounts": [
             {
                 "id": a.id,

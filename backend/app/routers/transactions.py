@@ -4,9 +4,17 @@ import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user_optional
+from app.auth import get_current_user, get_current_user_optional
+from app.category_rules import (
+    add_rule,
+    apply_rules_to_user_transactions,
+    delete_rule,
+    load_rules,
+    resolve_category,
+)
 from app.config import settings
 from app.dependencies import get_db
 from app.schemas import TransactionCreate, TransactionListOut, TransactionOut, TransactionUpdate
@@ -19,6 +27,12 @@ from rag.embedder import build_content, embed_texts
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+
+class CategoryRuleCreate(BaseModel):
+    match: str = Field(default="merchant_contains")
+    value: str = Field(..., min_length=1, max_length=200)
+    category: str = Field(..., min_length=1, max_length=100)
 
 
 def _embed_and_store(txs: list[Transaction], db: Session) -> None:
@@ -108,6 +122,13 @@ async def upload_csv(
             )
             if not merchant:
                 merchant = guess_merchant(desc)
+            if current_user:
+                cat = resolve_category(
+                    current_user,
+                    description=desc,
+                    merchant=merchant,
+                    default=cat,
+                )
             tx = Transaction(
                 account_id=account_id,
                 transaction_date=row["date"],
@@ -126,6 +147,48 @@ async def upload_csv(
     db.commit()
     _embed_and_store(created_txs, db)
     return {"created": created, "errors": errors, "bank_detected": bank}
+
+
+@router.get("/rules")
+def list_category_rules(user: User = Depends(get_current_user)) -> list[dict]:
+    return load_rules(user)
+
+
+@router.post("/rules", status_code=status.HTTP_201_CREATED)
+def create_category_rule(
+    payload: CategoryRuleCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    try:
+        return add_rule(
+            db,
+            user,
+            match=payload.match,
+            value=payload.value,
+            category=payload.category,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_category_rule(
+    rule_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> None:
+    if not delete_rule(db, user, rule_id):
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+
+@router.post("/rules/apply")
+def reapply_category_rules(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, int]:
+    updated = apply_rules_to_user_transactions(db, user)
+    return {"updated": updated}
 
 
 @router.get("/", response_model=TransactionListOut)
