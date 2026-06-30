@@ -1,43 +1,64 @@
 "use client";
 
 import {
+  BarChart3,
   BrainCircuit,
-  History,
+  Globe,
   Loader2,
   MessageSquarePlus,
-  Pencil,
-  Pin,
-  PinOff,
-  RotateCcw,
+  Receipt,
   Send,
   Sparkles,
   StopCircle,
-  Trash2,
+  Target,
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { ChatHistorySidebar } from "@/components/chat/ChatHistorySidebar";
+import { FormatAgentText } from "@/components/chat/formatAgentText";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
-import type { ChatMessage, ChatSessionSummary, TransactionCitation } from "@/lib/types";
+import type { ChatMessage, ChatSessionSummary, FinancialGoal, TransactionCitation } from "@/lib/types";
 
 const SESSION_KEY = "finsight_chat_session";
 
-const EXAMPLE_PROMPTS = [
-  "How much did I spend on dining last month?",
-  "What are my subscriptions costing per month?",
-  "Based on my spending, where should I cut back?",
-  "What's the 2026 TFSA contribution limit in Canada?",
-  "Compare my spending patterns to a healthy student budget",
+const PROMPT_GROUPS = [
+  {
+    icon: Receipt,
+    title: "Spending analysis",
+    prompt: "How much did I spend on dining last month?",
+    description: "Category totals, trends, and comparisons",
+  },
+  {
+    icon: BarChart3,
+    title: "Subscriptions",
+    prompt: "What are my recurring subscriptions costing per month?",
+    description: "Detect recurring charges and monthly burn",
+  },
+  {
+    icon: Target,
+    title: "Savings plan",
+    prompt: "Based on my spending, where should I cut back?",
+    description: "Personalized recommendations from your data",
+  },
+  {
+    icon: Globe,
+    title: "Market & policy",
+    prompt: "What's the 2026 TFSA contribution limit in Canada?",
+    description: "Live web search plus your account context",
+  },
 ];
 
-const FALLBACK_STATUS = [
-  "Connecting to your transaction data…",
-  "Checking accounts and recent activity…",
-  "Preparing spending tools…",
-  "Searching the web for answers…",
-  "Learning from your spending patterns…",
+const AGENT_STATUS = [
+  "Reviewing your accounts…",
+  "Querying transaction history…",
+  "Running spending analysis…",
+  "Searching for current rates…",
+  "Synthesizing insights…",
 ];
 
 function loadSessionId(): string {
@@ -57,20 +78,6 @@ function newMessage(role: ChatMessage["role"], content: string): ChatMessage {
   return { id: crypto.randomUUID(), role, content };
 }
 
-function formatSessionDate(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const now = new Date();
-  const sameDay =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
-  if (sameDay) {
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  }
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
-}
-
 export default function ChatPage() {
   const { toast } = useToast();
   const authReady = useAuthReady();
@@ -86,10 +93,16 @@ export default function ChatPage() {
   );
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const statusIdx = useRef(0);
+
+  useEffect(() => {
+    if (!authReady) return;
+    void api.getGoals().then(setGoals).catch(() => setGoals([]));
+  }, [authReady]);
 
   const refreshSessions = useCallback(async () => {
     if (!authReady) return;
@@ -97,7 +110,7 @@ export default function ChatPage() {
       const rows = await api.listChatSessions();
       setSessions(rows);
     } catch {
-      // optional in dev without auth
+      // optional without auth
     }
   }, [authReady]);
 
@@ -166,7 +179,7 @@ export default function ChatPage() {
       setInput("");
       setError(null);
       setLoading(true);
-      setAgentStatus(FALLBACK_STATUS[0]);
+      setAgentStatus(AGENT_STATUS[0]);
 
       const userMsg = newMessage("user", message);
       const assistantId = crypto.randomUUID();
@@ -179,9 +192,9 @@ export default function ChatPage() {
       const controller = new AbortController();
       abortRef.current = controller;
       const fallbackTimer = setInterval(() => {
-        statusIdx.current = (statusIdx.current + 1) % FALLBACK_STATUS.length;
-        setAgentStatus((prev) => prev ?? FALLBACK_STATUS[statusIdx.current]);
-      }, 2200);
+        statusIdx.current = (statusIdx.current + 1) % AGENT_STATUS.length;
+        setAgentStatus((prev) => prev ?? AGENT_STATUS[statusIdx.current]);
+      }, 2400);
 
       try {
         let reply = "";
@@ -194,9 +207,7 @@ export default function ChatPage() {
           } else if (event.type === "token") {
             reply += event.content;
             setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, content: reply } : m,
-              ),
+              prev.map((m) => (m.id === assistantId ? { ...m, content: reply } : m)),
             );
           } else if (event.type === "done") {
             reply = event.content;
@@ -262,9 +273,7 @@ export default function ChatPage() {
       toast("Conversation deleted");
     } catch {
       setSessions(previous);
-      if (sessionId === id) {
-        void loadSession(id);
-      }
+      if (sessionId === id) void loadSession(id);
       toast("Could not delete conversation", "error");
     }
   };
@@ -279,7 +288,6 @@ export default function ChatPage() {
           return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
         });
       });
-      toast(updated.pinned ? "Conversation pinned" : "Unpinned");
     } catch {
       toast("Could not update conversation", "error");
     }
@@ -297,7 +305,6 @@ export default function ChatPage() {
     try {
       const updated = await api.updateChatSession(id, { title });
       setSessions((prev) => prev.map((x) => (x.id === id ? updated : x)));
-      toast("Renamed");
     } catch {
       toast("Could not rename conversation", "error");
     }
@@ -311,247 +318,203 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-6xl gap-4">
-      <aside className="hidden w-56 shrink-0 flex-col gap-2 md:flex lg:w-64">
-        <button
-          type="button"
-          onClick={handleNewChat}
-          className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800"
-        >
-          <MessageSquarePlus size={15} />
-          New conversation
-        </button>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
-          <div className="flex items-center gap-2 border-b border-zinc-800 px-3 py-2.5">
-            <History size={14} className="text-zinc-500" />
-            <span className="text-xs font-medium text-zinc-400">History</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {!authReady || historyLoading ? (
-              <div className="space-y-2 p-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-10 shimmer rounded-lg" />
-                ))}
-              </div>
-            ) : sessions.length === 0 ? (
-              <p className="px-2 py-4 text-center text-xs text-zinc-600">
-                Past chats appear here after your first message.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-0.5">
-                {sessions.map((s) => (
-                  <li key={s.id}>
-                    <div
-                      className={[
-                        "group flex w-full items-start gap-1 rounded-lg px-2 py-2 transition-colors",
-                        sessionId === s.id
-                          ? "bg-indigo-500/10 text-indigo-200"
-                          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200",
-                      ].join(" ")}
-                    >
-                      {renamingId === s.id ? (
-                        <input
-                          autoFocus
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onBlur={() => void commitRename(s.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") void commitRename(s.id);
-                            if (e.key === "Escape") setRenamingId(null);
-                          }}
-                          className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200"
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void loadSession(s.id)}
-                          className="min-w-0 flex-1 text-left"
-                        >
-                          <p className="flex items-center gap-1 truncate text-xs font-medium">
-                            {s.pinned && <Pin size={10} className="shrink-0 text-amber-400" />}
-                            {s.title}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-zinc-600">
-                            {formatSessionDate(s.updated_at)}
-                            {s.message_count > 0 ? ` · ${s.message_count} msgs` : ""}
-                          </p>
-                        </button>
-                      )}
-                      <div className="flex shrink-0 flex-col gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button
-                          type="button"
-                          onClick={() => void handleTogglePin(s)}
-                          aria-label={s.pinned ? "Unpin" : "Pin"}
-                          className="rounded p-1 text-zinc-600 hover:text-amber-400"
-                        >
-                          {s.pinned ? <PinOff size={11} /> : <Pin size={11} />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startRename(s)}
-                          aria-label="Rename"
-                          className="rounded p-1 text-zinc-600 hover:text-zinc-300"
-                        >
-                          <Pencil size={11} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteSession(s.id)}
-                          aria-label="Delete"
-                          className="rounded p-1 text-zinc-600 hover:text-rose-400"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="flex shrink-0 items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-zinc-50">Finance Agent</h1>
-            <p className="mt-0.5 text-sm text-zinc-500">
-              Grounded in your transactions — spending, search, insights, and goals
-            </p>
-          </div>
+    <div className="page-container max-w-7xl">
+      <PageHeader
+        eyebrow="AI Advisor"
+        title="Finance"
+        titleAccent="Advisor"
+        subtitle="Ask questions about your spending, savings, and goals — answers use your real transaction data."
+        actions={
           <button
             type="button"
             onClick={handleNewChat}
-            className="flex items-center gap-2 panel rounded-xl px-3 py-2 text-xs text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200 md:hidden"
+            className="btn-ghost inline-flex items-center gap-2 px-4 py-2 text-sm"
           >
-            <RotateCcw size={13} />
+            <MessageSquarePlus size={15} />
             New chat
           </button>
-        </div>
+        }
+      />
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
-          <div className="flex items-center gap-3 border-b border-zinc-800 px-4 py-3">
-            <BrainCircuit size={16} className="text-indigo-400" />
-            <span className="text-sm font-medium text-zinc-300">FinSight Agent</span>
-            <span className="ml-auto rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs text-emerald-400">
-              Connected
-            </span>
-          </div>
+      <div className="chat-shell">
+        <ChatHistorySidebar
+          sessions={sessions}
+          sessionId={sessionId}
+          loading={!authReady || historyLoading}
+          renamingId={renamingId}
+          renameValue={renameValue}
+          onNewChat={handleNewChat}
+          onSelect={(id) => void loadSession(id)}
+          onRenameStart={startRename}
+          onRenameChange={setRenameValue}
+          onRenameCommit={(id) => void commitRename(id)}
+          onRenameCancel={() => setRenamingId(null)}
+          onTogglePin={(s) => void handleTogglePin(s)}
+          onDelete={(id) => void handleDeleteSession(id)}
+        />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-5">
-            {messages.length === 0 && !loading && !historyLoading && (
-              <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10">
-                  <Sparkles size={22} className="text-indigo-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-zinc-300">Ask anything about your finances</p>
-                  <p className="mt-1 text-xs text-zinc-600">
-                    Try spending totals, subscriptions, TFSA room, or category breakdowns
-                  </p>
-                </div>
-                <div className="flex max-w-lg flex-wrap justify-center gap-2">
-                  {EXAMPLE_PROMPTS.map((prompt) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      onClick={() => void sendMessage(prompt)}
-                      className="rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
+        <div className="chat-main">
+          <div className="chat-panel panel">
+            <div className="chat-panel-header">
+              <div className="agent-avatar shrink-0">
+                <BrainCircuit size={16} className="text-[var(--accent)]" />
               </div>
-            )}
-
-            {historyLoading && messages.length === 0 && (
-              <div className="flex flex-1 items-center justify-center gap-2 text-sm text-zinc-500">
-                <Loader2 size={16} className="animate-spin" />
-                Loading conversation…
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--foreground)]">FinSight Advisor</p>
+                <p className="truncate text-[11px] text-[var(--muted)]">
+                  Grounded in your transactions and goals
+                </p>
               </div>
-            )}
-
-            {messages.map((msg) =>
-              msg.role === "user" ? (
-                <UserBubble key={msg.id} text={msg.content} />
-              ) : (
-                <AgentBubble
-                  key={msg.id}
-                  content={msg.content}
-                  citations={msg.citations}
-                  streaming={loading && !msg.content}
-                  statusText={loading && !msg.content ? agentStatus : null}
-                />
-              ),
-            )}
-
-            {loading && messages[messages.length - 1]?.role !== "assistant" && (
-              <AgentBubble content="" streaming statusText={agentStatus} />
-            )}
-
-            {error && (
-              <p className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-2 text-sm text-red-400">
-                {error}
-              </p>
-            )}
-            <div ref={bottomRef} />
-          </div>
-
-          <div className="border-t border-zinc-800 p-4">
-            {loading && agentStatus && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-[11px] text-indigo-300">
-                  <Loader2 size={11} className="animate-spin" />
-                  {agentStatus}
-                </span>
-                {EXAMPLE_PROMPTS.slice(0, 3).map((p) => (
-                  <span
-                    key={p}
-                    className="rounded-full border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] text-zinc-600"
-                  >
-                    Try next: {p.split("?")[0]}?
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex items-end gap-2 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 focus-within:border-indigo-500/50">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask anything about your finances…"
-                rows={1}
-                disabled={loading}
-                className="max-h-32 min-h-[2.25rem] flex-1 resize-none bg-transparent py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none disabled:opacity-50"
-              />
-              {loading ? (
-                <button
-                  type="button"
-                  onClick={handleStop}
-                  aria-label="Stop generating"
-                  className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                >
-                  <StopCircle size={18} />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void sendMessage()}
-                  disabled={!input.trim()}
-                  aria-label="Send message"
-                  className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
-                >
-                  <Send size={15} />
-                </button>
-              )}
+              <span className="status-chip shrink-0">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Ready
+              </span>
             </div>
-            <p className="mt-2 text-center text-[10px] text-zinc-600">
-              Enter to send · Shift+Enter for new line · Pin, rename, or delete chats in the sidebar
-            </p>
+
+            <div className="chat-messages">
+              {messages.length === 0 && !loading && !historyLoading && (
+                <div className="flex flex-1 flex-col items-center justify-center gap-8 py-6">
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent-soft)] glow-accent">
+                      <Sparkles size={26} className="text-[var(--accent)]" />
+                    </div>
+                    <h2 className="text-lg font-semibold text-[var(--foreground)]">
+                      Your personal finance analyst
+                    </h2>
+                    <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[var(--muted)]">
+                      Ask natural questions — grounded in your transactions and financial goals.
+                    </p>
+                  </div>
+
+                  {goals.length > 0 && (
+                    <div className="w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-left">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
+                        Your goals
+                      </p>
+                      <ul className="mt-2 flex flex-wrap gap-2">
+                        {goals.slice(0, 4).map((g) => (
+                          <li key={g.id}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void sendMessage(
+                                  `How am I tracking toward my goal: ${g.title}?`,
+                                )
+                              }
+                              className="capability-pill"
+                            >
+                              <Target size={10} className="text-[var(--accent)]" />
+                              {g.title}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-2">
+                    {PROMPT_GROUPS.map(({ icon: Icon, title, prompt, description }) => (
+                      <button
+                        key={title}
+                        type="button"
+                        onClick={() => void sendMessage(prompt)}
+                        className="prompt-card panel-interactive"
+                      >
+                        <div className="prompt-card-icon">
+                          <Icon size={16} />
+                        </div>
+                        <p className="text-sm font-medium text-[var(--foreground)]">{title}</p>
+                        <p className="text-xs leading-relaxed text-[var(--muted)]">{description}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {["Cash runway", "TFSA room", "FX rates", "Anomaly detection"].map((cap) => (
+                      <span key={cap} className="capability-pill">
+                        <Zap size={10} className="text-[var(--accent)]" />
+                        {cap}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {historyLoading && messages.length === 0 && (
+                <div className="flex flex-1 items-center justify-center gap-2 text-sm text-[var(--muted)]">
+                  <Loader2 size={16} className="animate-spin text-[var(--accent)]" />
+                  Loading conversation…
+                </div>
+              )}
+
+              {messages.map((msg) =>
+                msg.role === "user" ? (
+                  <UserBubble key={msg.id} text={msg.content} />
+                ) : (
+                  <AgentBubble
+                    key={msg.id}
+                    content={msg.content}
+                    citations={msg.citations}
+                    streaming={loading && !msg.content}
+                    statusText={loading && !msg.content ? agentStatus : null}
+                  />
+                ),
+              )}
+
+              {loading && messages[messages.length - 1]?.role !== "assistant" && (
+                <AgentBubble content="" streaming statusText={agentStatus} />
+              )}
+
+              {error && (
+                <p className="rounded-xl border border-rose-500/25 bg-rose-500/5 px-4 py-3 text-sm text-rose-400">
+                  {error}
+                </p>
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            <div className="chat-composer">
+              {loading && agentStatus && (
+                <div className="mb-3">
+                  <span className="status-chip">
+                    <Loader2 size={11} className="animate-spin" />
+                    {agentStatus}
+                  </span>
+                </div>
+              )}
+              <div className="chat-composer-inner">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask about spending, savings, subscriptions, TFSA, or market rates…"
+                  rows={1}
+                  disabled={loading}
+                  className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none disabled:opacity-50"
+                />
+                {loading ? (
+                  <button
+                    type="button"
+                    onClick={handleStop}
+                    aria-label="Stop generating"
+                    className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--muted)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]"
+                  >
+                    <StopCircle size={18} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void sendMessage()}
+                    disabled={!input.trim()}
+                    aria-label="Send message"
+                    className="btn-primary mb-1 flex h-9 w-9 shrink-0 items-center justify-center disabled:opacity-40"
+                  >
+                    <Send size={15} />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -562,9 +525,7 @@ export default function ChatPage() {
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-indigo-600 px-4 py-2.5 text-sm text-white sm:max-w-[70%]">
-        {text}
-      </div>
+      <div className="user-bubble">{text}</div>
     </div>
   );
 }
@@ -582,43 +543,49 @@ function AgentBubble({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/20">
-        <BrainCircuit size={13} className="text-indigo-400" />
+      <div className="agent-avatar mt-0.5">
+        <BrainCircuit size={14} className="text-[var(--accent)]" />
       </div>
-      <div className="max-w-[90%] rounded-2xl rounded-tl-sm border border-zinc-800 bg-zinc-950 px-4 py-3 sm:max-w-[80%]">
+      <div className="agent-bubble">
         {streaming && !content ? (
           <div className="flex flex-col gap-2">
-            <span className="flex items-center gap-2 text-sm text-zinc-400">
-              <Loader2 size={14} className="animate-spin text-indigo-400" />
-              {statusText ?? "Working on it…"}
+            <span className="flex items-center gap-2 text-sm text-[var(--muted)]">
+              <Loader2 size={14} className="animate-spin text-[var(--accent)]" />
+              {statusText ?? "Analyzing your finances…"}
             </span>
-            <p className="text-[11px] text-zinc-600">
-              Querying your accounts — answers use real transaction data, not estimates.
+            <p className="text-[11px] text-[var(--muted)] opacity-80">
+              Answers are grounded in your transaction data — not generic estimates.
             </p>
           </div>
         ) : (
           <>
-            <p className="whitespace-pre-wrap text-sm text-zinc-300">{content}</p>
+            <FormatAgentText text={content} />
             {citations && citations.length > 0 && (
-              <div className="mt-3 border-t border-zinc-800 pt-3">
-                <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
-                  Based on transactions
+              <div className="mt-4 border-t border-[var(--border)] pt-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  Source transactions
                 </p>
-                <ul className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5">
                   {citations.map((c) => (
-                    <li key={c.id} className="text-xs text-zinc-500">
-                      <span className="text-zinc-400">{c.date ?? "—"}</span>
-                      {" · "}
-                      {c.description ?? c.merchant}
+                    <div key={c.id} className="citation-chip">
+                      <Receipt size={12} className="shrink-0 text-[var(--accent)]" />
+                      <span className="truncate text-[var(--foreground)]">
+                        {c.description ?? c.merchant}
+                      </span>
+                      <span className="ml-auto shrink-0 text-[var(--muted)]">{c.date ?? "—"}</span>
                       {c.amount != null && (
-                        <span className={c.amount < 0 ? " text-rose-400" : " text-emerald-400"}>
-                          {" "}
+                        <span
+                          className={[
+                            "shrink-0 font-medium tabular-nums",
+                            c.amount < 0 ? "text-rose-400" : "text-emerald-400",
+                          ].join(" ")}
+                        >
                           {c.amount < 0 ? "-" : "+"}${Math.abs(c.amount).toFixed(2)}
                         </span>
                       )}
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
           </>
