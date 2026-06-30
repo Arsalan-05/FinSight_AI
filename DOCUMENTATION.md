@@ -1,6 +1,6 @@
 # FinSight AI — Project Documentation
 
-> **FinSight AI v1.4** — private repo, production-grade local stack, 102 tests.
+> **FinSight AI v1.4** — **completed June 30, 2026.** Production-grade local stack, 102 tests, invite-only beta ready.
 
 ---
 
@@ -95,6 +95,7 @@ Expected: **20+** e2e checkpoints, **102** tests passing, frontend build clean.
 17. [Out of Scope](#17-out-of-scope)
 18. [Development Commands](#18-development-commands)
 19. [Project Status](#19-project-status)
+20. [Rights, License & Ownership](#20-rights-license--ownership)
 
 ---
 
@@ -898,7 +899,9 @@ docker compose up --build
 
 ## 19. Project Status
 
-**FinSight AI v1.4** — code-complete for invite-only beta. Remaining work is production deploy and user retention, not core features.
+**FinSight AI v1.4 — successfully completed on June 30, 2026.**
+
+All planned engineering-MVP scope is shipped: backend APIs, agent, RAG pipeline, frontend dashboards, Plaid lifecycle, budgets, alerts, data rights, goal progress, category rules, GitHub Pages landing, and deployment configs. The project is code-complete and ready for invite-only beta deployment.
 
 ### Shipped
 
@@ -917,7 +920,7 @@ docker compose up --build
 | **Chat** | Saved history, pin/rename/delete, Ask-shortcut prefill, citations |
 | **Frontend** | Dashboard, analytics, transactions, subscriptions, alerts, search, chat, settings |
 | **Reliability** | `scripts/dev-up.sh`, `/capabilities` ops panel in Settings, expanded `check_e2e.py` |
-| **Branding** | Bold **F** favicon via `app/icon.tsx`, sidebar `LogoMark` sync |
+| **Branding** | Bold **F** favicon via `app/icon.svg`, sidebar `LogoMark` sync |
 | **Distribution** | GitHub Pages landing (`docs/`) + `.github/workflows/pages.yml` |
 | **Deploy** | Railway configs + `infra/railway/DEPLOY.md` |
 
@@ -939,7 +942,7 @@ cd frontend && npm run lint && npm run type-check && npm run build
 
 ### Favicon / tab icon
 
-Sidebar and browser tab use the same bold **F** mark (`app/icon.tsx`, `LogoMark.tsx`, `public/icon.svg`). Hard refresh (`Cmd+Shift+R`) if the tab icon looks stale.
+Sidebar and browser tab use the same bold **F** mark (`app/icon.svg`, `LogoMark.tsx`, `public/favicon.svg`). Hard refresh (`Cmd+Shift+R`) if the tab icon looks stale.
 
 ### GitHub Pages
 
@@ -947,10 +950,53 @@ Static landing site in `docs/`. Enable **Settings → Pages → Source: GitHub A
 
 ---
 
-## License
+## 20. Rights, License & Ownership
 
-MIT — see [LICENSE](./LICENSE).
+### Ownership
+
+**Arsalan Amir Ali** is the sole owner of FinSight AI. All intellectual property — including source code, architecture, documentation, UI design, branding (logo, favicon, name), and data models — is held **100%** by the owner.
+
+No co-founders, investors, or third parties hold equity, copyright, or license rights in this project unless explicitly agreed in writing.
+
+### Copyright
+
+```
+Copyright (c) 2026 Arsalan Amir Ali. All rights reserved.
+```
+
+### License
+
+The codebase is distributed under the **[MIT License](./LICENSE)**. In summary:
+
+| Granted to licensees | Reserved by owner |
+|----------------------|-------------------|
+| Use, copy, modify, merge | Copyright and ownership |
+| Publish and distribute copies | Branding and trade identity |
+| Sublicense | Rights not expressly granted |
+
+The MIT License applies only to parties who obtain a lawful copy of the software. It does **not** transfer ownership. The owner retains full control over the repository, deployment, beta access, and commercial use.
+
+### Repository & access
+
+| Item | Status |
+|------|--------|
+| **Repository** | Private GitHub — `Arsalan-05/FinSight_AI` |
+| **Registration** | Invite-only (`BETA_ALLOWED_EMAILS`) |
+| **Redistribution** | Not permitted without owner consent |
+| **Commercial use** | Owner discretion |
+
+### Third-party components
+
+FinSight integrates open-source libraries (FastAPI, Next.js, LangGraph, PostgreSQL, etc.) and optional external APIs (Supabase, Anthropic, Plaid, Ollama). Each third-party component remains subject to its own license. Integration code written for this project is owned by Arsalan Amir Ali.
+
+### Privacy & user data
+
+User transaction data, chat history, and account information belong to each end user. The application provides export (`GET /auth/me/export`) and deletion (`DELETE /auth/me`) endpoints. See the in-app privacy page and [`docs/privacy.html`](./docs/privacy.html).
+
+### Completion declaration
+
+> **FinSight AI v1.4.0** was successfully completed on **June 30, 2026** by **Arsalan Amir Ali**. The engineering MVP is finished; optional next steps (production deploy, beta users, live retention) are operational, not development blockers.
 
 ---
 
-*Last updated: June 2026 — FinSight AI v1.4.0*
+*Last updated: June 30, 2026 — FinSight AI v1.4.0 — completed*
