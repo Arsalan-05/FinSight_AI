@@ -27,7 +27,7 @@ MCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
     {
         "name": "get_market_quote",
-        "description": "Get a demo stock/ETF quote (AAPL, MSFT, GOOGL, TSLA, SPY).",
+        "description": "Get a live stock/ETF quote (e.g. AAPL, MSFT, SPY, TSX:SHOP).",
         "input_schema": {
             "type": "object",
             "properties": {

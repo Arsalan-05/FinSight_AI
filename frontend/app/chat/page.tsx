@@ -27,16 +27,17 @@ const SESSION_KEY = "finsight_chat_session";
 const EXAMPLE_PROMPTS = [
   "How much did I spend on dining last month?",
   "What are my subscriptions costing per month?",
-  "How much TFSA room do I have left?",
-  "What's my cash runway as a student?",
-  "Which credit card should I use for groceries?",
+  "Based on my spending, where should I cut back?",
+  "What's the 2026 TFSA contribution limit in Canada?",
+  "Compare my spending patterns to a healthy student budget",
 ];
 
 const FALLBACK_STATUS = [
   "Connecting to your transaction data…",
   "Checking accounts and recent activity…",
   "Preparing spending tools…",
-  "Almost ready — pulling your numbers…",
+  "Searching the web for answers…",
+  "Learning from your spending patterns…",
 ];
 
 function loadSessionId(): string {

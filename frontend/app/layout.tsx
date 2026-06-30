@@ -16,8 +16,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FinSight — Personal Finance Intelligence",
-  description: "Transaction intelligence, semantic search, and a finance agent grounded in your data.",
+  title: {
+    default: "FinSight — Personal Finance Intelligence",
+    template: "%s · FinSight",
+  },
+  description:
+    "Production-grade personal finance intelligence — transaction RAG, live market data, and a grounded finance agent.",
+  applicationName: "FinSight AI",
+  robots: { index: false, follow: false },
+  openGraph: {
+    title: "FinSight AI",
+    description: "Personal finance intelligence with grounded AI and live market tools.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

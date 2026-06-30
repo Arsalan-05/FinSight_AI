@@ -27,6 +27,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     goals_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    agent_profile_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     accounts: Mapped[list[Account]] = relationship("Account", back_populates="user")

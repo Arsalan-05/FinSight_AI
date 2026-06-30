@@ -15,8 +15,8 @@ from app.config import settings
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
 
-def _system_text(memory_summary: str) -> str:
-    return build_system_prompt(memory_summary)
+def _system_text(memory_summary: str, user_intelligence: str = "") -> str:
+    return build_system_prompt(memory_summary, user_intelligence=user_intelligence)
 
 
 # ── Anthropic ─────────────────────────────────────────────────────────────────
@@ -60,12 +60,18 @@ def _to_anthropic_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
     return out
 
 
-def _call_anthropic(messages: list[BaseMessage], memory_summary: str, api_key: str) -> AIMessage:
+def _call_anthropic(
+    messages: list[BaseMessage],
+    memory_summary: str,
+    api_key: str,
+    *,
+    user_intelligence: str = "",
+) -> AIMessage:
     client = anthropic.Anthropic(api_key=api_key)
     system = [
         {
             "type": "text",
-            "text": _system_text(memory_summary),
+            "text": _system_text(memory_summary, user_intelligence),
             "cache_control": {"type": "ephemeral"},
         }
     ]
@@ -147,17 +153,24 @@ def _to_ollama_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
     return out
 
 
-def _call_ollama(messages: list[BaseMessage], memory_summary: str) -> AIMessage:
+def _call_ollama(
+    messages: list[BaseMessage],
+    memory_summary: str,
+    *,
+    user_intelligence: str = "",
+) -> AIMessage:
     url = f"{settings.ollama_base_url.rstrip('/')}/api/chat"
     payload = {
         "model": settings.ollama_model,
-        "messages": [{"role": "system", "content": _system_text(memory_summary)}]
+        "messages": [
+            {"role": "system", "content": _system_text(memory_summary, user_intelligence)}
+        ]
         + _to_ollama_messages(messages),
         "tools": _ollama_tools(),
         "stream": False,
         "options": {
             "temperature": 0.15,
-            "num_predict": 1024,
+            "num_predict": 1536,
         },
         "keep_alive": "10m",
     }
@@ -251,14 +264,18 @@ def call_llm(
     messages: list[BaseMessage],
     memory_summary: str,
     api_key: str = "",
+    *,
+    user_intelligence: str = "",
 ) -> AIMessage:
     """Call the configured LLM provider (Ollama by default)."""
     if settings.llm_provider == "anthropic":
         key = api_key or settings.anthropic_api_key
         if not key:
             raise ValueError("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic")
-        return _call_anthropic(messages, memory_summary, key)
-    return _call_ollama(messages, memory_summary)
+        return _call_anthropic(
+            messages, memory_summary, key, user_intelligence=user_intelligence
+        )
+    return _call_ollama(messages, memory_summary, user_intelligence=user_intelligence)
 
 
 def summarize_memory(

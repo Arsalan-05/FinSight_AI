@@ -1,4 +1,4 @@
-"""MCP-style external tool stubs (currency conversion, market data)."""
+"""MCP external tools — live FX (BoC), currency conversion, live market quotes."""
 
 from mcp.currency import convert_currency
 from mcp.market import get_market_quote

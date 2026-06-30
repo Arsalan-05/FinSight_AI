@@ -114,6 +114,7 @@ class TestAgentGraph:
             {
                 "messages": [HumanMessage(content="How much did I spend on dining?")],
                 "memory_summary": "",
+                "user_intelligence": "",
                 "session_id": "test-graph",
             }
         )
@@ -132,6 +133,7 @@ class TestAgentGraph:
             {
                 "messages": [HumanMessage(content="Hi")],
                 "memory_summary": "",
+                "user_intelligence": "",
                 "session_id": "test-direct",
             }
         )
@@ -141,15 +143,18 @@ class TestAgentGraph:
 
 
 class TestRunAgent:
+    @patch("agent.runner.update_learned_profile")
     @patch("agent.runner.summarize_memory")
     @patch("agent.graph.call_llm")
     def test_run_agent_persists_session(
         self,
         mock_llm: MagicMock,
         mock_summarize: MagicMock,
+        mock_profile: MagicMock,
         db_session,
     ) -> None:
         _seed_account(db_session)
+        mock_profile.return_value = {"learned_summary": "", "preferences": [], "risk_flags": []}
         mock_llm.side_effect = [
             AIMessage(
                 content="",
@@ -178,14 +183,17 @@ class TestRunAgent:
         messages = load_messages(session)
         assert len(messages) >= 3
 
+    @patch("agent.runner.update_learned_profile")
     @patch("agent.runner.summarize_memory")
     @patch("agent.graph.call_llm")
     def test_multi_turn_memory_loads_prior_messages(
         self,
         mock_llm: MagicMock,
         mock_summarize: MagicMock,
+        mock_profile: MagicMock,
         db_session,
     ) -> None:
+        mock_profile.return_value = {"learned_summary": "", "preferences": [], "risk_flags": []}
         mock_llm.return_value = AIMessage(content="Sure, I can help with that.")
         mock_summarize.return_value = "Prior context."
 

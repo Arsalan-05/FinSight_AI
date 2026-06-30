@@ -12,6 +12,13 @@ from agent.goals import goals_summary_for_prompt
 from agent.graph import build_graph
 from agent.llm import summarize_memory
 from agent.memory import load_messages, load_session, save_session
+from agent.user_profile import (
+    build_data_profile,
+    load_agent_profile,
+    profile_narrative,
+    save_agent_profile,
+    update_learned_profile,
+)
 from app.config import settings
 from app.scoping import account_ids_for_user
 from db.models import User
@@ -101,11 +108,19 @@ def run_agent(
 
     account_ids = None
     goals_text = ""
+    user: User | None = None
+    data_profile: dict[str, Any] = {}
+    learned_profile: dict[str, Any] = {}
+    user_intelligence = ""
+
     if user_id:
         user = db.query(User).filter(User.id == user_id).first()
         if user:
             account_ids = account_ids_for_user(db, user)
             goals_text = goals_summary_for_prompt(user)
+            data_profile = build_data_profile(db, account_ids=account_ids)
+            learned_profile = load_agent_profile(user)
+            user_intelligence = profile_narrative(data_profile, learned_profile)
 
     memory = session.memory_summary or ""
     if goals_text:
@@ -116,9 +131,10 @@ def run_agent(
         {
             "messages": messages,
             "memory_summary": memory,
+            "user_intelligence": user_intelligence,
             "session_id": session_id,
         },
-        config={"recursion_limit": 10},
+        config={"recursion_limit": 14},
     )
 
     final_messages: list[BaseMessage] = result["messages"]
@@ -126,6 +142,11 @@ def run_agent(
 
     if update_memory and settings.llm_configured and _should_update_memory(final_messages):
         memory_summary = summarize_memory(final_messages, memory_summary)
+
+    if user and settings.llm_configured and _should_update_memory(final_messages):
+        updated = update_learned_profile(final_messages, learned_profile, data_profile)
+        if updated != learned_profile:
+            save_agent_profile(db, user, updated)
 
     save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
     reply = _last_ai_text(final_messages)

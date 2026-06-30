@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from agent.tools.aggregator import aggregate_spending
 from agent.tools.dates import last_month_range, resolve_aggregate_dates
 from agent.tools.summarize import is_empty_aggregate, summarize_aggregate
+from agent.tools.web_search import search_web
 from app.config import settings
 from insights.runway import analyze_cash_runway
 from insights.service import build_all_insights
@@ -96,6 +97,40 @@ CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_user_financial_profile",
+        "description": (
+            "Get a learned financial fingerprint from the user's transaction history: "
+            "spending patterns, top categories/merchants, income vs expenses, and "
+            "preferences remembered from past chats. Use for personalized advice."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "search_web",
+        "description": (
+            "Search the internet for CURRENT information: tax limits, bank product rates, "
+            "investment news, CRA rules, ETF comparisons, or any fact not in the user's "
+            "transaction database. Use alongside personal-data tools for complete answers."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": (
+                        "Search query — be specific (e.g. '2026 TFSA limit Canada')."
+                    ),
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Number of results (default 5, max 8).",
+                    "default": 5,
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
         "name": "get_financial_insights",
         "description": (
             "Get proactive insights: subscriptions, cash runway, TFSA room, anomalies, "
@@ -121,7 +156,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = CORE_TOOL_DEFINITIONS + MCP_TOOL_DEFINI
 
 
 def get_tool_definitions() -> list[dict[str, Any]]:
-    """All agent tools: core finance tools + MCP stubs."""
+    """All agent tools: core finance tools + MCP + web search."""
     return list(TOOL_DEFINITIONS)
 
 
@@ -251,6 +286,36 @@ def execute_tool(
 
     if name == "get_financial_insights":
         return json.dumps(build_all_insights(db, account_ids=account_ids))
+
+    if name == "get_user_financial_profile":
+        from agent.user_profile import (
+            build_data_profile,
+            load_agent_profile,
+            profile_narrative,
+        )
+
+        if account_ids is not None and not account_ids:
+            return json.dumps({"error": "No accounts linked.", "data_profile": {}})
+        data = build_data_profile(db, account_ids=account_ids)
+        learned: dict[str, Any] = {}
+        if account_ids:
+            from db.models import Account
+
+            acct = db.query(Account).filter(Account.id.in_(account_ids)).first()
+            if acct and acct.user:
+                learned = load_agent_profile(acct.user)
+        return json.dumps(
+            {
+                "data_profile": data,
+                "learned_profile": learned,
+                "summary": profile_narrative(data, learned),
+            }
+        )
+
+    if name == "search_web":
+        query = str(args.get("query", ""))
+        max_results = int(args.get("max_results") or 5)
+        return json.dumps(search_web(query, max_results=max_results))
 
     if name == "get_tfsa_status":
         return json.dumps(tfsa_contribution_status(db, account_ids=account_ids))

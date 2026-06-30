@@ -18,6 +18,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
+import SystemStatus from "@/components/SystemStatus";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 const NAV = [
@@ -128,7 +129,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <p className="truncate text-xs font-semibold text-[var(--foreground)]">
                 {userLabel || "FinSight User"}
               </p>
-              <p className="truncate text-[10px] text-[var(--muted)]">Personal workspace</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="truncate text-[10px] text-[var(--muted)]">Personal workspace</p>
+                <SystemStatus />
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
