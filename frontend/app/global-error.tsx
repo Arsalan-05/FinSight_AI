@@ -23,7 +23,7 @@ export default function GlobalError({
           </div>
           <h1 className="text-lg font-semibold">Something went wrong</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            FinSight hit an unexpected error. Try refreshing — your data is safe in Postgres.
+            FinSight hit an unexpected error. Try refreshing — your data is safe.
           </p>
           <button
             type="button"

@@ -1,10 +1,10 @@
 "use client";
 
-import { BrainCircuit, Loader2, Mail, Sparkles } from "lucide-react";
-import Link from "next/link";
+import { Loader2, Mail } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+import { Logo } from "@/components/brand/Logo";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 function LoginForm() {
@@ -35,13 +35,11 @@ function LoginForm() {
         options: { redirectTo: redirectTo() },
       });
       if (error) {
-        if (error.message.toLowerCase().includes("not enabled")) {
-          setAuthError(
-            "Google sign-in is not enabled in your Supabase project yet. Use email below, or enable Google under Authentication → Providers.",
-          );
-        } else {
-          setAuthError(error.message);
-        }
+        setAuthError(
+          error.message.toLowerCase().includes("not enabled")
+            ? "Google sign-in isn't available right now. Try email instead."
+            : "We couldn't start Google sign-in. Please try again.",
+        );
       }
     } finally {
       setLoading(null);
@@ -61,9 +59,9 @@ function LoginForm() {
         options: { emailRedirectTo: redirectTo() },
       });
       if (error) {
-        setAuthError(error.message);
+        setAuthError("We couldn't send that link. Check your email and try again.");
       } else {
-        setMessage(`Magic link sent to ${email.trim()}. Check your inbox.`);
+        setMessage(`Check your inbox — we sent a sign-in link to ${email.trim()}.`);
       }
     } finally {
       setLoading(null);
@@ -75,14 +73,9 @@ function LoginForm() {
       <div className="mesh-bg" aria-hidden />
 
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-12 lg:flex">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-violet-600/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-teal-700/20 via-transparent to-blue-800/10" />
         <div className="relative">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30">
-              <BrainCircuit size={22} className="text-white" />
-            </div>
-            <span className="text-lg font-semibold tracking-tight">FinSight AI</span>
-          </div>
+          <Logo size={44} subtitle="Personal Finance" />
         </div>
 
         <div className="relative max-w-md space-y-6">
@@ -91,14 +84,14 @@ function LoginForm() {
             <span className="text-gradient"> understood.</span>
           </h1>
           <p className="text-base leading-relaxed text-[var(--muted)]">
-            Spending insights, semantic search over your transactions, and a
-            finance agent that works from your real data — all in one private workspace.
+            See where your money goes, search transactions in plain English, and get
+            guidance from an advisor that knows your real spending.
           </p>
           <div className="flex flex-wrap gap-2">
-            {["Smart Search", "Finance Agent", "Analytics"].map((tag) => (
+            {["Spending insights", "Smart search", "Personal advisor"].map((tag) => (
               <span
                 key={tag}
-                className="tag-pill rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)] transition-colors hover:border-[var(--border-glow)]"
+                className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]"
               >
                 {tag}
               </span>
@@ -113,19 +106,21 @@ function LoginForm() {
 
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-md space-y-8">
-          <div className="space-y-2 text-center lg:text-left">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 lg:mx-0">
-              <Sparkles size={20} className="text-white" />
+          <div className="space-y-4 text-center lg:text-left">
+            <div className="mx-auto lg:mx-0">
+              <Logo size={48} compact subtitle="" />
             </div>
-            <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
-            <p className="text-sm text-[var(--muted)]">
-              Sign in to access your personal finance intelligence workspace
-            </p>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
+              <p className="text-sm text-[var(--muted)]">
+                Sign in to your FinSight account
+              </p>
+            </div>
           </div>
 
-          <div className="panel space-y-4 rounded-2xl p-6 panel-interactive">
+          <div className="panel space-y-4 rounded-2xl p-6">
             {authError && (
-              <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <p className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-400">
                 {authError}
               </p>
             )}
@@ -136,18 +131,9 @@ function LoginForm() {
             )}
 
             {!configured ? (
-              <div className="space-y-4 text-sm text-[var(--muted)]">
-                <p>
-                  Supabase is not configured yet. Add these to your{" "}
-                  <code className="text-indigo-300">.env</code> file:
-                </p>
-                <ul className="space-y-1 font-mono text-xs">
-                  <li>NEXT_PUBLIC_SUPABASE_URL</li>
-                  <li>NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
-                </ul>
-                <Link href="/" className="btn-ghost inline-flex rounded-xl px-4 py-2.5 text-sm">
-                  Continue without auth (dev)
-                </Link>
+              <div className="space-y-3 text-sm text-[var(--muted)]">
+                <p>Sign-in is not available on this deployment yet.</p>
+                <p>Contact your administrator if you believe this is a mistake.</p>
               </div>
             ) : (
               <>
@@ -173,7 +159,7 @@ function LoginForm() {
 
                 <form onSubmit={(e) => void signInWithEmail(e)} className="space-y-3">
                   <label className="block text-xs font-medium text-[var(--muted)]">
-                    Email magic link
+                    Email sign-in link
                   </label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -187,13 +173,13 @@ function LoginForm() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
                         required
-                        className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-500/50"
+                        className="input-field w-full py-2.5 pl-9 pr-3"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={loading !== null || !email.trim()}
-                      className="btn-primary shrink-0 rounded-xl px-4 py-2.5 text-sm"
+                      className="btn-primary shrink-0 rounded-xl px-4 py-2.5 text-sm disabled:opacity-40"
                     >
                       {loading === "email" ? (
                         <Loader2 size={16} className="animate-spin" />
@@ -208,15 +194,7 @@ function LoginForm() {
           </div>
 
           <p className="text-center text-xs text-[var(--muted)] lg:text-left">
-            Google not working? Enable it in{" "}
-            <a
-              href="https://supabase.com/dashboard/project/zibzsxwceivnziplciuq/auth/providers"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-indigo-400 hover:text-indigo-300"
-            >
-              Supabase → Authentication → Providers
-            </a>
+            By continuing, you agree to keep your login credentials private.
           </p>
         </div>
       </div>
@@ -249,7 +227,13 @@ function GoogleIcon() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading…</div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center text-sm text-[var(--muted)]">
+          Loading…
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

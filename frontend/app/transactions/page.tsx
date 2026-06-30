@@ -8,7 +8,6 @@ import {
   ChevronUp,
   Download,
   Plus,
-  RefreshCw,
   Trash2,
   Upload,
   X,
@@ -57,6 +56,11 @@ export default function TransactionsPage() {
 
   // Filters
   const [filterAccount, setFilterAccount] = useState("");
+
+  useEffect(() => {
+    const acc = new URLSearchParams(window.location.search).get("account");
+    if (acc) setFilterAccount(acc);
+  }, []);
   const [filterCategory, setFilterCategory] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
@@ -171,20 +175,20 @@ export default function TransactionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Transactions</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">{total.toLocaleString()} records</p>
+          <h1 className="page-title">Transactions</h1>
+          <p className="mt-0.5 text-sm text-[var(--muted)]">{total.toLocaleString()} records</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={handleExport}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white">
+            className="btn-ghost flex items-center gap-1.5 px-3 py-2 text-xs font-medium">
             <Download size={13} /> Export
           </button>
           <button onClick={() => setShowUpload(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white">
+            className="btn-ghost flex items-center gap-1.5 px-3 py-2 text-xs font-medium">
             <Upload size={13} /> Upload CSV
           </button>
           <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500">
+            className="btn-primary flex items-center gap-1.5 px-3 py-2 text-xs font-medium">
             <Plus size={13} /> Add
           </button>
         </div>
@@ -224,10 +228,6 @@ export default function TransactionsPage() {
             <X size={11} /> Clear
           </button>
         )}
-        <button onClick={loadData} disabled={loading}
-          className="ml-auto flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-100 disabled:opacity-40">
-          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-        </button>
       </div>
 
       {/* Table */}
@@ -238,7 +238,7 @@ export default function TransactionsPage() {
               <th className="w-10 px-4 py-3">
                 <input type="checkbox" checked={selected.size === sorted.length && sorted.length > 0}
                   onChange={toggleAll}
-                  className="rounded border-zinc-600 bg-zinc-800 accent-indigo-500 cursor-pointer" />
+                  className="rounded border-zinc-600 bg-zinc-800 accent-teal-500 cursor-pointer" />
               </th>
               {(["transaction_date", "description", "category", "amount"] as SortKey[]).map((col) => (
                 <th key={col}
@@ -270,11 +270,11 @@ export default function TransactionsPage() {
                 )
               : sorted.map((tx) => (
                   <tr key={tx.id} className={["transition-colors hover:bg-zinc-900/60",
-                    selected.has(tx.id) ? "bg-indigo-950/20" : "",
+                    selected.has(tx.id) ? "bg-teal-950/20" : "",
                   ].join(" ")}>
                     <td className="px-4 py-3">
                       <input type="checkbox" checked={selected.has(tx.id)} onChange={() => toggleSelect(tx.id)}
-                        className="rounded border-zinc-600 bg-zinc-800 accent-indigo-500 cursor-pointer" />
+                        className="rounded border-zinc-600 bg-zinc-800 accent-teal-500 cursor-pointer" />
                     </td>
                     <td className="px-4 py-3 text-zinc-400 tabular-nums whitespace-nowrap text-xs">
                       {formatDate(tx.transaction_date)}
@@ -459,13 +459,13 @@ function UploadModal({ accounts, onClose, onUploaded }: {
           onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) setFile(f); }}
           onClick={() => fileRef.current?.click()}
           className={["flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors",
-            dragging ? "border-indigo-500 bg-indigo-500/10" : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600",
+            dragging ? "border-teal-500 bg-teal-500/10" : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600",
           ].join(" ")}
         >
           <Upload size={22} className="text-zinc-500" />
           {file ? <p className="text-sm text-zinc-300">{file.name}</p> : (
             <>
-              <p className="text-sm text-zinc-400">Drop CSV or <span className="text-indigo-400">click to browse</span></p>
+              <p className="text-sm text-zinc-400">Drop CSV or <span className="link-accent">click to browse</span></p>
               <p className="text-xs text-zinc-600">Required: <code className="text-zinc-500">date, description, amount</code></p>
             </>
           )}
@@ -509,7 +509,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const sel = "rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500";
-const inp = "w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
-const primaryBtn = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40";
+const sel = "rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-teal-500/40";
+const inp = "w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500/40";
+const primaryBtn = "rounded-lg btn-primary px-4 py-2 text-sm font-medium text-white transition-colors  disabled:opacity-40";
 const cancelBtn = "rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200";
