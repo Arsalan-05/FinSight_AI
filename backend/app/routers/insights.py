@@ -9,9 +9,19 @@ from app.auth import get_current_user_optional
 from app.dependencies import get_db
 from app.scoping import account_ids_for_user
 from db.models import User
-from insights.service import build_all_insights
+from insights.service import build_all_insights, build_weekly_brief
 
 router = APIRouter(prefix="/insights", tags=["insights"])
+
+
+@router.get("/weekly-brief")
+def get_weekly_brief(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> dict[str, Any]:
+    """Seven-day money brief with spend alerts for the Overview dashboard."""
+    account_ids = account_ids_for_user(db, current_user)
+    return build_weekly_brief(db, account_ids=account_ids)
 
 
 @router.get("/")
