@@ -206,7 +206,7 @@ export default function BankConnectPanel() {
                   <button
                     type="button"
                     onClick={() => handleDisconnect(c.id)}
-                    className="btn-ghost flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-zinc-500 hover:text-rose-400"
+                    className="btn-ghost inline-flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--muted)] hover:text-rose-400"
                     aria-label="Disconnect bank"
                   >
                     <Unlink size={13} />

@@ -223,20 +223,20 @@ export default function TransactionsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 panel rounded-2xl p-4">
-        <select value={filterAccount} onChange={(e) => { setFilterAccount(e.target.value); setPage(0); }} className={sel}>
+      <div className="form-inline panel rounded-2xl p-4">
+        <select value={filterAccount} onChange={(e) => { setFilterAccount(e.target.value); setPage(0); }} className="select-field min-w-[10rem] flex-1 sm:flex-none">
           <option value="">All accounts</option>
           {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
-        <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setPage(0); }} className={sel}>
+        <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setPage(0); }} className="select-field min-w-[10rem] flex-1 sm:flex-none">
           <option value="">All categories</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-        <input type="date" value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(0); }} className={sel} />
-        <input type="date" value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(0); }} className={sel} />
+        <input type="date" value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(0); }} className="input-field input-field--sm min-w-[9rem] flex-1 sm:flex-none" />
+        <input type="date" value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(0); }} className="input-field input-field--sm min-w-[9rem] flex-1 sm:flex-none" />
         {(filterAccount || filterCategory || filterFrom || filterTo) && (
           <button onClick={() => { setFilterAccount(""); setFilterCategory(""); setFilterFrom(""); setFilterTo(""); setPage(0); }}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300">
+            className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-sm">
             <X size={11} /> Clear
           </button>
         )}
@@ -298,8 +298,7 @@ export default function TransactionsPage() {
                       <select
                         value={tx.category}
                         onChange={(e) => void handleCategoryChange(tx.id, e.target.value)}
-                        className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-200"
-                        style={{ color: getCategoryColor(tx.category) }}
+                        className="select-field min-h-0 py-1 text-xs"
                       >
                         {CATEGORIES.map((c) => (
                           <option key={c} value={c}>{c}</option>
@@ -526,8 +525,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
-
-const sel = "rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-teal-500/40";
 const inp = "w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500/40";
 const primaryBtn = "rounded-lg btn-primary px-4 py-2 text-sm font-medium text-white transition-colors  disabled:opacity-40";
 const cancelBtn = "rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200";

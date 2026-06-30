@@ -523,13 +523,109 @@ body {
   border: 1px solid var(--border);
   background: var(--surface);
   padding: 0.5rem 0.75rem;
+  min-height: 2.5rem;
   font-size: 0.875rem;
   color: var(--foreground);
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.select-field:focus { border-color: rgba(20, 184, 166, 0.5); }
+.select-field:focus {
+  border-color: rgba(20, 184, 166, 0.5);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.12);
+}
+
+.input-field--sm {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.form-inline .select-field,
+.form-inline .input-field {
+  min-height: 2.5rem;
+}
+
+.form-inline .btn-primary,
+.form-inline .btn-ghost {
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 1rem;
+  font-size: 0.875rem;
+}
+
+.icon-btn {
+  display: flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.icon-btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-elevated);
+  color: var(--foreground);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  height: 1.5rem;
+  width: 2.75rem;
+  shrink: 0;
+  cursor: pointer;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.toggle-switch--on {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.toggle-switch__knob {
+  pointer-events: none;
+  position: absolute;
+  left: 2px;
+  height: 1.125rem;
+  width: 1.125rem;
+  border-radius: 9999px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch--on .toggle-switch__knob {
+  transform: translateX(1.25rem);
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
 
 .link-accent {
   font-weight: 500;

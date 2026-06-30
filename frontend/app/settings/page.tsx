@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
 import BankConnectPanel from "@/components/BankConnectPanel";
 import ThemeToggle from "@/components/ThemeToggle";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -22,13 +23,19 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { AlertPreferences } from "@/lib/types";
 import { exportToCsv } from "@/lib/utils";
 
+const DEFAULT_ALERT_PREFS: AlertPreferences = {
+  spend_alerts: true,
+  email_digest: false,
+};
+
 export default function SettingsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const authReady = useAuthReady();
   const [profile, setProfile] = useState<{ email: string; name: string } | null>(null);
   const [dataCounts, setDataCounts] = useState({ accounts: 0, transactions: 0 });
-  const [alertPrefs, setAlertPrefs] = useState<AlertPreferences | null>(null);
+  const [alertPrefs, setAlertPrefs] = useState<AlertPreferences>(DEFAULT_ALERT_PREFS);
+  const [prefsLoading, setPrefsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportingJson, setExportingJson] = useState(false);
@@ -42,14 +49,19 @@ export default function SettingsPage() {
     ]);
 
     let prof: { email: string; name: string } | null = null;
-    let prefs: AlertPreferences | null = null;
+    let prefs = DEFAULT_ALERT_PREFS;
+
     if (isSupabaseConfigured()) {
       try {
         const u = await api.getMe();
         prof = { email: u.email, name: u.name };
-        prefs = await api.getAlertPreferences();
       } catch {
         prof = null;
+      }
+      try {
+        prefs = await api.getAlertPreferences();
+      } catch {
+        prefs = DEFAULT_ALERT_PREFS;
       }
     }
 
@@ -71,9 +83,13 @@ export default function SettingsPage() {
         setAlertPrefs(data.prefs);
         setDataCounts({ accounts: data.accounts, transactions: data.transactions });
         setLoading(false);
+        setPrefsLoading(false);
       })
       .catch(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setPrefsLoading(false);
+        }
       });
     return () => { active = false; };
   }, [authReady, fetchAll]);
@@ -137,11 +153,13 @@ export default function SettingsPage() {
   };
 
   const togglePref = async (key: keyof AlertPreferences, value: boolean) => {
+    const previous = alertPrefs;
+    setAlertPrefs((prev) => ({ ...prev, [key]: value }));
     try {
       const updated = await api.updateAlertPreferences({ [key]: value });
       setAlertPrefs(updated);
-      toast("Preferences saved");
     } catch {
+      setAlertPrefs(previous);
       toast("Could not save preferences", "error");
     }
   };
@@ -199,10 +217,10 @@ export default function SettingsPage() {
           <Shield size={16} className="text-[var(--accent)]" />
           <h2 className="section-title">Alerts</h2>
         </div>
-        {loading || !alertPrefs ? (
+        {prefsLoading ? (
           <div className="h-16 shimmer rounded-xl" />
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y divide-[var(--border)]">
             <PrefRow
               label="Spend alerts"
               desc="In-app notifications when you exceed a budget"
@@ -216,14 +234,16 @@ export default function SettingsPage() {
               onChange={(v) => void togglePref("email_digest", v)}
             />
             {alertPrefs.email_digest && (
-              <button
-                type="button"
-                onClick={() => void handleSendDigest()}
-                disabled={sendingDigest}
-                className="btn-ghost text-xs disabled:opacity-50"
-              >
-                {sendingDigest ? "Sending…" : "Send test digest now"}
-              </button>
+              <div className="pt-3">
+                <button
+                  type="button"
+                  onClick={() => void handleSendDigest()}
+                  disabled={sendingDigest}
+                  className="btn-ghost inline-flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"
+                >
+                  {sendingDigest ? "Sending…" : "Send test digest now"}
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -268,7 +288,7 @@ export default function SettingsPage() {
           Only you can see your transactions and chat history. Download a full copy anytime or
           permanently delete your account.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="settings-actions">
           <button
             type="button"
             onClick={() => void handleExportCsv()}
@@ -296,7 +316,7 @@ export default function SettingsPage() {
             type="button"
             onClick={() => void handleDeleteAccount()}
             disabled={deleting || !profile}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 px-4 py-2.5 text-sm text-rose-400 transition-colors hover:bg-rose-500/10 disabled:opacity-40"
           >
             <AlertTriangle size={15} />
             {deleting ? "Deleting…" : "Delete my account"}
@@ -319,28 +339,12 @@ function PrefRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div>
+    <div className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
+      <div className="min-w-0">
         <p className="text-sm font-medium text-[var(--foreground)]">{label}</p>
-        <p className="text-xs text-[var(--muted)]">{desc}</p>
+        <p className="mt-0.5 text-xs text-[var(--muted)]">{desc}</p>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={[
-          "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-          checked ? "bg-[var(--accent)]" : "bg-[var(--surface-elevated)]",
-        ].join(" ")}
-      >
-        <span
-          className={[
-            "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform",
-            checked ? "translate-x-5" : "translate-x-0.5",
-          ].join(" ")}
-        />
-      </button>
+      <ToggleSwitch checked={checked} onChange={onChange} label={label} />
     </div>
   );
 }
