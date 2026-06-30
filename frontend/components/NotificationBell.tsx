@@ -83,12 +83,11 @@ export function NotificationBell() {
                 ))
               )}
             </ul>
-            <div className="border-t border-[var(--border)] px-4 py-2">
-              <Link
-                href={chatUrl("What should I focus on based on my recent alerts and spending?")}
-                className="link-accent text-xs"
-                onClick={() => setOpen(false)}
-              >
+            <div className="border-t border-[var(--border)] px-4 py-2 flex items-center justify-between">
+              <Link href="/notifications" className="link-accent text-xs" onClick={() => setOpen(false)}>
+                View all alerts
+              </Link>
+              <Link href={chatUrl("What should I focus on based on my recent alerts and spending?")} className="link-accent text-xs" onClick={() => setOpen(false)}>
                 Ask Advisor →
               </Link>
             </div>

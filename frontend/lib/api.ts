@@ -1,8 +1,10 @@
 import type {
   Account,
+  AgentLearnedProfile,
   AlertPreferences,
   AppNotification,
   Budget,
+  CategoryRule,
   ChatSessionDetail,
   ChatSessionSummary,
   ChatSSEEvent,
@@ -218,6 +220,40 @@ export const api = {
 
   deleteGoal: (id: string): Promise<void> =>
     request(`/goals/${id}`, { method: "DELETE" }),
+
+  updateGoal: (
+    id: string,
+    data: {
+      title?: string;
+      target_amount?: number;
+      current_amount?: number;
+      deadline?: string;
+      notes?: string;
+      status?: string;
+    },
+  ): Promise<FinancialGoal> =>
+    request(`/goals/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  getLearnedProfile: (): Promise<AgentLearnedProfile> =>
+    request("/auth/me/profile"),
+
+  clearLearnedProfile: (): Promise<void> =>
+    request("/auth/me/profile", { method: "DELETE" }),
+
+  getCategoryRules: (): Promise<CategoryRule[]> => request("/transactions/rules"),
+
+  createCategoryRule: (data: {
+    value: string;
+    category: string;
+    match?: string;
+  }): Promise<CategoryRule> =>
+    request("/transactions/rules", { method: "POST", body: JSON.stringify(data) }),
+
+  deleteCategoryRule: (id: string): Promise<void> =>
+    request(`/transactions/rules/${id}`, { method: "DELETE" }),
+
+  reapplyCategoryRules: (): Promise<{ updated: number }> =>
+    request("/transactions/rules/apply", { method: "POST" }),
 
   // ── Bank (Plaid) ──────────────────────────────────────────────────────────
 
