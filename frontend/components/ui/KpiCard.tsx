@@ -2,7 +2,8 @@ import type { CSSProperties } from "react";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 const ACCENT: Record<string, string> = {
-  indigo: "kpi-accent-indigo",
+  indigo: "kpi-accent-teal",
+  teal: "kpi-accent-teal",
   sky: "kpi-accent-sky",
   rose: "kpi-accent-rose",
   emerald: "kpi-accent-emerald",
@@ -23,7 +24,7 @@ export function KpiCard({
   label: string;
   value: string;
   sub: string;
-  accent: "indigo" | "sky" | "rose" | "emerald";
+  accent: "indigo" | "teal" | "sky" | "rose" | "emerald";
   trend?: number | null;
   neg?: boolean;
   loading?: boolean;
