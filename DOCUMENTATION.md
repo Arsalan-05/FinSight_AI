@@ -38,6 +38,9 @@ Open **http://localhost:3000** → hard refresh (`Cmd+Shift+R`) if the tab icon 
 I run FinSight locally in four steps. Copy this block when you need a clean start:
 
 ```bash
+# Quick bootstrap (Docker Postgres + migrations only)
+./scripts/dev-up.sh
+
 # 1 — Environment
 cp .env.example .env
 cp frontend/.env.local.example frontend/.env.local
@@ -66,7 +69,7 @@ cd backend && uv run pytest -q
 cd frontend && npm run lint && npm run type-check && npm run build
 ```
 
-Expected: **16/16** e2e checkpoints, **91** tests passing, frontend build clean.
+Expected: **20+** e2e checkpoints, **102** tests passing, frontend build clean.
 
 **Campus Wi-Fi note:** If Supabase Postgres is unreachable, keep `docker compose up -d db` running — the backend auto-falls back to local Postgres (`DATABASE_FALLBACK_ENABLED=true` in `.env.example`).
 
@@ -947,21 +950,21 @@ docker compose up --build
 
 ## 21. Project Status
 
-**FinSight AI v1.3 — portfolio-complete and startup MVP path shipped (June 2026).**
+**FinSight AI v1.4 — engineering-MVP max (code-complete, no live deploy required).**
 
-Private portfolio system with a credible Canadian fintech MVP layer: bank sync lifecycle, budgets, alerts, data rights, and distribution hooks.
+Private portfolio system with a credible Canadian fintech MVP layer: bank sync lifecycle, budgets, alerts, data rights, goal progress, category rules, and distribution hooks.
 
 ### Completion score (out of 100)
 
 | Lens | Score | Notes |
 |------|-------|-------|
-| **Portfolio / interview** | **96** | Full-stack agent + RAG + auth + deploy + 91 tests — interview-ready |
-| **Startup MVP (code shipped)** | **82** | Phases A–C implemented; Plaid production keys + live users not validated |
-| **Startup MVP (live product)** | **68** | Needs stable DB URL, production deploy, 10+ beta users with retention data |
-| **Consumer fintech parity** | **55** | No native mobile, push alerts, or household mode — intentionally deferred |
-| **Overall project maturity** | **85** | Strong engineering; distribution and ops are the remaining gap |
+| **Portfolio / interview** | **98** | Full-stack agent + RAG + 102 tests + GitHub Pages landing |
+| **Startup MVP (code shipped)** | **96** | Closed product loops: goals progress, rules, notifications inbox, advisor memory UI |
+| **Startup MVP (live product)** | **68** | Unchanged — needs stable DB URL, production deploy, 10+ beta users |
+| **Consumer fintech parity** | **62** | Category rules + goal progress; mobile/push still deferred |
+| **Overall project maturity** | **92** | Engineering-MVP target met in code; live ops still caps headline score |
 
-**Bottom line:** You are past “student project” and into “credible invite-only beta.” The next 15 points come from **deploying**, **fixing DB connectivity**, and **proving retention with real users** — not more features.
+**Bottom line:** Code-complete for an invite-only startup MVP. Remaining gap is **live deploy + real user retention**, not missing features.
 
 ### What ships
 
@@ -970,14 +973,18 @@ Private portfolio system with a credible Canadian fintech MVP layer: bank sync l
 | **Data** | PostgreSQL + pgvector, Alembic migrations, Canadian bank CSV ingest, per-user scoping, optional Supabase RLS |
 | **Auth** | Supabase Google OAuth, JWT verification, invite-only beta (`BETA_ALLOWED_EMAILS`), demo provisioning |
 | **Bank link** | Plaid Link, webhooks, background sync, modified/removed txs, encrypted tokens, hard disconnect |
-| **Trust** | `GET /auth/me/export`, `DELETE /auth/me` cascade, public `/privacy` |
+| **Trust** | `GET /auth/me/export`, `DELETE /auth/me` cascade, `GET/DELETE /auth/me/profile`, public `/privacy` |
+| **Goals** | `PATCH /goals/{id}` progress tracking, overview progress bars |
+| **Rules** | Merchant categorization rules, apply on ingest + manual re-apply |
 | **RAG** | Transaction embeddings, semantic search, HNSW index |
-| **Agent** | ReAct loop with SQL + retrieval + web search + learned user profile |
-| **Retention** | Budgets, in-app notifications, weekly brief API + email digest |
+| **Agent** | ReAct loop with SQL + retrieval + web search + learned user profile (Settings UI) |
+| **Retention** | Budgets, `/notifications` inbox, weekly brief API + email digest |
 | **Insights** | Subscriptions page, TFSA room, spend alerts, weekly brief panel |
-| **Chat** | Saved history, pin/rename/delete, live status streaming, citations |
-| **Frontend** | Dashboard, analytics, transactions, subscriptions, search, chat, settings — notification bell, unified SVG branding |
-| **Reliability** | DB fallback, JSON logs in prod, `/health/ready`, rate limiting, request IDs |
+| **Chat** | Saved history, pin/rename/delete, Ask-shortcut prefill, citations |
+| **Frontend** | Dashboard, analytics, transactions, subscriptions, alerts, search, chat, settings |
+| **Reliability** | `scripts/dev-up.sh`, `/capabilities` ops panel in Settings, expanded `check_e2e.py` |
+| **Branding** | Bold **F** favicon via `app/icon.tsx`, sidebar `LogoMark` sync |
+| **Distribution** | GitHub Pages landing (`docs/`) + `.github/workflows/pages.yml` |
 | **Deploy** | Railway configs + `infra/railway/DEPLOY.md` |
 
 ### Startup roadmap (completed phases)
@@ -999,16 +1006,25 @@ Private portfolio system with a credible Canadian fintech MVP layer: bank sync l
 ### Final verification (June 2026)
 
 ```bash
-cd backend && uv run pytest -q          # 91 passed
+./scripts/dev-up.sh                     # Docker DB + alembic upgrade
+cd backend && uv run pytest -q          # 102 passed
 cd backend && uv run ruff check .       # clean
 cd frontend && npm run lint && npm run type-check && npm run build   # clean
 ```
+
+### Favicon / tab icon
+
+Sidebar and browser tab use the same bold **F** mark (`app/icon.tsx`, `LogoMark.tsx`, `public/icon.svg`). If the tab still shows an old icon: **Cmd+Shift+R** hard refresh, incognito window, or restart the dev server.
+
+### GitHub Pages
+
+Static landing site lives in `docs/`. Enable **Settings → Pages → Source: GitHub Actions** in the repo. Workflow: `.github/workflows/pages.yml` deploys on push to `main` when `docs/` changes.
 
 ### Repository
 
 Private GitHub portfolio repository. To run locally, follow the [Startup Guide](#startup-guide-read-this-first).
 
-**FinSight AI v1.3 is production-grade for a private portfolio system and credible for an invite-only startup beta.**
+**FinSight AI v1.4 is engineering-MVP complete in code — credible for an invite-only startup beta once deployed.**
 
 ---
 
@@ -1018,4 +1034,4 @@ Private project — not licensed for redistribution.
 
 ---
 
-*Last updated: June 2026 — FinSight AI v1.3.0 (PRIVATE · STARTUP MVP)*
+*Last updated: June 2026 — FinSight AI v1.4.0 (PRIVATE · ENGINEERING MVP)*
