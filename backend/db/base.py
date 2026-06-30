@@ -33,6 +33,8 @@ def _pick_database_url() -> str:
 DATABASE_URL = _pick_database_url()
 
 _engine_kwargs: dict[str, object] = {"pool_pre_ping": True}
+if settings.environment != "production":
+    _engine_kwargs["connect_args"] = {"connect_timeout": 8}
 if settings.environment == "production":
     _engine_kwargs["pool_size"] = settings.db_pool_size
     _engine_kwargs["max_overflow"] = settings.db_max_overflow
