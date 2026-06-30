@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BrainCircuit,
   CreditCard,
   LayoutDashboard,
   LineChart,
@@ -17,8 +16,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 
+import { LogoMark, LogoWordmark } from "@/components/brand/Logo";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import ThemeToggle from "@/components/ThemeToggle";
-import SystemStatus from "@/components/SystemStatus";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 const NAV = [
@@ -27,7 +27,7 @@ const NAV = [
   { href: "/transactions", label: "Transactions", icon: CreditCard },
   { href: "/accounts", label: "Accounts", icon: Users },
   { href: "/search", label: "Search", icon: Search },
-  { href: "/chat", label: "Agent", icon: MessageSquare },
+  { href: "/chat", label: "Advisor", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -88,15 +88,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ].join(" ")}
       >
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-[var(--border)] px-5">
-          <div className="logo-float flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/30">
-            <BrainCircuit size={19} className="text-white" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold tracking-tight text-gradient">FinSight</p>
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--muted)]">
-              Flagship
-            </p>
-          </div>
+          <Link href="/" className="flex min-w-0 items-center gap-3">
+            <span className="shrink-0 overflow-hidden rounded-xl">
+              <LogoMark size={36} />
+            </span>
+            <LogoWordmark />
+          </Link>
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
@@ -115,7 +112,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <Icon
                   size={16}
-                  className={active ? "text-indigo-400" : "opacity-75 group-hover:opacity-100"}
+                  className={active ? "text-[var(--accent)]" : "opacity-75 group-hover:opacity-100"}
                 />
                 <span className="truncate">{label}</span>
               </Link>
@@ -127,12 +124,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="panel rounded-xl px-3 py-3">
             <div className="mb-2.5 min-w-0">
               <p className="truncate text-xs font-semibold text-[var(--foreground)]">
-                {userLabel || "FinSight User"}
+                {userLabel || "Your account"}
               </p>
-              <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="truncate text-[10px] text-[var(--muted)]">Personal workspace</p>
-                <SystemStatus />
-              </div>
+              <p className="mt-1 truncate text-[10px] text-[var(--muted)]">
+                Secured sign-in
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -152,9 +148,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="min-h-screen md:pl-64">
-        <main className="min-h-screen px-4 pb-10 pt-[4.5rem] md:px-8 md:pt-8">{children}</main>
+      <div className={`min-h-screen md:pl-64 ${pathname.startsWith("/chat") ? "md:px-4" : ""}`}>
+        <main
+          className={[
+            "min-h-screen pb-10 pt-[4.5rem] md:pt-8",
+            pathname.startsWith("/chat") ? "px-4 md:px-6" : "px-4 md:px-8",
+          ].join(" ")}
+        >
+          {children}
+        </main>
       </div>
+      <InstallPrompt />
     </>
   );
 }
