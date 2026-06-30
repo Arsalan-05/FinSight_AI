@@ -944,9 +944,19 @@ cd frontend && npm run lint && npm run type-check && npm run build
 
 Sidebar and browser tab use the same bold **F** mark (`app/icon.svg`, `LogoMark.tsx`, `public/favicon.svg`). Hard refresh (`Cmd+Shift+R`) if the tab icon looks stale.
 
+### Deployment
+
+| Guide | Stack | Cost |
+|-------|-------|------|
+| [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) | Vercel + Render + Supabase | **$0** |
+| [infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md) | Railway + Supabase | ~$5/mo |
+| [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md) | Railway detail | ~$5/mo |
+
 ### GitHub Pages
 
-Static landing site in `docs/`. Enable **Settings → Pages → Source: GitHub Actions**. Workflow: `.github/workflows/pages.yml`.
+Static **one-page** landing site in `docs/` (home, features, privacy). Enable **Settings → Pages → Source: GitHub Actions**. Workflow: `.github/workflows/pages.yml`.
+
+**GitHub Pages does not run the full app.** Deploy backend + frontend to Railway and set `docs/config.js` → see [infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md).
 
 ---
 

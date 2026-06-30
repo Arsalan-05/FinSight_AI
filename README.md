@@ -22,7 +22,7 @@ Open **http://localhost:3000** → sign in with Google.
 
 **Prerequisites:** [Ollama](https://ollama.com) (`llama3.2`, `nomic-embed-text`), [uv](https://docs.astral.sh/uv/), Node 20+.
 
-Full reference: **[DOCUMENTATION.md](./DOCUMENTATION.md)** · **[infra/railway/DEPLOY.md](infra/railway/DEPLOY.md)** · **[DEV.md](./DEV.md)**
+Full reference: **[DOCUMENTATION.md](./DOCUMENTATION.md)** · **[infra/DEPLOY-FREE.md](infra/DEPLOY-FREE.md)** ($0) · **[infra/railway/DEPLOY.md](infra/railway/DEPLOY.md)** · **[DEV.md](./DEV.md)**
 
 ## Stack
 
