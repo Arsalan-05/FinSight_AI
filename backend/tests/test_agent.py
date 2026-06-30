@@ -6,6 +6,7 @@ import json
 from datetime import date
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from agent.graph import build_graph
@@ -203,3 +204,20 @@ class TestRunAgent:
         assert mock_llm.call_count == 2
         second_call_messages = mock_llm.call_args_list[1][0][0]
         assert len(second_call_messages) >= 3
+
+    @patch("agent.graph.call_llm")
+    def test_run_agent_persists_user_message_on_llm_failure(
+        self,
+        mock_llm: MagicMock,
+        db_session,
+    ) -> None:
+        mock_llm.side_effect = RuntimeError("Ollama offline")
+
+        with pytest.raises(RuntimeError, match="Ollama offline"):
+            run_agent("What did I spend on food?", "fail-session", db_session)
+
+        session = load_session(db_session, "fail-session")
+        messages = load_messages(session)
+        assert len(messages) == 1
+        assert messages[0].content == "What did I spend on food?"
+        assert session.title == "What did I spend on food?"
