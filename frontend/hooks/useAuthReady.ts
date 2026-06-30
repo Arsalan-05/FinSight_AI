@@ -7,8 +7,7 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getAccessTokenReady } from "@/lib/supabase/session";
 
 /**
- * True once Supabase JWT is available and /auth/sync has run.
- * Prevents protected API calls before the session cookie hydrates.
+ * True once JWT is ready and /auth/bootstrap succeeded (sync + data provision).
  */
 export function useAuthReady(): boolean {
   const configured = isSupabaseConfigured();
@@ -27,9 +26,14 @@ export function useAuthReady(): boolean {
         return;
       }
       try {
-        await api.syncProfile();
+        await api.bootstrap();
       } catch {
-        // Sync can fail if DB is briefly unavailable — still allow data fetch + retry
+        try {
+          await api.syncProfile();
+        } catch {
+          if (active) setReady(false);
+          return;
+        }
       }
       if (active) setReady(true);
     }
@@ -42,7 +46,7 @@ export function useAuthReady(): boolean {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       if (session?.access_token) {
-        void api.syncProfile().finally(() => {
+        void api.bootstrap().finally(() => {
           if (active) setReady(true);
         });
       } else {

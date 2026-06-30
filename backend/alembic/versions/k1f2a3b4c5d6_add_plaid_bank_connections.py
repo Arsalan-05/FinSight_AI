@@ -45,7 +45,7 @@ def upgrade() -> None:
     op.create_index(
         "ix_transactions_plaid_transaction_id",
         "transactions",
-        "plaid_transaction_id",
+        ["plaid_transaction_id"],
         unique=True,
     )
 

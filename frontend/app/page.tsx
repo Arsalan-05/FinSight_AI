@@ -22,6 +22,7 @@ import {
 import { KpiCard } from "@/components/ui/KpiCard";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
+import { DataStatusBanner } from "@/components/DataStatusBanner";
 import { api } from "@/lib/api";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import type { Account, InsightCard, Transaction, TransactionList } from "@/lib/types";
@@ -46,6 +47,8 @@ export default function DashboardPage() {
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [insightCards, setInsightCards] = useState<InsightCard[]>([]);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [dbHost, setDbHost] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
     const { from: curFrom, to: curTo } = getCurrentMonthRange();
@@ -62,11 +65,15 @@ export default function DashboardPage() {
 
     let healthOk = false;
     let dbConnected = true;
+    let fallback = false;
+    let host: string | null = null;
     try {
       const health = await api.health();
       healthOk = health.status === "ok";
       const dbHealth = await api.healthDb();
       dbConnected = dbHealth.connected;
+      fallback = dbHealth.using_fallback ?? false;
+      host = dbHealth.host;
       if (!dbConnected) {
         return {
           healthOk,
@@ -79,6 +86,8 @@ export default function DashboardPage() {
             ? "Database fallback active but not connected — run: docker compose up -d db"
             : "Cannot reach Supabase Postgres. Use phone hotspot, or set the session pooler URL in .env",
           insightCards: [],
+          usingFallback: fallback,
+          dbHost: host,
         };
       }
     } catch {
@@ -120,6 +129,8 @@ export default function DashboardPage() {
         dailyData: [],
         dataError: msg,
         insightCards: [],
+        usingFallback: fallback,
+        dbHost: host,
       };
     }
 
@@ -141,16 +152,20 @@ export default function DashboardPage() {
       dailyData,
       dataError: null,
       insightCards,
+      usingFallback: fallback,
+      dbHost: host,
     };
   }, []);
 
   useEffect(() => {
     if (!authReady) return;
     let active = true;
-    fetchAll().then(({ healthOk, accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards }) => {
+    fetchAll().then(({ healthOk, accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards, usingFallback: fb, dbHost: h }) => {
       if (!active) return;
       setApiOk(healthOk);
       setDataError(err);
+      setUsingFallback(fb);
+      setDbHost(h);
       setAccounts(accs);
       setRecent(recentList.items);
       setCurMonth(curList.items);
@@ -164,9 +179,11 @@ export default function DashboardPage() {
 
   const reload = useCallback(() => {
     setLoading(true);
-    fetchAll().then(({ healthOk, accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards }) => {
+    fetchAll().then(({ healthOk, accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards, usingFallback: fb, dbHost: h }) => {
       setApiOk(healthOk);
       setDataError(err);
+      setUsingFallback(fb);
+      setDbHost(h);
       setAccounts(accs);
       setRecent(recentList.items);
       setCurMonth(curList.items);
@@ -228,13 +245,15 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {dataError && (
-        <div className="panel rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          Could not load your data: {dataError}
-        </div>
-      )}
+      <DataStatusBanner
+        error={dataError}
+        usingFallback={usingFallback && !dataError}
+        dbHost={dbHost}
+        onRetry={reload}
+        loading={loading}
+      />
 
-      {!loading && accounts.length === 0 && <OnboardingBanner />}
+      {!loading && accounts.length === 0 && !dataError && <OnboardingBanner />}
 
       {insightCards.length > 0 && (
         <section className="grid gap-3 sm:grid-cols-2">

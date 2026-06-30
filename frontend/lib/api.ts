@@ -3,6 +3,7 @@ import type {
   ChatSessionDetail,
   ChatSessionSummary,
   ChatSSEEvent,
+  BootstrapResponse,
   FinancialGoal,
   BankConnection,
   PlaidSyncResult,
@@ -69,6 +70,9 @@ export const api = {
   getMe: (): Promise<User> => request("/auth/me"),
 
   syncProfile: (): Promise<User> => request("/auth/sync", { method: "POST" }),
+
+  bootstrap: (): Promise<BootstrapResponse> =>
+    request("/auth/bootstrap", { method: "POST" }),
 
   // ── Users ───────────────────────────────────────────────────────────────
 
