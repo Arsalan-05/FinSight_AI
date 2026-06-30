@@ -42,16 +42,19 @@ Set **Root Directory** to `frontend` if not auto-detected.
 3. **Settings → API** → copy:
    - Project URL → `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`
    - `anon` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. **Settings → Database** → copy **Connection pooler** URI (Transaction mode) → `DATABASE_URL`
+4. **Settings → Database** → copy **Session pooler** URI (port **5432**, not 6543) → `DATABASE_URL`  
+   Format: `postgresql://postgres.<ref>:<password>@aws-*-*.pooler.supabase.com:5432/postgres?sslmode=require`  
+   URL-encode `@` in password as `%40`.
 5. Enable **pgvector** in SQL Editor:
    ```sql
    CREATE EXTENSION IF NOT EXISTS vector;
    ```
-6. Run migrations from your machine:
+6. Run migrations (Render auto-runs on deploy; or locally):
    ```bash
    cd backend
-   export DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true"
-   uv run alembic upgrade head
+   export DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-*-*.pooler.supabase.com:5432/postgres?sslmode=require"
+   export DATABASE_FALLBACK_ENABLED=false
+   uv run python -m db.migrate
    ```
 
 ### B — Backend on Render (5 min)
@@ -93,7 +96,8 @@ Set **Root Directory** to `frontend` if not auto-detected.
 1. **Render** → `finsight-api` → Environment → set `CORS_ORIGINS` to your Vercel URL → **Manual Deploy**
 2. **Supabase** → Authentication → URL Configuration:
    - **Site URL:** `https://your-project.vercel.app`
-   - **Redirect URLs:** `https://your-project.vercel.app/**`, `http://localhost:3000/**`
+   - **Redirect URLs:** `https://your-project.vercel.app/**`, `http://localhost:3000/**`, `http://127.0.0.1:3000/**`  
+     (must include `/**` wildcard — `/auth/callback` will not match without it)
 3. Optional: edit `docs/config.js` with your Vercel URL for the GitHub Pages **Open FinSight** button.
 
 ### E — Verify
@@ -140,7 +144,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 | Google login redirect error | Add Vercel URL to Supabase redirect URLs |
 | `Could not load your data` | Run `alembic upgrade head` on production DB |
 | 30–50s first load | Render free tier waking up — normal |
-| Chat empty / errors | Add `ANTHROPIC_API_KEY` + `LLM_PROVIDER=anthropic` on Render |
+| Chat empty / errors (deployed) | Expected without `ANTHROPIC_API_KEY` — Ollama is local-only; chat **history** still syncs via Supabase |
+| Chat history not shared local↔cloud | Use hotspot if campus Wi-Fi blocks Supabase; both must reach same Supabase DB |
+| Local `Failed to fetch` | Use `NEXT_PUBLIC_API_URL=http://127.0.0.1:8000` not `localhost` |
 | 403 on login | Add your email to `BETA_ALLOWED_EMAILS` |
 
 ---
@@ -152,7 +158,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 | Login + dashboard | Yes | Yes |
 | Transactions / CSV | Yes | Yes |
 | Budgets / alerts | Yes | Yes |
-| Chat (Ollama) | No | Yes |
+| Chat (Ollama) | No (history syncs) | Yes |
 | Chat (Anthropic) | Yes (paid API) | Yes |
 
 ---
