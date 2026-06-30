@@ -6,14 +6,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from agent.user_profile import _EMPTY_PROFILE, load_agent_profile, save_agent_profile
 from app.auth import get_current_user
 from app.demo_provision import ensure_user_has_data
 from app.dependencies import get_db
 from app.schemas import BootstrapOut, UserOut
 from app.user_data import delete_user_and_data, export_user_data
-from notifications.digest import send_weekly_digest_to_user
 from db.base import DATABASE_URL, engine
 from db.models import Account, Transaction, User
+from notifications.digest import send_weekly_digest_to_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -79,6 +80,21 @@ def export_me(
 ) -> dict:
     """Download all user data as JSON."""
     return export_user_data(db, user)
+
+
+@router.get("/me/profile")
+def get_learned_profile(user: User = Depends(get_current_user)) -> dict:
+    """Return what the finance advisor has learned about this user."""
+    return load_agent_profile(user)
+
+
+@router.delete("/me/profile", status_code=status.HTTP_204_NO_CONTENT)
+def clear_learned_profile(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Clear the advisor's learned profile (conversation memory)."""
+    save_agent_profile(db, user, dict(_EMPTY_PROFILE))
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
