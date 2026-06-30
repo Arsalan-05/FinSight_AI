@@ -112,11 +112,11 @@ export function BudgetsPanel({ stagger = 5 }: { stagger?: number }) {
         </ul>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="form-inline">
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="select-field text-sm"
+          className="select-field min-w-[9rem] flex-1 sm:flex-none"
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>{c}</option>
@@ -129,13 +129,13 @@ export function BudgetsPanel({ stagger = 5 }: { stagger?: number }) {
           placeholder="Monthly limit"
           value={limit}
           onChange={(e) => setLimit(e.target.value)}
-          className="input-field w-32 text-sm"
+          className="input-field input-field--sm w-full min-w-[8rem] sm:w-36"
         />
         <button
           type="button"
           onClick={() => void handleAdd()}
           disabled={saving || !limit}
-          className="btn-primary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs disabled:opacity-40"
+          className="btn-primary inline-flex items-center gap-1.5 disabled:opacity-40"
         >
           <Plus size={13} />
           Add
