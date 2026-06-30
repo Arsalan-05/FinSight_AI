@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
+import { chatUrl } from "@/lib/chat-url";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import type { WeeklyBrief } from "@/lib/types";
 
@@ -52,7 +53,10 @@ export function WeeklyBriefPanel({ stagger = 1 }: { stagger?: number }) {
             <h2 className="section-title mt-0.5">{brief.headline}</h2>
           </div>
         </div>
-        <Link href="/chat" className="link-accent shrink-0 text-xs">
+        <Link
+          href={chatUrl("Summarize my weekly spending and highlight anything I should act on.")}
+          className="link-accent shrink-0 text-xs"
+        >
           Ask Advisor →
         </Link>
       </div>
@@ -115,7 +119,10 @@ export function SpendAlertsPanel({ stagger = 2 }: { stagger?: number }) {
               <p className="text-sm font-medium text-[var(--foreground)]">{a.title}</p>
               <p className="mt-0.5 text-xs text-[var(--muted)]">{a.body}</p>
             </div>
-            <Link href="/chat" className="shrink-0 text-[var(--muted)] hover:text-[var(--accent)]">
+            <Link
+              href={chatUrl(`Help me understand this spend alert: ${a.title}. ${a.body}`)}
+              className="shrink-0 text-[var(--muted)] hover:text-[var(--accent)]"
+            >
               <ChevronRight size={16} />
             </Link>
           </li>
@@ -169,7 +176,10 @@ export function TfsaRoomCard({ stagger = 3 }: { stagger?: number }) {
       <p className="mt-2 text-xs text-[var(--muted)]">
         ${used.toLocaleString()} contributed of ${tfsa.limit.toLocaleString()} 2026 limit · verify with CRA
       </p>
-      <Link href="/chat" className="link-accent mt-3 inline-block text-xs">
+      <Link
+        href={chatUrl("How much TFSA contribution room do I have left and what should I prioritize?")}
+        className="link-accent mt-3 inline-block text-xs"
+      >
         Ask about TFSA strategy →
       </Link>
     </section>

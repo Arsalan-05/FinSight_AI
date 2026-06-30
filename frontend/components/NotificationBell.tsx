@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
+import { chatUrl } from "@/lib/chat-url";
 import type { AppNotification } from "@/lib/types";
 
 export function NotificationBell() {
@@ -34,7 +35,7 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--foreground)]"
+        className="icon-btn relative"
         aria-label="Notifications"
       >
         <Bell size={16} />
@@ -83,7 +84,11 @@ export function NotificationBell() {
               )}
             </ul>
             <div className="border-t border-[var(--border)] px-4 py-2">
-              <Link href="/chat" className="link-accent text-xs" onClick={() => setOpen(false)}>
+              <Link
+                href={chatUrl("What should I focus on based on my recent alerts and spending?")}
+                className="link-accent text-xs"
+                onClick={() => setOpen(false)}
+              >
                 Ask Advisor →
               </Link>
             </div>

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
+import { chatUrl } from "@/lib/chat-url";
 import type { FinancialGoal } from "@/lib/types";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
@@ -72,7 +73,7 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
           </div>
         </div>
         <Link
-          href="/chat"
+          href={chatUrl("How am I tracking toward my savings goals and what should I change?")}
           className="btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
         >
           <MessageSquare size={13} />
@@ -104,18 +105,27 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
                       </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void api.deleteGoal(g.id).then(() => {
-                        setGoals((prev) => prev.filter((x) => x.id !== g.id));
-                      })
-                    }
-                    className="shrink-0 rounded-lg p-2 text-[var(--muted)] hover:bg-rose-500/10 hover:text-rose-400"
-                    aria-label="Remove goal"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Link
+                      href={chatUrl(`How am I tracking toward my goal: ${g.title}?`)}
+                      className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                      aria-label={`Ask about ${g.title}`}
+                    >
+                      <MessageSquare size={14} />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void api.deleteGoal(g.id).then(() => {
+                          setGoals((prev) => prev.filter((x) => x.id !== g.id));
+                        })
+                      }
+                      className="shrink-0 rounded-lg p-2 text-[var(--muted)] hover:bg-rose-500/10 hover:text-rose-400"
+                      aria-label="Remove goal"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -128,12 +138,12 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
           )}
 
           {expanded ? (
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="form-inline">
               <input
                 value={goalTitle}
                 onChange={(e) => setGoalTitle(e.target.value)}
                 placeholder="Goal name"
-                className="input-field flex-1"
+                className="input-field input-field--sm min-w-[10rem] flex-1"
                 autoFocus
               />
               <input
@@ -141,15 +151,15 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
                 onChange={(e) => setGoalAmount(e.target.value)}
                 placeholder="Target $"
                 type="number"
-                className="input-field w-full sm:w-28"
+                className="input-field input-field--sm w-full min-w-[7rem] sm:w-32"
               />
-              <button type="button" onClick={handleAdd} className="btn-primary px-4 py-2.5 text-sm">
+              <button type="button" onClick={handleAdd} className="btn-primary">
                 Save
               </button>
               <button
                 type="button"
                 onClick={() => setExpanded(false)}
-                className="btn-ghost px-4 py-2.5 text-sm"
+                className="btn-ghost"
               >
                 Cancel
               </button>
@@ -158,7 +168,7 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="btn-ghost inline-flex items-center gap-2 px-4 py-2 text-sm"
+              className="btn-ghost inline-flex items-center gap-2 px-4 py-2.5 text-sm"
             >
               <Plus size={14} />
               {goals.length === 0 ? "Add your first goal" : "Add another goal"}

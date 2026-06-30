@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
+import { chatUrl } from "@/lib/chat-url";
 import type { SubscriptionItem } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -90,7 +91,9 @@ export default function SubscriptionsPage() {
                   <p className="text-xs text-[var(--muted)]">avg {formatCurrency(item.amount)}</p>
                 </div>
                 <Link
-                  href="/chat"
+                  href={chatUrl(
+                    `Is my ${item.merchant} subscription worth keeping? It costs about ${formatCurrency(item.estimated_monthly)} per month.`,
+                  )}
                   className="btn-ghost inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs"
                 >
                   <MessageSquare size={12} />
