@@ -17,7 +17,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import type { Account, Transaction } from "@/lib/types";
-import { getCategoryColor } from "@/lib/types";
 import { exportToCsv, formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -54,13 +53,11 @@ export default function TransactionsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("transaction_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  // Filters
-  const [filterAccount, setFilterAccount] = useState("");
-
-  useEffect(() => {
-    const acc = new URLSearchParams(window.location.search).get("account");
-    if (acc) setFilterAccount(acc);
-  }, []);
+  // Filters — seed account filter from URL on first render (no effect setState).
+  const [filterAccount, setFilterAccount] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("account") ?? "";
+  });
   const [filterCategory, setFilterCategory] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
