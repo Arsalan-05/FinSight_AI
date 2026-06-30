@@ -1,6 +1,34 @@
 # FinSight AI — Project Documentation
 
-> **FinSight AI v1.4** — **completed June 30, 2026.** Production-grade local stack, 102 tests, invite-only beta ready.
+> **FinSight AI v1.4.0** — **100% complete · locked · June 30, 2026.**  
+> Production live on Vercel + Render + Supabase. Local Ollama advisor. 102 tests passing.
+
+---
+
+## Production deployment (live)
+
+| Component | URL |
+|-----------|-----|
+| **Frontend** | `https://fin-sight-ai-sepia.vercel.app` |
+| **Backend API** | `https://finsight-api-byrl.onrender.com` |
+| **Health check** | `curl https://finsight-api-byrl.onrender.com/health/db` → `connected: true`, `schema_ready: true` |
+| **Database + Auth** | Supabase project `zibzsxwceivnziplciuq` |
+
+### Required env (production)
+
+**Vercel:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+**Render:** `DATABASE_URL` (session pooler port **5432**), `SUPABASE_URL`, `CORS_ORIGINS`, `BETA_ALLOWED_EMAILS`, `DATABASE_FALLBACK_ENABLED=false`
+
+**Supabase Auth redirect URLs** (must include wildcards):
+
+```
+https://fin-sight-ai-sepia.vercel.app/**
+http://localhost:3000/**
+http://127.0.0.1:3000/**
+```
+
+Full guide: [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)
 
 ---
 
@@ -19,16 +47,18 @@ docker compose up -d db
 # 3 — Migrations (uses same DB URL as the running app, with Supabase → local fallback)
 cd backend && uv sync && uv run alembic upgrade head
 
-# 4 — Backend (terminal 1)
-cd backend && uv run uvicorn app.main:app --reload --port 8000
+# 4 — Backend (terminal 1) — bind 127.0.0.1 (avoids IPv6 localhost failures)
+cd backend && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 # 5 — Frontend (terminal 2)
 cd frontend && npm run dev
 ```
 
-Open **http://localhost:3000** → hard refresh (`Cmd+Shift+R`) if the tab icon looks stale.
+Open **http://localhost:3000** → hard refresh (`Cmd+Shift+R`) if stale.
 
-**Local dev tip:** If Supabase Postgres is unreachable, set `USE_SUPABASE_DB=false` and `DATABASE_URL=postgresql://finsight:finsight@localhost:5432/finsight` in `.env` so auth (Supabase) and data (Docker) are clearly separated.
+**Local API URL:** Use `NEXT_PUBLIC_API_URL=http://127.0.0.1:8000` in `frontend/.env.local` (not `localhost` — macOS IPv6 issue).
+
+**Shared cloud data:** Use phone **hotspot** when campus Wi-Fi blocks Supabase pooler. Set `DATABASE_FALLBACK_ENABLED=true` to fall back to Docker Postgres when offline.
 
 ---
 
@@ -837,18 +867,21 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| **Could not load your data** | DB unreachable or JWT not ready | Hard refresh; on campus Wi-Fi the backend auto-falls back to local Docker Postgres — run `docker compose up -d db` |
+| **Could not load your data** | DB unreachable, IPv6 API URL, or JWT not ready | Use `127.0.0.1:8000` not `localhost:8000`; run `docker compose up -d db`; hard refresh |
 | **API 401 Authentication required** | Missing/expired Bearer token | Sign out and back in; check `SUPABASE_URL` on backend |
 | **API 503 auth not configured** | `REQUIRE_AUTH=true` but no `SUPABASE_URL` | Set `SUPABASE_URL` in `.env`, restart backend |
 | **Empty dashboard after login** | New user, no data yet | Should auto-provision; if not, run `scripts/seed.py` or upload CSV |
-| **DB connection timeout** | Campus Wi-Fi blocks port 5432 | Use hotspot; or use session pooler URL |
-| **DNS error on `db.*.supabase.co`** | IPv6/direct connection issue | Use session pooler from Supabase Connect panel |
+| **DB connection timeout** | Campus Wi-Fi blocks port 5432 | Use **hotspot**; session pooler `aws-*-us-east-2.pooler.supabase.com:5432` |
+| **DNS error on `db.*.supabase.co`** | Direct host blocked from cloud/local | Use session pooler URL; Render auto-rewrites direct URLs |
 | **Google login fails** | Provider not enabled | Supabase → Auth → Providers → Google |
-| **Redirect error** | Missing callback URL | Add `http://localhost:3000/auth/callback` |
-| **Chat no response** | Ollama not running | `ollama serve` + pull models |
+| **Login redirects to Vercel** | Redirect URL missing wildcard | Add `http://localhost:3000/**` not just `http://localhost:3000` |
+| **Chat no response (local)** | Ollama not running | `ollama serve` + pull models |
+| **Chat no response (deployed)** | Ollama not on Render | Expected — use local for AI; history still syncs to Supabase |
+| **Chat history missing** | Different DB (local fallback vs Supabase) | Hotspot + `DATABASE_FALLBACK_ENABLED=true` with reachable pooler |
+| **Agent stuck loading** | DB hung on Supabase timeout | Re-enable fallback; restart backend; check `127.0.0.1:8000/health/db` |
 | **Embeddings skipped** | Ollama embed model missing | `ollama pull nomic-embed-text` |
-| **Alembic % error in password** | ConfigParser interpolation | Fixed in `alembic/env.py` — use URL-encoded password |
-| **CORS error** | Wrong origin | API allows localhost + local network IPs |
+| **Alembic % error in password** | ConfigParser interpolation | URL-encode `@` as `%40`; use `uv run python -m db.migrate` |
+| **CORS error** | Wrong origin | Render `CORS_ORIGINS` must include Vercel URL |
 
 ---
 
@@ -899,37 +932,46 @@ docker compose up --build
 
 ## 19. Project Status
 
-**FinSight AI v1.4 — successfully completed on June 30, 2026.**
+**FinSight AI v1.4.0 — 100% complete · locked · June 30, 2026.**
 
-All planned engineering-MVP scope is shipped: backend APIs, agent, RAG pipeline, frontend dashboards, Plaid lifecycle, budgets, alerts, data rights, goal progress, category rules, GitHub Pages landing, and deployment configs. The project is code-complete and ready for invite-only beta deployment.
+All engineering-MVP scope is shipped and **deployed to production**. No open development blockers.
+
+### Production (live)
+
+| Check | Status |
+|-------|--------|
+| Vercel frontend | ✅ `https://fin-sight-ai-sepia.vercel.app` |
+| Render API | ✅ `https://finsight-api-byrl.onrender.com` |
+| Supabase DB + auth | ✅ `schema_ready: true` |
+| Google OAuth | ✅ |
+| Invite-only beta | ✅ `BETA_ALLOWED_EMAILS` |
+| Shared chat history (Supabase) | ✅ local + deployed when pooler reachable |
+| Ollama advisor | ✅ local only (by design) |
 
 ### Shipped
 
 | Layer | Delivered |
 |-------|-----------|
-| **Data** | PostgreSQL + pgvector, Alembic migrations, Canadian bank CSV ingest, per-user scoping, optional Supabase RLS |
-| **Auth** | Supabase Google OAuth, JWT verification, invite-only beta (`BETA_ALLOWED_EMAILS`), demo provisioning |
-| **Bank link** | Plaid Link, webhooks, background sync, modified/removed txs, encrypted tokens, hard disconnect |
-| **Trust** | `GET /auth/me/export`, `DELETE /auth/me` cascade, `GET/DELETE /auth/me/profile`, public `/privacy` |
-| **Goals** | `PATCH /goals/{id}` progress tracking, overview progress bars |
-| **Rules** | Merchant categorization rules, apply on ingest + manual re-apply |
+| **Data** | PostgreSQL + pgvector, Alembic migrations (auto on Render deploy), Canadian bank CSV ingest, per-user scoping |
+| **Auth** | Supabase Google OAuth, JWT verification, invite-only beta, demo provisioning |
+| **Bank link** | Plaid Link, webhooks, background sync, encrypted tokens |
+| **Trust** | Data export, account deletion, learned profile clear, `/privacy` |
+| **Goals & rules** | Progress tracking, merchant categorization rules |
 | **RAG** | Transaction embeddings, semantic search, HNSW index |
-| **Agent** | ReAct loop with SQL + retrieval + web search + learned user profile (Settings UI) |
-| **Retention** | Budgets, `/notifications` inbox, weekly brief API + email digest |
-| **Insights** | Subscriptions page, TFSA room, spend alerts, weekly brief panel |
-| **Chat** | Saved history, pin/rename/delete, Ask-shortcut prefill, citations |
-| **Frontend** | Dashboard, analytics, transactions, subscriptions, alerts, search, chat, settings |
-| **Reliability** | `scripts/dev-up.sh`, `/capabilities` ops panel in Settings, expanded `check_e2e.py` |
-| **Branding** | Bold **F** favicon via `app/icon.svg`, sidebar `LogoMark` sync |
-| **Distribution** | GitHub Pages landing (`docs/`) + `.github/workflows/pages.yml` |
-| **Deploy** | Railway configs + `infra/railway/DEPLOY.md` |
+| **Agent** | ReAct loop — SQL + retrieval + web search + learned profile |
+| **Retention** | Budgets, notifications inbox, weekly brief |
+| **Chat** | Saved history (persists even on LLM failure), pin/rename/delete, citations |
+| **Frontend** | Dashboard, analytics, transactions, subscriptions, search, chat, settings |
+| **Deploy** | Vercel + Render + Supabase ($0), `render.yaml`, `frontend/vercel.json` |
+| **Local dev** | Ollama, Docker fallback, `127.0.0.1` API fix, Supabase OAuth redirect fix |
 
 ### Deployment modes
 
 | Mode | How |
 |------|-----|
-| **Local (default)** | Docker Postgres + Ollama + `npm run dev` |
-| **Production** | Railway + Supabase — `BETA_ALLOWED_EMAILS` for invite-only |
+| **Production** | Vercel + Render + Supabase — see [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) |
+| **Local (full)** | Docker Postgres fallback + Ollama + `npm run dev` |
+| **Local (shared cloud)** | Hotspot + Supabase pooler + Ollama — same data & chat as Vercel |
 
 ### Verification
 
@@ -938,27 +980,24 @@ All planned engineering-MVP scope is shipped: backend APIs, agent, RAG pipeline,
 cd backend && uv run pytest -q          # 102 passed
 cd backend && uv run ruff check .
 cd frontend && npm run lint && npm run type-check && npm run build
+curl https://finsight-api-byrl.onrender.com/health/db
 ```
 
-### Favicon / tab icon
-
-Sidebar and browser tab use the same bold **F** mark (`app/icon.svg`, `LogoMark.tsx`, `public/favicon.svg`). Hard refresh (`Cmd+Shift+R`) if the tab icon looks stale.
-
-### Deployment
+### Deployment guides
 
 | Guide | Stack | Cost |
 |-------|-------|------|
-| [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) | Vercel + Render + Supabase | **$0** |
+| [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) | **Vercel + Render + Supabase** (production) | **$0** |
 | [infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md) | Railway + Supabase | ~$5/mo |
 | [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md) | Railway detail | ~$5/mo |
 
-### GitHub Pages
+### Optional future (not required for v1.4)
 
-Static **one-page** landing site in `docs/` (home, features, privacy). Enable **Settings → Pages → Source: GitHub Actions**. Workflow: `.github/workflows/pages.yml`.
-
-**GitHub Pages does not run the full app.** Deploy backend + frontend to Railway and set `docs/config.js` → see [infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md).
-
----
+| Item | Notes |
+|------|-------|
+| `ANTHROPIC_API_KEY` on Render | Cloud AI advisor replies |
+| Custom domain | Vercel + Render settings |
+| Plaid production keys | Live bank linking |
 
 ## 20. Rights, License & Ownership
 
@@ -1005,8 +1044,10 @@ User transaction data, chat history, and account information belong to each end 
 
 ### Completion declaration
 
-> **FinSight AI v1.4.0** was successfully completed on **June 30, 2026** by **Arsalan Amir Ali**. The engineering MVP is finished; optional next steps (production deploy, beta users, live retention) are operational, not development blockers.
+> **FinSight AI v1.4.0** is **100% complete and locked** as of **June 30, 2026** by **Arsalan Amir Ali**.  
+> Production is live (Vercel + Render + Supabase). Local Ollama advisor works. Engineering MVP is finished.  
+> Future work (cloud LLM, custom domain, Plaid production) is optional enhancement only — not in scope for v1.4.
 
 ---
 
-*Last updated: June 30, 2026 — FinSight AI v1.4.0 — completed*
+*Last updated: June 30, 2026 — FinSight AI v1.4.0 — complete · locked*
