@@ -69,7 +69,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="relative flex min-h-screen">
       <div className="mesh-bg" aria-hidden />
 
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-12 lg:flex">
@@ -104,13 +104,13 @@ function LoginForm() {
         </p>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-6">
-        <div className="w-full max-w-md space-y-8">
-          <div className="space-y-4 text-center lg:text-left">
-            <div className="mx-auto lg:mx-0">
-              <Logo size={48} compact subtitle="" />
+      <div className="relative z-10 flex flex-1 items-center justify-center p-6 sm:p-8">
+        <div className="w-full max-w-md space-y-6">
+          <div className="space-y-3 text-center lg:text-left">
+            <div className="flex justify-center lg:justify-start">
+              <Logo size={44} compact subtitle="" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
               <p className="text-sm text-[var(--muted)]">
                 Sign in to your FinSight account
@@ -118,7 +118,7 @@ function LoginForm() {
             </div>
           </div>
 
-          <div className="panel space-y-4 rounded-2xl p-6">
+          <div className="panel space-y-4 rounded-2xl p-5 sm:p-6">
             {authError && (
               <p className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-400">
                 {authError}
@@ -161,33 +161,32 @@ function LoginForm() {
                   <label className="block text-xs font-medium text-[var(--muted)]">
                     Email sign-in link
                   </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Mail
-                        size={14}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"
-                      />
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        required
-                        className="input-field w-full py-2.5 pl-9 pr-3"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={loading !== null || !email.trim()}
-                      className="btn-primary shrink-0 rounded-xl px-4 py-2.5 text-sm disabled:opacity-40"
-                    >
-                      {loading === "email" ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        "Send link"
-                      )}
-                    </button>
+                  <div className="relative">
+                    <Mail
+                      size={14}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"
+                    />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      autoComplete="email"
+                      className="input-field w-full py-2.5 pl-10 pr-3"
+                    />
                   </div>
+                  <button
+                    type="submit"
+                    disabled={loading !== null || !email.trim()}
+                    className="btn-primary flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm disabled:opacity-40"
+                  >
+                    {loading === "email" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      "Send link"
+                    )}
+                  </button>
                 </form>
               </>
             )}
