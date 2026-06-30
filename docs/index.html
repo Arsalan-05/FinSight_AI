@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FinSight — Personal Finance Intelligence</title>
-  <meta name="description" content="Canadian personal finance AI — spending insights, bank sync, budgets, and an advisor grounded in your real transactions." />
+  <meta name="description" content="Canadian personal finance — spending insights, bank sync, budgets, and an advisor grounded in your real transactions." />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <style>
     :root {
@@ -17,6 +17,7 @@
       --border: rgba(148, 163, 184, 0.15);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
       font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
       background: radial-gradient(ellipse at 20% 0%, rgba(45, 212, 191, 0.12), transparent 50%),
@@ -26,7 +27,13 @@
       line-height: 1.6;
       min-height: 100vh;
     }
-    .wrap { max-width: 880px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    nav {
+      display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin-bottom: 2rem;
+      font-size: 0.875rem;
+    }
+    nav a { color: var(--muted); text-decoration: none; }
+    nav a:hover { color: var(--accent); }
     .logo {
       display: inline-flex; align-items: center; justify-content: center;
       width: 56px; height: 56px; border-radius: 14px;
@@ -38,16 +45,17 @@
       background: linear-gradient(135deg, var(--accent), #93c5fd);
       -webkit-background-clip: text; background-clip: text; color: transparent;
     }
+    h2 { font-size: 1.25rem; margin: 2.5rem 0 0.75rem; }
     .lead { margin-top: 1rem; font-size: 1.125rem; color: var(--muted); max-width: 42rem; }
-    .grid { display: grid; gap: 1rem; margin-top: 2.5rem; }
+    .grid { display: grid; gap: 1rem; margin-top: 2rem; }
     @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
     .card {
       background: var(--card); border: 1px solid var(--border);
       border-radius: 1rem; padding: 1.25rem 1.35rem;
     }
-    .card h2 { font-size: 0.95rem; margin-bottom: 0.35rem; }
+    .card h3 { font-size: 0.95rem; margin-bottom: 0.35rem; }
     .card p { font-size: 0.875rem; color: var(--muted); }
-    .cta { margin-top: 2.5rem; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .cta { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; }
     .btn {
       display: inline-flex; align-items: center; padding: 0.65rem 1.25rem;
       border-radius: 0.75rem; font-size: 0.9rem; font-weight: 500; text-decoration: none;
@@ -56,48 +64,104 @@
       background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff;
     }
     .btn-ghost { border: 1px solid var(--border); color: var(--text); }
+    .note {
+      margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 0.75rem;
+      border: 1px solid var(--border); background: var(--card);
+      font-size: 0.85rem; color: var(--muted);
+    }
+    .note strong { color: var(--text); }
+    section p, section li { color: var(--muted); font-size: 0.9rem; }
+    section ul { margin: 0.5rem 0 0 1.25rem; }
     footer { margin-top: 3rem; font-size: 0.8rem; color: var(--muted); }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="logo" aria-hidden="true">F</div>
-    <h1>Understand your money with <span>FinSight</span></h1>
-    <p class="lead">
-      Personal finance intelligence for Canadians — bank sync, budgets, semantic search,
-      and an AI advisor grounded in your real transactions. Invite-only beta.
-    </p>
+    <nav aria-label="Page sections">
+      <a href="#top">Home</a>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
 
-    <div class="grid">
-      <div class="card">
-        <h2>Bank sync &amp; CSV ingest</h2>
-        <p>Plaid Link for Canadian banks, plus CSV import for RBC, TD, Scotiabank, and more.</p>
-      </div>
-      <div class="card">
-        <h2>AI finance advisor</h2>
-        <p>ReAct agent with RAG over your transactions, spending tools, and live market data.</p>
-      </div>
-      <div class="card">
-        <h2>Budgets &amp; alerts</h2>
-        <p>Monthly category budgets, in-app spend warnings, and weekly email digests.</p>
-      </div>
-      <div class="card">
-        <h2>Trust by design</h2>
-        <p>Export all your data, delete your account, and control what the advisor remembers.</p>
-      </div>
-    </div>
+    <section id="top">
+      <div class="logo" aria-hidden="true">F</div>
+      <h1>Understand your money with <span>FinSight</span></h1>
+      <p class="lead">
+        Personal finance intelligence for Canadians — bank sync, budgets, semantic search,
+        and an advisor grounded in your real transactions. Invite-only beta.
+      </p>
 
-    <div class="cta">
-      <a class="btn btn-primary" href="mailto:arsalan.amir.ali05@gmail.com?subject=FinSight%20beta%20access">
-        Request beta access
-      </a>
-      <a class="btn btn-ghost" href="privacy.html">Privacy policy</a>
-    </div>
+      <div class="cta">
+        <a id="open-app" class="btn btn-primary" href="#">Open FinSight</a>
+        <a class="btn btn-ghost" href="mailto:arsalan.amir.ali05@gmail.com?subject=FinSight%20beta%20access">
+          Request beta access
+        </a>
+      </div>
+
+      <p class="note" id="deploy-note">
+        <strong>Live app:</strong> set <code>APP_URL</code> in <code>docs/config.js</code> after you deploy
+        (see <code>infra/DEPLOY-FROM-GITHUB.md</code>). GitHub Pages hosts this landing page only —
+        the full app runs on Railway.
+      </p>
+    </section>
+
+    <section id="features">
+      <h2>Features</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Bank sync &amp; CSV ingest</h3>
+          <p>Plaid Link for Canadian banks, plus CSV import for RBC, TD, Scotiabank, and more.</p>
+        </div>
+        <div class="card">
+          <h3>Finance advisor</h3>
+          <p>ReAct agent with RAG over your transactions, spending tools, and live market data.</p>
+        </div>
+        <div class="card">
+          <h3>Budgets &amp; alerts</h3>
+          <p>Monthly category budgets, in-app spend warnings, and weekly email digests.</p>
+        </div>
+        <div class="card">
+          <h3>Trust by design</h3>
+          <p>Export all your data, delete your account, and control what the advisor remembers.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <h2>Privacy policy</h2>
+      <p>FinSight stores your transactions and chat history so the advisor can answer questions about your finances. Data is scoped per user and never shared with other users.</p>
+      <ul>
+        <li>You can export all data as JSON from Settings.</li>
+        <li>You can permanently delete your account and all associated data.</li>
+        <li>Bank credentials are never stored — only transaction data you authorize via Plaid.</li>
+      </ul>
+    </section>
 
     <footer>
-      <p>FinSight AI — invite-only beta. Not open registration.</p>
+      <p>FinSight AI — invite-only beta · completed June 30, 2026</p>
       <p style="margin-top:0.5rem">Arsalan Amir Ali</p>
     </footer>
   </div>
+
+  <script src="config.js"></script>
+  <script>
+    (function () {
+      var url = (window.FINSIGHT_APP_URL || "").trim();
+      var btn = document.getElementById("open-app");
+      var note = document.getElementById("deploy-note");
+      if (url && url !== "REPLACE_ME") {
+        btn.href = url;
+        btn.textContent = "Open FinSight";
+        note.style.display = "none";
+      } else {
+        btn.href = "#top";
+        btn.textContent = "Deploy app first";
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          note.scrollIntoView({ behavior: "smooth" });
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

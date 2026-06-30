@@ -1,0 +1,34 @@
+# Render Blueprint — free-tier backend (FastAPI)
+# Dashboard: New → Blueprint → connect this repo
+# Docs: infra/DEPLOY-FREE.md
+
+services:
+  - type: web
+    name: finsight-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /health/ready
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: REQUIRE_AUTH
+        value: "true"
+      - key: DATABASE_FALLBACK_ENABLED
+        value: "false"
+      - key: LLM_PROVIDER
+        value: ollama
+      - key: EMBEDDING_PROVIDER
+        value: ollama
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: BETA_ALLOWED_EMAILS
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
