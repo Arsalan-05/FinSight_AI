@@ -60,6 +60,14 @@ export interface CapabilitiesResponse {
   };
   integrations: Record<string, boolean>;
   beta?: { invite_only: boolean };
+  ops?: {
+    database_host: string;
+    plaid_configured: boolean;
+    smtp_configured: boolean;
+    embeddings_configured: boolean;
+    llm_configured: boolean;
+    auth_enforced: boolean;
+  };
 }
 
 export interface DbHealthResponse {
@@ -221,10 +229,26 @@ export interface FinancialGoal {
   id: string;
   title: string;
   target_amount?: number | null;
+  current_amount?: number | null;
   deadline?: string | null;
   notes?: string | null;
   status: string;
   created_at: string;
+  updated_at?: string | null;
+}
+
+export interface CategoryRule {
+  id: string;
+  match: string;
+  value: string;
+  category: string;
+}
+
+export interface AgentLearnedProfile {
+  learned_summary?: string;
+  preferences?: string[];
+  risk_flags?: string[];
+  updated_at?: string | null;
 }
 
 export const CATEGORY_COLORS: Record<string, string> = {

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Bell,
   CreditCard,
   LayoutDashboard,
   LineChart,
@@ -30,6 +31,7 @@ const NAV = [
   { href: "/transactions", label: "Transactions", icon: CreditCard },
   { href: "/accounts", label: "Accounts", icon: Users },
   { href: "/subscriptions", label: "Subscriptions", icon: Receipt },
+  { href: "/notifications", label: "Alerts", icon: Bell },
   { href: "/search", label: "Search", icon: Search },
   { href: "/chat", label: "Advisor", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },

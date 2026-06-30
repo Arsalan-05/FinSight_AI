@@ -2,10 +2,13 @@
 
 import {
   AlertTriangle,
+  BrainCircuit,
   Download,
   Lock,
   Palette,
+  Server,
   Shield,
+  Tags,
   User,
 } from "lucide-react";
 import Link from "next/link";
@@ -20,7 +23,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
-import type { AlertPreferences } from "@/lib/types";
+import type { AgentLearnedProfile, AlertPreferences, CategoryRule } from "@/lib/types";
 import { exportToCsv } from "@/lib/utils";
 
 const DEFAULT_ALERT_PREFS: AlertPreferences = {
@@ -41,6 +44,18 @@ export default function SettingsPage() {
   const [exportingJson, setExportingJson] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [sendingDigest, setSendingDigest] = useState(false);
+  const [learnedProfile, setLearnedProfile] = useState<AgentLearnedProfile | null>(null);
+  const [rules, setRules] = useState<CategoryRule[]>([]);
+  const [ruleValue, setRuleValue] = useState("");
+  const [ruleCategory, setRuleCategory] = useState("");
+  const [reapplying, setReapplying] = useState(false);
+  const [systemOps, setSystemOps] = useState<{
+    database_host: string;
+    plaid_configured: boolean;
+    smtp_configured: boolean;
+    embeddings_configured: boolean;
+    llm_configured: boolean;
+  } | null>(null);
 
   const fetchAll = useCallback(async () => {
     const [accounts, txList] = await Promise.all([
@@ -50,6 +65,8 @@ export default function SettingsPage() {
 
     let prof: { email: string; name: string } | null = null;
     let prefs = DEFAULT_ALERT_PREFS;
+    let learned: AgentLearnedProfile | null = null;
+    let categoryRules: CategoryRule[] = [];
 
     if (isSupabaseConfigured()) {
       try {
@@ -63,11 +80,26 @@ export default function SettingsPage() {
       } catch {
         prefs = DEFAULT_ALERT_PREFS;
       }
+      try {
+        learned = await api.getLearnedProfile();
+      } catch {
+        learned = null;
+      }
+      try {
+        categoryRules = await api.getCategoryRules();
+      } catch {
+        categoryRules = [];
+      }
     }
+
+    const caps = await api.capabilities().catch(() => null);
 
     return {
       profile: prof,
       prefs,
+      learned,
+      categoryRules,
+      ops: caps?.ops ?? null,
       accounts: accounts.length,
       transactions: txList.total,
     };
@@ -81,6 +113,9 @@ export default function SettingsPage() {
         if (!active) return;
         setProfile(data.profile);
         setAlertPrefs(data.prefs);
+        setLearnedProfile(data.learned);
+        setRules(data.categoryRules);
+        setSystemOps(data.ops);
         setDataCounts({ accounts: data.accounts, transactions: data.transactions });
         setLoading(false);
         setPrefsLoading(false);
@@ -176,6 +211,45 @@ export default function SettingsPage() {
     }
   };
 
+  const handleClearProfile = async () => {
+    if (!window.confirm("Clear what your advisor has learned from past conversations?")) return;
+    try {
+      await api.clearLearnedProfile();
+      setLearnedProfile({});
+      toast("Advisor memory cleared");
+    } catch {
+      toast("Could not clear profile", "error");
+    }
+  };
+
+  const handleAddRule = async () => {
+    if (!ruleValue.trim() || !ruleCategory.trim()) return;
+    try {
+      const rule = await api.createCategoryRule({
+        value: ruleValue.trim(),
+        category: ruleCategory.trim(),
+      });
+      setRules((prev) => [...prev, rule]);
+      setRuleValue("");
+      setRuleCategory("");
+      toast("Rule saved");
+    } catch {
+      toast("Could not save rule", "error");
+    }
+  };
+
+  const handleReapplyRules = async () => {
+    setReapplying(true);
+    try {
+      const { updated } = await api.reapplyCategoryRules();
+      toast(updated > 0 ? `Updated ${updated} transactions` : "No transactions matched");
+    } catch {
+      toast("Could not apply rules", "error");
+    } finally {
+      setReapplying(false);
+    }
+  };
+
   return (
     <div className="page-container max-w-3xl">
       <PageHeader
@@ -249,8 +323,102 @@ export default function SettingsPage() {
         )}
       </section>
 
+      <section className="panel settings-card stagger-item" style={{ "--stagger": 4 } as CSSProperties}>
+        <div className="mb-4 flex items-center gap-2">
+          <BrainCircuit size={16} className="text-[var(--accent)]" />
+          <h2 className="section-title">Advisor memory</h2>
+        </div>
+        <p className="mb-3 text-sm text-[var(--muted)]">
+          What your finance advisor remembers across chats — preferences, risk areas, and summaries.
+        </p>
+        {loading ? (
+          <div className="h-20 shimmer rounded-xl" />
+        ) : learnedProfile?.learned_summary || (learnedProfile?.preferences?.length ?? 0) > 0 ? (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm">
+            {learnedProfile?.learned_summary && (
+              <p className="text-[var(--foreground)]">{learnedProfile.learned_summary}</p>
+            )}
+            {(learnedProfile?.preferences?.length ?? 0) > 0 && (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                Preferences: {learnedProfile?.preferences?.join("; ")}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--muted)]">No learned profile yet — chat with the advisor to build one.</p>
+        )}
+        <button
+          type="button"
+          onClick={() => void handleClearProfile()}
+          disabled={!profile}
+          className="btn-ghost mt-3 text-sm disabled:opacity-40"
+        >
+          Clear learned profile
+        </button>
+      </section>
+
+      <section className="panel settings-card stagger-item" style={{ "--stagger": 5 } as CSSProperties}>
+        <div className="mb-4 flex items-center gap-2">
+          <Tags size={16} className="text-[var(--accent)]" />
+          <h2 className="section-title">Category rules</h2>
+        </div>
+        <p className="mb-3 text-sm text-[var(--muted)]">
+          Auto-categorize transactions when merchant or description contains your text.
+        </p>
+        {rules.length > 0 && (
+          <ul className="mb-3 space-y-2">
+            {rules.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+              >
+                <span className="text-[var(--foreground)]">
+                  &quot;{r.value}&quot; → <span className="text-[var(--accent)]">{r.category}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void api.deleteCategoryRule(r.id).then(() => {
+                      setRules((prev) => prev.filter((x) => x.id !== r.id));
+                    })
+                  }
+                  className="text-xs text-rose-400"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="form-inline">
+          <input
+            value={ruleValue}
+            onChange={(e) => setRuleValue(e.target.value)}
+            placeholder="Merchant contains…"
+            className="input-field input-field--sm flex-1"
+          />
+          <input
+            value={ruleCategory}
+            onChange={(e) => setRuleCategory(e.target.value)}
+            placeholder="Category"
+            className="input-field input-field--sm w-36"
+          />
+          <button type="button" onClick={() => void handleAddRule()} className="btn-primary text-sm">
+            Add rule
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleReapplyRules()}
+          disabled={reapplying || rules.length === 0}
+          className="btn-ghost mt-3 text-sm disabled:opacity-40"
+        >
+          {reapplying ? "Applying…" : "Re-apply rules to all transactions"}
+        </button>
+      </section>
+
       <div className="settings-grid settings-grid--2">
-        <section className="panel settings-card stagger-item" style={{ "--stagger": 4 } as CSSProperties}>
+        <section className="panel settings-card stagger-item" style={{ "--stagger": 6 } as CSSProperties}>
           <div className="mb-4 flex items-center gap-2">
             <Palette size={16} className="text-[var(--accent)]" />
             <h2 className="section-title">Appearance</h2>
@@ -264,7 +432,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="panel settings-card stagger-item" style={{ "--stagger": 5 } as CSSProperties}>
+        <section className="panel settings-card stagger-item" style={{ "--stagger": 7 } as CSSProperties}>
           <div className="mb-4 flex items-center gap-2">
             <Shield size={16} className="text-[var(--accent)]" />
             <h2 className="section-title">Your data</h2>
@@ -279,7 +447,28 @@ export default function SettingsPage() {
         </section>
       </div>
 
-      <section className="panel settings-card stagger-item" style={{ "--stagger": 6 } as CSSProperties}>
+      <section className="panel settings-card stagger-item" style={{ "--stagger": 8 } as CSSProperties}>
+        <div className="mb-4 flex items-center gap-2">
+          <Server size={16} className="text-[var(--accent)]" />
+          <h2 className="section-title">System status</h2>
+        </div>
+        {systemOps ? (
+          <div className="space-y-2 text-sm">
+            <DataRow label="Database" value={systemOps.database_host} />
+            <DataRow label="LLM" value={systemOps.llm_configured ? "Connected" : "Not configured"} />
+            <DataRow label="Embeddings" value={systemOps.embeddings_configured ? "On" : "Off"} />
+            <DataRow label="Plaid" value={systemOps.plaid_configured ? "Configured" : "Not configured"} />
+            <DataRow label="Email (SMTP)" value={systemOps.smtp_configured ? "Configured" : "Not configured"} />
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--muted)]">Could not load system status.</p>
+        )}
+        <p className="mt-3 text-xs text-[var(--muted)]">
+          Tab icon not updating? Hard refresh with Cmd+Shift+R or open an incognito window.
+        </p>
+      </section>
+
+      <section className="panel settings-card stagger-item" style={{ "--stagger": 9 } as CSSProperties}>
         <div className="mb-4 flex items-center gap-2">
           <Lock size={16} className="text-[var(--accent)]" />
           <h2 className="section-title">Privacy</h2>
