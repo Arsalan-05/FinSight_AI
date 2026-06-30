@@ -109,17 +109,28 @@ def health_db() -> dict[str, object]:
     url = DATABASE_URL
     host = url.split("@")[-1].split("/")[0] if "@" in url else "unknown"
     connected = False
+    schema_ready = False
     error: Optional[str] = None
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        connected = True
+            connected = True
+            row = conn.execute(
+                text(
+                    "SELECT EXISTS ("
+                    " SELECT 1 FROM information_schema.tables"
+                    " WHERE table_schema = 'public' AND table_name = 'users'"
+                    ")"
+                )
+            ).scalar()
+            schema_ready = bool(row)
     except Exception as exc:
         error = exc.__class__.__name__
 
     using_fallback = settings.using_supabase_postgres and "supabase" not in host
     return {
         "connected": connected,
+        "schema_ready": schema_ready,
         "using_supabase_postgres": settings.using_supabase_postgres and not using_fallback,
         "using_fallback": using_fallback,
         "use_supabase_db": settings.use_supabase_db,
