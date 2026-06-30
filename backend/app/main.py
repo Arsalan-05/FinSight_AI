@@ -14,6 +14,7 @@ from app.middleware.request_id import RequestIdMiddleware
 from app.routers import (
     accounts,
     auth,
+    capabilities,
     chat,
     goals,
     insights,
@@ -62,6 +63,7 @@ app.include_router(insights.router)
 app.include_router(goals.router)
 app.include_router(chat.router)
 app.include_router(integrations.router)
+app.include_router(capabilities.router)
 
 
 @app.get("/health")
