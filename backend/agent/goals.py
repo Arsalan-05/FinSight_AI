@@ -60,6 +60,40 @@ def delete_goal(db: Session, user: User, goal_id: str) -> bool:
     return True
 
 
+def update_goal(
+    db: Session,
+    user: User,
+    goal_id: str,
+    *,
+    title: str | None = None,
+    target_amount: float | None = None,
+    current_amount: float | None = None,
+    deadline: str | None = None,
+    notes: str | None = None,
+    status: str | None = None,
+) -> dict[str, Any] | None:
+    goals = load_goals(user)
+    for goal in goals:
+        if goal.get("id") != goal_id:
+            continue
+        if title is not None:
+            goal["title"] = title.strip()
+        if target_amount is not None:
+            goal["target_amount"] = target_amount
+        if current_amount is not None:
+            goal["current_amount"] = current_amount
+        if deadline is not None:
+            goal["deadline"] = deadline
+        if notes is not None:
+            goal["notes"] = notes
+        if status is not None:
+            goal["status"] = status
+        goal["updated_at"] = datetime.utcnow().isoformat()
+        save_goals(db, user, goals)
+        return goal
+    return None
+
+
 def goals_summary_for_prompt(user: User) -> str:
     goals = load_goals(user)
     if not goals:
@@ -70,7 +104,12 @@ def goals_summary_for_prompt(user: User) -> str:
             continue
         line = f"- {g['title']}"
         if g.get("target_amount"):
-            line += f" (target ${g['target_amount']:,.0f})"
+            line += f" (target ${g['target_amount']:,.0f}"
+            if g.get("current_amount") is not None:
+                line += f", ${g['current_amount']:,.0f} saved"
+            line += ")"
+        elif g.get("current_amount") is not None:
+            line += f" (${g['current_amount']:,.0f} saved)"
         if g.get("deadline"):
             line += f" by {g['deadline']}"
         lines.append(line)

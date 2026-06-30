@@ -11,6 +11,18 @@ import { chatUrl } from "@/lib/chat-url";
 import type { FinancialGoal } from "@/lib/types";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
+function goalProgress(goal: FinancialGoal): number | null {
+  if (goal.target_amount == null || goal.target_amount <= 0) return null;
+  const current = goal.current_amount ?? 0;
+  return Math.min(100, Math.round((current / goal.target_amount) * 100));
+}
+
+function isOverdue(deadline?: string | null): boolean {
+  if (!deadline) return false;
+  const d = new Date(deadline);
+  return !Number.isNaN(d.getTime()) && d < new Date();
+}
+
 export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
   const { toast } = useToast();
   const authReady = useAuthReady();
@@ -19,6 +31,8 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
   const [goalTitle, setGoalTitle] = useState("");
   const [goalAmount, setGoalAmount] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCurrent, setEditCurrent] = useState("");
 
   const refresh = useCallback(() => {
     if (!authReady || !isSupabaseConfigured()) {
@@ -55,6 +69,19 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
       .catch(() => toast("Sign in to save goals", "error"));
   };
 
+  const saveProgress = (goalId: string) => {
+    const value = parseFloat(editCurrent);
+    if (Number.isNaN(value)) return;
+    void api
+      .updateGoal(goalId, { current_amount: value })
+      .then((updated) => {
+        setGoals((prev) => prev.map((g) => (g.id === goalId ? updated : g)));
+        setEditingId(null);
+        toast("Progress updated");
+      })
+      .catch(() => toast("Could not update progress", "error"));
+  };
+
   return (
     <section
       className="panel rounded-2xl p-6 stagger-item"
@@ -68,7 +95,7 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
           <div>
             <h2 className="section-title">Savings goals</h2>
             <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Tracked on your overview — referenced by the finance agent
+              Track progress — your agent references these in advice
             </p>
           </div>
         </div>
@@ -90,44 +117,103 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
         <>
           {goals.length > 0 && (
             <ul className="mb-4 flex flex-col gap-2">
-              {goals.map((g) => (
-                <li
-                  key={g.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-[var(--foreground)]">
-                      {g.title}
-                    </p>
-                    {g.target_amount != null && (
-                      <p className="mt-0.5 text-xs tabular-nums text-[var(--muted)]">
-                        Target ${g.target_amount.toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Link
-                      href={chatUrl(`How am I tracking toward my goal: ${g.title}?`)}
-                      className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
-                      aria-label={`Ask about ${g.title}`}
-                    >
-                      <MessageSquare size={14} />
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void api.deleteGoal(g.id).then(() => {
-                          setGoals((prev) => prev.filter((x) => x.id !== g.id));
-                        })
-                      }
-                      className="shrink-0 rounded-lg p-2 text-[var(--muted)] hover:bg-rose-500/10 hover:text-rose-400"
-                      aria-label="Remove goal"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </li>
-              ))}
+              {goals.map((g) => {
+                const pct = goalProgress(g);
+                const overdue = isOverdue(g.deadline);
+                return (
+                  <li
+                    key={g.id}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-[var(--foreground)]">
+                          {g.title}
+                        </p>
+                        {g.target_amount != null && (
+                          <p className="mt-0.5 text-xs tabular-nums text-[var(--muted)]">
+                            ${(g.current_amount ?? 0).toLocaleString()} of $
+                            {g.target_amount.toLocaleString()}
+                            {g.deadline && (
+                              <span className={overdue ? " text-rose-400" : ""}>
+                                {" "}
+                                · due {g.deadline}
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        {pct != null && (
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-elevated)]">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-teal-500 to-blue-600 transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
+                        {editingId === g.id ? (
+                          <div className="form-inline mt-2">
+                            <input
+                              type="number"
+                              value={editCurrent}
+                              onChange={(e) => setEditCurrent(e.target.value)}
+                              placeholder="Current saved $"
+                              className="input-field input-field--sm w-32"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => saveProgress(g.id)}
+                              className="btn-primary text-xs"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="btn-ghost text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(g.id);
+                              setEditCurrent(
+                                g.current_amount != null ? String(g.current_amount) : "",
+                              );
+                            }}
+                            className="link-accent mt-2 text-xs"
+                          >
+                            Update progress
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Link
+                          href={chatUrl(`How am I tracking toward my goal: ${g.title}?`)}
+                          className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                          aria-label={`Ask about ${g.title}`}
+                        >
+                          <MessageSquare size={14} />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void api.deleteGoal(g.id).then(() => {
+                              setGoals((prev) => prev.filter((x) => x.id !== g.id));
+                            })
+                          }
+                          className="shrink-0 rounded-lg p-2 text-[var(--muted)] hover:bg-rose-500/10 hover:text-rose-400"
+                          aria-label="Remove goal"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
 
