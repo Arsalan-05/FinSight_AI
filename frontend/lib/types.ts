@@ -54,6 +54,19 @@ export interface DbHealthResponse {
   error?: string | null;
 }
 
+export interface BootstrapResponse {
+  user_id: string;
+  email: string;
+  name: string;
+  provisioned_demo: boolean;
+  db_connected: boolean;
+  db_host: string;
+  using_fallback: boolean;
+  db_error: string | null;
+  account_count: number;
+  transaction_count: number;
+}
+
 export interface PlaidStatus {
   enabled: boolean;
   environment: string | null;

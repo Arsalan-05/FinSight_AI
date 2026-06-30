@@ -92,9 +92,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <BrainCircuit size={19} className="text-white" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold tracking-tight">FinSight</p>
+            <p className="truncate text-sm font-semibold tracking-tight text-gradient">FinSight</p>
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--muted)]">
-              Intelligence
+              Flagship
             </p>
           </div>
         </div>

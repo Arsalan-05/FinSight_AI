@@ -1,4 +1,4 @@
-"""Clone Canadian demo data onto OAuth users who have no accounts yet."""
+"""Clone demo data or create inline starter data for new OAuth users."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from app.demo_seed import provision_starter_data
 from db.models import Account, Transaction, TransactionEmbedding, User
 
 logger = logging.getLogger(__name__)
@@ -13,14 +14,23 @@ logger = logging.getLogger(__name__)
 DEMO_EMAIL = "demo@finsight.ai"
 
 
-def provision_demo_if_empty(db: Session, user: User) -> bool:
-    """Give a first-time OAuth user the same demo accounts/transactions as demo@finsight.ai."""
+def ensure_user_has_data(db: Session, user: User) -> bool:
+    """Ensure the user has accounts and transactions (clone demo or inline seed)."""
     if db.query(Account).filter(Account.user_id == user.id).count() > 0:
         return False
+    if _clone_from_demo_user(db, user):
+        return True
+    return provision_starter_data(db, user)
 
+
+def provision_demo_if_empty(db: Session, user: User) -> bool:
+    """Backward-compatible alias."""
+    return ensure_user_has_data(db, user)
+
+
+def _clone_from_demo_user(db: Session, user: User) -> bool:
     demo = db.query(User).filter(User.email == DEMO_EMAIL).first()
     if not demo or demo.id == user.id:
-        logger.warning("Demo seed user missing — run scripts/seed.py first")
         return False
 
     demo_accounts = db.query(Account).filter(Account.user_id == demo.id).all()
@@ -70,5 +80,5 @@ def provision_demo_if_empty(db: Session, user: User) -> bool:
                 )
 
     db.commit()
-    logger.info("Provisioned %d transactions for user %s", tx_count, user.email)
+    logger.info("Cloned %d transactions for user %s", tx_count, user.email)
     return True

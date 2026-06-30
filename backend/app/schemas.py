@@ -124,6 +124,19 @@ class BankConnectionOut(BaseModel):
     created_at: datetime
 
 
+class BootstrapOut(BaseModel):
+    user_id: str
+    email: str
+    name: str
+    provisioned_demo: bool
+    db_connected: bool
+    db_host: str
+    using_fallback: bool
+    db_error: str | None = None
+    account_count: int
+    transaction_count: int
+
+
 class PlaidSyncResultOut(BaseModel):
     connection_id: str
     institution: str

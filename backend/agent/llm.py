@@ -169,8 +169,8 @@ def _call_ollama(
         "tools": _ollama_tools(),
         "stream": False,
         "options": {
-            "temperature": 0.15,
-            "num_predict": 1536,
+            "temperature": 0.2,
+            "num_predict": 2048,
         },
         "keep_alive": "10m",
     }

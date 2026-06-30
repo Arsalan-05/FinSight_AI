@@ -134,7 +134,7 @@ def run_agent(
             "user_intelligence": user_intelligence,
             "session_id": session_id,
         },
-        config={"recursion_limit": 14},
+        config={"recursion_limit": 18},
     )
 
     final_messages: list[BaseMessage] = result["messages"]
