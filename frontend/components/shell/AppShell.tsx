@@ -92,11 +92,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ].join(" ")}
       >
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-[var(--border)] px-5">
-          <Link href="/" className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="logo-float flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-lg shadow-teal-900/25">
-              <LogoMark size={40} className="rounded-xl" />
+          <Link href="/" className="flex min-w-0 items-center gap-3">
+            <span className="shrink-0 overflow-hidden rounded-xl">
+              <LogoMark size={36} />
             </span>
-            <LogoWordmark subtitle="Intelligence" />
+            <LogoWordmark />
           </Link>
         </div>
 
