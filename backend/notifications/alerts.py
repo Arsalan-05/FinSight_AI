@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -14,7 +14,7 @@ from db.models import Account, Budget, Notification, Transaction, User
 
 def _user_prefs(user: User) -> dict[str, Any]:
     try:
-        return json.loads(user.alert_prefs_json or "{}")
+        return cast(dict[str, Any], json.loads(user.alert_prefs_json or "{}"))
     except json.JSONDecodeError:
         return {}
 

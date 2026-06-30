@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
@@ -150,7 +151,7 @@ async def upload_csv(
 
 
 @router.get("/rules")
-def list_category_rules(user: User = Depends(get_current_user)) -> list[dict]:
+def list_category_rules(user: User = Depends(get_current_user)) -> list[dict[str, Any]]:
     return load_rules(user)
 
 
@@ -159,7 +160,7 @@ def create_category_rule(
     payload: CategoryRuleCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, Any]:
     try:
         return add_rule(
             db,

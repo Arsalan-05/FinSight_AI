@@ -49,8 +49,20 @@ export default function BankConnectPanel() {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let cancelled = false;
+    Promise.all([api.getPlaidStatus(), api.listBankConnections().catch(() => [])])
+      .then(([s, c]) => {
+        if (cancelled) return;
+        setStatus(s);
+        setConnections(c);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const openPlaidLink = async () => {
     if (!window.Plaid) {

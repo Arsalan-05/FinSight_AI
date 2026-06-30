@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -130,7 +131,7 @@ def list_connections(
 def sync_all(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     connections = (
         db.query(BankConnection)
         .filter(BankConnection.user_id == current_user.id, BankConnection.status == "active")
@@ -138,7 +139,7 @@ def sync_all(
     )
     if not connections:
         return []
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
     for conn in connections:
         try:
             results.append(sync_connection(db, conn))
