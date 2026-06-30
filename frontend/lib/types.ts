@@ -57,6 +57,8 @@ export interface CapabilitiesResponse {
     tools: string[];
     features: string[];
     max_tool_rounds: number;
+    chat_available?: boolean;
+    chat_unavailable_reason?: string | null;
   };
   integrations: Record<string, boolean>;
   beta?: { invite_only: boolean };

@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from agent.tools import get_tool_definitions
+from agent.llm import chat_unavailable_message, llm_runtime_available
 from app.config import settings
 from db.base import DATABASE_URL
 from integrations.plaid_client import plaid_configured
@@ -24,7 +25,7 @@ def capabilities() -> dict[str, object]:
             "agent": "LangGraph ReAct",
             "database": "PostgreSQL + pgvector",
             "auth": "Supabase JWT",
-            "llm": settings.llm_provider,
+            "llm": settings.effective_llm_provider,
             "embeddings": settings.embedding_provider,
         },
         "agent": {
@@ -42,6 +43,10 @@ def capabilities() -> dict[str, object]:
                 "sse_streaming",
             ],
             "max_tool_rounds": 18,
+            "chat_available": llm_runtime_available(),
+            "chat_unavailable_reason": (
+                None if llm_runtime_available() else chat_unavailable_message()
+            ),
         },
         "integrations": {
             "plaid_bank_link": plaid_configured(),

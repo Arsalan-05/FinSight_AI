@@ -18,7 +18,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 
-import { BetaBanner } from "@/components/BetaBanner";
 import { LogoMark, LogoWordmark } from "@/components/brand/Logo";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -156,7 +155,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className={`min-h-screen md:pl-64 ${pathname.startsWith("/chat") ? "md:px-4" : ""}`}>
-        <BetaBanner />
         <main
           className={[
             "min-h-screen pb-10 pt-[4.5rem] md:pt-8",

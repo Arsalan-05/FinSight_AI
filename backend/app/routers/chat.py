@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import case
 from sqlalchemy.orm import Session
 
+from agent.llm import chat_unavailable_message, llm_runtime_available
 from agent.runner import AgentResult, run_agent
 from app.auth import get_current_user, get_current_user_optional
 from app.chat_history import session_to_detail, session_to_summary
@@ -56,6 +57,8 @@ async def _stream_reply(
 
     def run() -> None:
         try:
+            if not llm_runtime_available():
+                raise RuntimeError(chat_unavailable_message())
             result_holder.append(
                 run_agent(
                     message,
@@ -90,6 +93,8 @@ async def _stream_reply(
         exc = error_holder[0]
         if isinstance(exc, PermissionError):
             yield _sse({"type": "error", "message": "You do not have access to this chat session."})
+        elif isinstance(exc, (RuntimeError, ValueError)):
+            yield _sse({"type": "error", "message": str(exc)})
         else:
             yield _sse({"type": "error", "message": "Agent failed to generate a response."})
         return

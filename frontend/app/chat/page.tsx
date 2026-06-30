@@ -106,6 +106,8 @@ function ChatPageContent() {
   const [loading, setLoading] = useState(false);
   const [agentStatus, setAgentStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [chatAvailable, setChatAvailable] = useState(true);
+  const [chatUnavailableReason, setChatUnavailableReason] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState(() =>
     typeof window === "undefined" ? "" : loadSessionId(),
   );
@@ -116,6 +118,18 @@ function ChatPageContent() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const statusIdx = useRef(0);
+
+  useEffect(() => {
+    void api.capabilities().then((c) => {
+      const available = c.agent.chat_available !== false;
+      setChatAvailable(available);
+      setChatUnavailableReason(
+        available ? null : (c.agent.chat_unavailable_reason ?? "Advisor is unavailable on this deployment."),
+      );
+    }).catch(() => {
+      setChatAvailable(true);
+    });
+  }, []);
 
   useEffect(() => {
     if (!authReady) return;
@@ -514,6 +528,11 @@ function ChatPageContent() {
             </div>
 
             <div className="chat-composer">
+              {!chatAvailable && chatUnavailableReason && (
+                <p className="mb-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+                  {chatUnavailableReason}
+                </p>
+              )}
               {loading && agentStatus && (
                 <div className="mb-3">
                   <span className="status-chip">
@@ -530,7 +549,7 @@ function ChatPageContent() {
                   onKeyDown={handleKeyDown}
                   placeholder="Ask about spending, savings, subscriptions, TFSA, or market rates…"
                   rows={1}
-                  disabled={loading}
+                  disabled={loading || !chatAvailable}
                   className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none disabled:opacity-50"
                 />
                 {loading ? (
@@ -546,7 +565,7 @@ function ChatPageContent() {
                   <button
                     type="button"
                     onClick={() => void sendMessage()}
-                    disabled={!input.trim()}
+                    disabled={!input.trim() || !chatAvailable}
                     aria-label="Send message"
                     className="btn-primary mb-1 flex h-9 w-9 shrink-0 items-center justify-center disabled:opacity-40"
                   >

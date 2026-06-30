@@ -260,6 +260,24 @@ def _memory_prompt(current_summary: str, recent: list[str]) -> str:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
+def llm_runtime_available() -> bool:
+    """True when the configured provider can answer chat requests."""
+    if settings.effective_llm_provider == "anthropic":
+        return bool(settings.anthropic_api_key)
+    return ollama_llm_available()
+
+
+def chat_unavailable_message() -> str:
+    if settings.effective_llm_provider == "anthropic":
+        return (
+            "Advisor is unavailable — add ANTHROPIC_API_KEY on Render "
+            "(Settings → Environment) and redeploy."
+        )
+    return (
+        "Advisor needs Ollama running locally, or set ANTHROPIC_API_KEY for cloud chat."
+    )
+
+
 def call_llm(
     messages: list[BaseMessage],
     memory_summary: str,
@@ -268,7 +286,7 @@ def call_llm(
     user_intelligence: str = "",
 ) -> AIMessage:
     """Call the configured LLM provider (Ollama by default)."""
-    if settings.llm_provider == "anthropic":
+    if settings.effective_llm_provider == "anthropic":
         key = api_key or settings.anthropic_api_key
         if not key:
             raise ValueError("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic")
@@ -286,7 +304,7 @@ def summarize_memory(
     """Update the rolling memory summary after a conversation turn."""
     if len(messages) < 2:
         return current_summary
-    if settings.llm_provider == "anthropic":
+    if settings.effective_llm_provider == "anthropic":
         key = api_key or settings.anthropic_api_key
         if not key:
             return current_summary
@@ -296,7 +314,7 @@ def summarize_memory(
 
 def ollama_llm_available() -> bool:
     """Return True when Ollama is running and the chat model is pulled."""
-    if settings.llm_provider != "ollama":
+    if settings.effective_llm_provider != "ollama":
         return True
     try:
         url = f"{settings.ollama_base_url.rstrip('/')}/api/tags"
