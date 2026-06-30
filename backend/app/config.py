@@ -127,7 +127,7 @@ class Settings(BaseSettings):
         """Postgres URL — use DATABASE_URL if Supabase pooler/direct, else build from password."""
         url = self.database_url
         if "supabase.co" in url or "pooler.supabase.com" in url:
-            return url
+            return _normalize_supabase_database_url(url)
         if not self.use_supabase_db and not self.supabase_db_password:
             return url
         if not self.supabase_url or not self.supabase_db_password:
@@ -137,12 +137,33 @@ class Settings(BaseSettings):
         host = self.supabase_url.rstrip("/").replace("https://", "").replace("http://", "")
         ref = host.replace(".supabase.co", "")
         pwd = quote_plus(self.supabase_db_password)
-        return f"postgresql://postgres:{pwd}@db.{ref}.supabase.co:5432/postgres"
+        # Session pooler — works from cloud hosts (Render); avoid direct db.* host.
+        return (
+            f"postgresql://postgres.{ref}:{pwd}@aws-1-us-east-2.pooler.supabase.com:5432/postgres"
+            f"?sslmode=require"
+        )
 
     @property
     def using_supabase_postgres(self) -> bool:
         url = self.database_url_resolved
         return "supabase.co" in url or "pooler.supabase.com" in url
+
+
+def _normalize_supabase_database_url(url: str) -> str:
+    """Ensure Supabase pooler URLs include sslmode and pgbouncer when required."""
+    from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    port = parsed.port or 5432
+    params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+
+    if "sslmode" not in params:
+        params["sslmode"] = "require"
+    if "pooler.supabase.com" in host and port == 6543 and "pgbouncer" not in params:
+        params["pgbouncer"] = "true"
+
+    return urlunparse(parsed._replace(query=urlencode(params)))
 
 
 settings = Settings()
