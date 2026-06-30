@@ -9,8 +9,9 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.category_rules import resolve_category
 from app.config import settings
-from db.models import Account, BankConnection, Transaction, TransactionEmbedding
+from db.models import Account, BankConnection, Transaction, TransactionEmbedding, User
 from integrations.plaid_client import get_accounts, sync_transactions
 from integrations.token_crypto import connection_access_token
 from rag.embedder import build_content, embed_texts
@@ -150,6 +151,20 @@ def sync_connection(db: Session, connection: BankConnection) -> dict[str, Any]:
     has_more = True
     new_txs: list[Transaction] = []
 
+    user = db.get(User, connection.user_id)
+
+    def _with_rules(fields: dict[str, object]) -> dict[str, object]:
+        if not user:
+            return fields
+        fields = dict(fields)
+        fields["category"] = resolve_category(
+            user,
+            description=str(fields["description"]),
+            merchant=fields.get("merchant"),  # type: ignore[arg-type]
+            default=str(fields["category"]),
+        )
+        return fields
+
     while has_more:
         payload = sync_transactions(token, cursor)
 
@@ -174,7 +189,7 @@ def sync_connection(db: Session, connection: BankConnection) -> dict[str, Any]:
                 if exists:
                     continue
 
-            fields = _fields_from_plaid(plaid_tx, account.account_type)
+            fields = _with_rules(_fields_from_plaid(plaid_tx, account.account_type))
             tx = Transaction(id=str(uuid.uuid4()), account_id=account.id, **fields)
             db.add(tx)
             new_txs.append(tx)
@@ -192,7 +207,7 @@ def sync_connection(db: Session, connection: BankConnection) -> dict[str, Any]:
             if not existing:
                 continue
             account = existing.account
-            fields = _fields_from_plaid(plaid_tx, account.account_type)
+            fields = _with_rules(_fields_from_plaid(plaid_tx, account.account_type))
             for key, value in fields.items():
                 if key != "plaid_transaction_id":
                     setattr(existing, key, value)
@@ -221,10 +236,8 @@ def sync_connection(db: Session, connection: BankConnection) -> dict[str, Any]:
 
     _embed_transactions(new_txs, db)
 
-    from db.models import User
     from notifications.alerts import check_budget_alerts
 
-    user = db.get(User, connection.user_id)
     if user:
         check_budget_alerts(db, user)
 
