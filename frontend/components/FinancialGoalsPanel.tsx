@@ -2,7 +2,7 @@
 
 import { MessageSquare, Plus, Target, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -34,21 +34,24 @@ export function FinancialGoalsPanel({ stagger = 2 }: { stagger?: number }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCurrent, setEditCurrent] = useState("");
 
-  const refresh = useCallback(() => {
-    if (!authReady || !isSupabaseConfigured()) {
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    if (!authReady || !isSupabaseConfigured()) return;
+    let cancelled = false;
     api
       .getGoals()
-      .then(setGoals)
-      .catch(() => setGoals([]))
-      .finally(() => setLoading(false));
+      .then((rows) => {
+        if (!cancelled) setGoals(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setGoals([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [authReady]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   if (!isSupabaseConfigured()) return null;
 

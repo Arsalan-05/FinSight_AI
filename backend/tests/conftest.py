@@ -19,6 +19,14 @@ def disable_embeddings_in_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "voyage_api_key", "")
     monkeypatch.setattr(settings, "require_auth", False)
     monkeypatch.setattr(settings, "supabase_url", "")
+    # Chat/memory tests mock call_llm; availability gates must pass without real APIs.
+    monkeypatch.setattr(settings, "llm_provider", "anthropic")
+    monkeypatch.setattr(settings, "anthropic_api_key", "test-key")
+    monkeypatch.setattr("agent.llm.llm_runtime_available", lambda: True)
+    monkeypatch.setattr(
+        "agent.runner.summarize_memory",
+        lambda messages, current_summary: current_summary,
+    )
 
 
 @pytest.fixture(scope="function")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from agent.goals import goals_summary_for_prompt
 from agent.graph import build_graph
-from agent.llm import summarize_memory
+from agent.llm import llm_runtime_available, summarize_memory
 from agent.memory import load_messages, load_session, save_session
 from agent.user_profile import (
     build_data_profile,
@@ -19,11 +20,12 @@ from agent.user_profile import (
     save_agent_profile,
     update_learned_profile,
 )
-from app.config import settings
 from app.scoping import account_ids_for_user
 from db.models import User
 
 StatusCallback = Callable[[str, str], None]
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -144,13 +146,19 @@ def run_agent(
         final_messages = result["messages"]
         memory_summary = result.get("memory_summary", session.memory_summary or "")
 
-        if update_memory and settings.llm_configured and _should_update_memory(final_messages):
-            memory_summary = summarize_memory(final_messages, memory_summary)
+        if update_memory and llm_runtime_available() and _should_update_memory(final_messages):
+            try:
+                memory_summary = summarize_memory(final_messages, memory_summary)
+            except Exception:
+                logger.exception("Memory summarization failed — keeping prior summary")
 
-        if user and settings.llm_configured and _should_update_memory(final_messages):
-            updated = update_learned_profile(final_messages, learned_profile, data_profile)
-            if updated != learned_profile:
-                save_agent_profile(db, user, updated)
+        if user and llm_runtime_available() and _should_update_memory(final_messages):
+            try:
+                updated = update_learned_profile(final_messages, learned_profile, data_profile)
+                if updated != learned_profile:
+                    save_agent_profile(db, user, updated)
+            except Exception:
+                logger.exception("Learned profile update failed")
 
         save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
         reply = _last_ai_text(final_messages)
