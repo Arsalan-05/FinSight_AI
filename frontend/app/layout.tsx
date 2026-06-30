@@ -24,6 +24,11 @@ export const metadata: Metadata = {
     "Understand your money — spending insights, smart search, and a personal finance advisor grounded in your real transactions.",
   applicationName: "FinSight",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
+  },
   robots: { index: false, follow: false },
   openGraph: {
     title: "FinSight — Personal Finance",
