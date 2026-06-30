@@ -126,29 +126,37 @@ def run_agent(
     if goals_text:
         memory = f"{memory}\n\n{goals_text}".strip()
 
-    graph = build_graph(db, account_ids=account_ids, on_status=on_status)
-    result = graph.invoke(
-        {
-            "messages": messages,
-            "memory_summary": memory,
-            "user_intelligence": user_intelligence,
-            "session_id": session_id,
-        },
-        config={"recursion_limit": 18},
-    )
+    memory_summary = session.memory_summary or ""
+    final_messages: list[BaseMessage] = messages
 
-    final_messages: list[BaseMessage] = result["messages"]
-    memory_summary: str = result.get("memory_summary", session.memory_summary or "")
+    try:
+        graph = build_graph(db, account_ids=account_ids, on_status=on_status)
+        result = graph.invoke(
+            {
+                "messages": messages,
+                "memory_summary": memory,
+                "user_intelligence": user_intelligence,
+                "session_id": session_id,
+            },
+            config={"recursion_limit": 18},
+        )
 
-    if update_memory and settings.llm_configured and _should_update_memory(final_messages):
-        memory_summary = summarize_memory(final_messages, memory_summary)
+        final_messages = result["messages"]
+        memory_summary = result.get("memory_summary", session.memory_summary or "")
 
-    if user and settings.llm_configured and _should_update_memory(final_messages):
-        updated = update_learned_profile(final_messages, learned_profile, data_profile)
-        if updated != learned_profile:
-            save_agent_profile(db, user, updated)
+        if update_memory and settings.llm_configured and _should_update_memory(final_messages):
+            memory_summary = summarize_memory(final_messages, memory_summary)
 
-    save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
-    reply = _last_ai_text(final_messages)
-    citations = _extract_citations(final_messages)
-    return AgentResult(reply=reply, citations=citations)
+        if user and settings.llm_configured and _should_update_memory(final_messages):
+            updated = update_learned_profile(final_messages, learned_profile, data_profile)
+            if updated != learned_profile:
+                save_agent_profile(db, user, updated)
+
+        save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
+        reply = _last_ai_text(final_messages)
+        citations = _extract_citations(final_messages)
+        return AgentResult(reply=reply, citations=citations)
+    except Exception:
+        # Persist the user turn even when the LLM fails (e.g. Ollama offline on Render).
+        save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
+        raise
