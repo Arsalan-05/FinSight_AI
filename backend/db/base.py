@@ -32,9 +32,15 @@ def _pick_database_url() -> str:
 
 DATABASE_URL = _pick_database_url()
 
-_engine_kwargs: dict[str, object] = {"pool_pre_ping": True}
-if settings.environment != "production":
-    _engine_kwargs["connect_args"] = {"connect_timeout": 8}
+_engine_kwargs: dict[str, object] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 1800,
+}
+_connect_args: dict[str, object] = {"connect_timeout": 8}
+_is_supabase_url = "supabase.co" in DATABASE_URL or "pooler.supabase.com" in DATABASE_URL
+if _is_supabase_url and "sslmode=" not in DATABASE_URL:
+    _connect_args["sslmode"] = "require"
+_engine_kwargs["connect_args"] = _connect_args
 if settings.environment == "production":
     _engine_kwargs["pool_size"] = settings.db_pool_size
     _engine_kwargs["max_overflow"] = settings.db_max_overflow

@@ -1,10 +1,11 @@
 "use client";
 
-import { Building2, ChevronRight, CreditCard, Landmark, Plus, Wallet, X } from "lucide-react";
+import { Building2, ChevronRight, Landmark, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import { AccountTypeIcon } from "@/components/AccountTypeIcon";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
@@ -19,12 +20,6 @@ const INSTITUTION_LABELS: Record<string, string> = {
   CIBC: "CIBC",
   Scotiabank: "Scotiabank",
 };
-
-function accountIcon(type: string) {
-  if (type === "credit") return CreditCard;
-  if (type === "savings") return Wallet;
-  return Landmark;
-}
 
 export default function AccountsPage() {
   const { toast } = useToast();
@@ -156,7 +151,6 @@ export default function AccountsPage() {
 }
 
 function AccountCard({ account }: { account: Account }) {
-  const Icon = accountIcon(account.account_type);
   const institution =
     INSTITUTION_LABELS[account.institution] ?? account.institution;
 
@@ -176,7 +170,7 @@ function AccountCard({ account }: { account: Account }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)]">
-          <Icon size={20} className="text-[var(--accent)]" />
+          <AccountTypeIcon type={account.account_type} size={20} className="text-[var(--accent)]" />
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           {account.plaid_linked && (

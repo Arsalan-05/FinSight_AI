@@ -8,7 +8,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.dependencies import SessionLocal
+from db.base import SessionLocal
 from db.models import BankConnection
 from integrations.plaid_client import plaid_configured
 from integrations.plaid_sync import sync_connection
