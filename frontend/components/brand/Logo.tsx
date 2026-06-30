@@ -40,10 +40,10 @@ export function Logo({
   return (
     <div className="flex items-center gap-3">
       <div
-        className="logo-float flex shrink-0 items-center justify-center rounded-xl shadow-lg shadow-teal-900/20"
+        className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-lg shadow-teal-900/20"
         style={{ width: size, height: size }}
       >
-        <LogoMark size={size} className="rounded-xl" />
+        <LogoMark size={size} />
       </div>
       <LogoWordmark subtitle={subtitle} compact={compact} />
     </div>
