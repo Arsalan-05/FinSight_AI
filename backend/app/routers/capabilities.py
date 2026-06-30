@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from agent.tools import get_tool_definitions
 from agent.llm import chat_unavailable_message, llm_runtime_available
+from agent.tools import get_tool_definitions
 from app.config import settings
 from db.base import DATABASE_URL
 from integrations.plaid_client import plaid_configured

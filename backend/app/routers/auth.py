@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -77,13 +79,13 @@ def bootstrap(
 def export_me(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Download all user data as JSON."""
     return export_user_data(db, user)
 
 
 @router.get("/me/profile")
-def get_learned_profile(user: User = Depends(get_current_user)) -> dict:
+def get_learned_profile(user: User = Depends(get_current_user)) -> dict[str, Any]:
     """Return what the finance advisor has learned about this user."""
     return load_agent_profile(user)
 
@@ -116,6 +118,9 @@ def send_digest_now(
     if not sent:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email digest not sent — enable email_digest in alert preferences and configure SMTP.",
+            detail=(
+                "Email digest not sent — enable email_digest in alert preferences "
+                "and configure SMTP."
+            ),
         )
     return {"sent": True}

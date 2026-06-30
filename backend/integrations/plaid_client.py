@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -36,7 +36,7 @@ def _post(path: str, body: dict[str, Any]) -> dict[str, Any]:
         if response.is_error:
             detail = response.text
             raise RuntimeError(f"Plaid API error {response.status_code}: {detail}")
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
 
 def create_link_token(*, user_id: str) -> dict[str, Any]:
