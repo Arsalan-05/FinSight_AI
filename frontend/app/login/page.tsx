@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 import { Logo } from "@/components/brand/Logo";
+import { getAuthCallbackUrl } from "@/lib/auth-redirect";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 function LoginForm() {
@@ -18,10 +19,7 @@ function LoginForm() {
   );
   const configured = isSupabaseConfigured();
 
-  const redirectTo = () => {
-    const next = searchParams.get("next") ?? "/";
-    return `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-  };
+  const authCallbackUrl = () => getAuthCallbackUrl(searchParams.get("next") ?? "/");
 
   const signInWithGoogle = async () => {
     if (!configured) return;
@@ -33,7 +31,7 @@ function LoginForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: redirectTo(),
+          redirectTo: authCallbackUrl(),
           queryParams: { prompt: "select_account" },
         },
       });
@@ -59,7 +57,7 @@ function LoginForm() {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: { emailRedirectTo: redirectTo() },
+        options: { emailRedirectTo: authCallbackUrl() },
       });
       if (error) {
         setAuthError("We couldn't send that link. Check your email and try again.");
