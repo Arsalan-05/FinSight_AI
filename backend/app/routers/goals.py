@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from agent.goals import add_goal, delete_goal, load_goals
+from agent.goals import add_goal, delete_goal, load_goals, update_goal
 from app.auth import get_current_user_optional
 from app.dependencies import get_db
 from db.models import User
@@ -19,6 +19,15 @@ class GoalCreate(BaseModel):
     target_amount: float | None = None
     deadline: str | None = None
     notes: str | None = None
+
+
+class GoalUpdate(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=200)
+    target_amount: float | None = None
+    current_amount: float | None = None
+    deadline: str | None = None
+    notes: str | None = None
+    status: str | None = None
 
 
 def _require_user(user: User | None) -> User:
@@ -51,6 +60,30 @@ def create_goal(
         deadline=payload.deadline,
         notes=payload.notes,
     )
+
+
+@router.patch("/{goal_id}")
+def patch_goal(
+    goal_id: str,
+    payload: GoalUpdate,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> dict[str, Any]:
+    user = _require_user(current_user)
+    updated = update_goal(
+        db,
+        user,
+        goal_id,
+        title=payload.title,
+        target_amount=payload.target_amount,
+        current_amount=payload.current_amount,
+        deadline=payload.deadline,
+        notes=payload.notes,
+        status=payload.status,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return updated
 
 
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
