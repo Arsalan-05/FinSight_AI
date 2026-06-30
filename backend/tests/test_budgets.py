@@ -43,7 +43,6 @@ def test_budget_spend_calculation(client, db_session, monkeypatch):
         account_type="checking",
     )
     db_session.add_all([user, account])
-    today = date.today().isoformat()
     db_session.add(
         Transaction(
             id="tx-1",

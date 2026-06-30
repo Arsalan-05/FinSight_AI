@@ -8,6 +8,7 @@ import hashlib
 from cryptography.fernet import Fernet, InvalidToken
 
 from app.config import settings
+from db.models import BankConnection
 
 _PREFIX = "enc:"
 
@@ -43,6 +44,6 @@ def decrypt_token(stored: str) -> str:
         raise RuntimeError("Failed to decrypt Plaid access token") from exc
 
 
-def connection_access_token(connection) -> str:
+def connection_access_token(connection: BankConnection) -> str:
     """Return plaintext access token for a BankConnection row."""
     return decrypt_token(connection.access_token)

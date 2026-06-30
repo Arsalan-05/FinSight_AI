@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     log_level: str = "INFO"
-    app_version: str = "1.3.0"
+    app_version: str = "1.4.0"
 
     # Web search — Tavily optional; DuckDuckGo fallback when enabled
     tavily_api_key: str = ""

@@ -5,15 +5,15 @@ import {
   ArrowLeft,
   ArrowUpRight,
   CreditCard,
-  Landmark,
   MessageSquare,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import { AccountTypeIcon } from "@/components/AccountTypeIcon";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
@@ -30,12 +30,6 @@ const INSTITUTION_LABELS: Record<string, string> = {
   Scotiabank: "Scotiabank",
 };
 
-function accountIcon(type: string) {
-  if (type === "credit") return CreditCard;
-  if (type === "savings") return Wallet;
-  return Landmark;
-}
-
 export default function AccountDetailPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
@@ -45,29 +39,32 @@ export default function AccountDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    const range = getDateRange(1);
-    try {
-      const [acc, list] = await Promise.all([
-        api.getAccount(id),
-        api.getTransactions({ account_id: id, date_from: range.from, date_to: range.to, limit: 500 }),
-      ]);
-      setAccount(acc);
-      setTxs(list.items);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Account not found");
-      setAccount(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
   useEffect(() => {
     if (!authReady || !id) return;
-    void load();
-  }, [authReady, id, load]);
+    let active = true;
+    const range = getDateRange(1);
+    Promise.all([
+      api.getAccount(id),
+      api.getTransactions({ account_id: id, date_from: range.from, date_to: range.to, limit: 500 }),
+    ])
+      .then(([acc, list]) => {
+        if (!active) return;
+        setAccount(acc);
+        setTxs(list.items);
+        setError(null);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : "Account not found");
+        setAccount(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [authReady, id]);
 
   const spend = txs.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const income = txs.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
@@ -106,7 +103,6 @@ export default function AccountDetailPage() {
     );
   }
 
-  const Icon = accountIcon(account.account_type);
   const institution = INSTITUTION_LABELS[account.institution] ?? account.institution;
 
   return (
@@ -135,7 +131,7 @@ export default function AccountDetailPage() {
 
       <div className="panel flex items-center gap-4 rounded-2xl p-5">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent-soft)]">
-          <Icon size={26} className="text-[var(--accent)]" />
+          <AccountTypeIcon type={account.account_type} size={26} className="text-[var(--accent)]" />
         </div>
         <div>
           <p className="text-lg font-semibold text-[var(--foreground)]">{account.name}</p>
