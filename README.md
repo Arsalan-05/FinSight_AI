@@ -1,9 +1,6 @@
 # FinSight AI
 
-**Author:** Arsalan Amir Ali  
-**Status:** ✅ **PRIVATE · PRODUCTION-GRADE** — fully built, tested, deploy-ready. Repo stays private.
-
-My personal finance intelligence system — not a demo. I ingest transactions, embed them in pgvector, and run a stateful agent that learns my spending patterns, searches the web for current facts, and answers from grounded tool calls. Live market data, BoC FX, Supabase auth, Railway configs included — deploy when I want, keep the repo private.
+Personal finance intelligence — transaction ingest, pgvector search, and a stateful advisor grounded in your data. Canadian bank CSV import, optional Plaid sync, budgets, and spending insights.
 
 Runs locally with Ollama. Supabase handles Google login.
 
@@ -23,7 +20,7 @@ Open **http://localhost:3000** → sign in with Google.
 
 **Prerequisites:** [Ollama](https://ollama.com) (`llama3.2`, `nomic-embed-text`), [uv](https://docs.astral.sh/uv/), Node 20+.
 
-Full reference including deploy guide: **[DOCUMENTATION.md](./DOCUMENTATION.md)** · **[infra/railway/DEPLOY.md](infra/railway/DEPLOY.md)**
+Full reference: **[DOCUMENTATION.md](./DOCUMENTATION.md)** · **[infra/railway/DEPLOY.md](infra/railway/DEPLOY.md)** · **[DEV.md](./DEV.md)**
 
 ## Stack
 
@@ -31,4 +28,4 @@ Python · FastAPI · LangGraph · PostgreSQL · pgvector · Next.js · Supabase 
 
 ## License
 
-Private — not licensed for redistribution.
+MIT — see [LICENSE](./LICENSE).
