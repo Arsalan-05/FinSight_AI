@@ -4,6 +4,7 @@ import type {
   ChatSessionSummary,
   ChatSSEEvent,
   BootstrapResponse,
+  CapabilitiesResponse,
   FinancialGoal,
   BankConnection,
   PlaidSyncResult,
@@ -15,6 +16,7 @@ import type {
   Transaction,
   TransactionList,
   User,
+  WeeklyBrief,
 } from "./types";
 import { authHeaders } from "./auth";
 import { getAccessTokenReady } from "./supabase/session";
@@ -22,7 +24,7 @@ import { isSupabaseConfigured } from "./supabase/client";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-const PUBLIC_PATHS = new Set(["/health", "/health/db"]);
+const PUBLIC_PATHS = new Set(["/health", "/health/db", "/capabilities"]);
 
 async function buildHeaders(path: string, extra?: HeadersInit): Promise<HeadersInit> {
   const needsAuth = isSupabaseConfigured() && !PUBLIC_PATHS.has(path);
@@ -67,6 +69,8 @@ export const api = {
 
   healthDb: (): Promise<DbHealthResponse> => request("/health/db"),
 
+  capabilities: (): Promise<CapabilitiesResponse> => request("/capabilities"),
+
   getMe: (): Promise<User> => request("/auth/me"),
 
   syncProfile: (): Promise<User> => request("/auth/sync", { method: "POST" }),
@@ -86,6 +90,8 @@ export const api = {
   // ── Accounts ────────────────────────────────────────────────────────────
 
   getAccounts: (): Promise<Account[]> => request("/accounts/"),
+
+  getAccount: (id: string): Promise<Account> => request(`/accounts/${id}`),
   createAccount: (data: {
     user_id: string;
     name: string;
@@ -149,6 +155,8 @@ export const api = {
   // ── Insights & Goals ───────────────────────────────────────────────────────
 
   getInsights: (): Promise<InsightsResponse> => request("/insights/"),
+
+  getWeeklyBrief: (): Promise<WeeklyBrief> => request("/insights/weekly-brief"),
 
   getGoals: (): Promise<FinancialGoal[]> => request("/goals/"),
 
