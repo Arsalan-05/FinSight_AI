@@ -11,7 +11,7 @@ from app.config import settings
 
 _YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d"
 _FINNHUB_QUOTE = "https://finnhub.io/api/v1/quote?symbol={symbol}&token={token}"
-_USER_AGENT = "FinSightAI/1.1 (portfolio; +https://github.com)"
+_USER_AGENT = "FinSightAI/1.4 (+https://github.com/Arsalan-05/FinSight_AI)"
 
 
 def _fetch_json(url: str, timeout: float = 10.0) -> dict[str, Any]:

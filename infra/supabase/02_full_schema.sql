@@ -1,6 +1,6 @@
 -- FinSight AI — full schema for Supabase SQL Editor
 -- Run AFTER 01_extensions.sql in: Dashboard → SQL → New query
--- Project: https://supabase.com/dashboard/project/zibzsxwceivnziplciuq/sql
+-- Project: https://supabase.com/dashboard/project/<your-project-ref>/sql
 
 CREATE EXTENSION IF NOT EXISTS vector;
 

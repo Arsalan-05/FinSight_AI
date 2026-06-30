@@ -1,7 +1,6 @@
 # FinSight AI — Project Documentation
 
-> **Author:** Arsalan Amir Ali — portfolio project, built and maintained by me.  
-> **Status:** ✅ **PRIVATE · PRODUCTION-GRADE** — v1.3, startup MVP shipped, 91 tests, deploy-ready.
+> **FinSight AI v1.4** — private repo, production-grade local stack, 102 tests.
 
 ---
 
@@ -35,7 +34,7 @@ Open **http://localhost:3000** → hard refresh (`Cmd+Shift+R`) if the tab icon 
 
 ## Startup Guide (read this first)
 
-I run FinSight locally in four steps. Copy this block when you need a clean start:
+Local setup in four steps:
 
 ```bash
 # Quick bootstrap (Docker Postgres + migrations only)
@@ -93,21 +92,19 @@ Expected: **20+** e2e checkpoints, **102** tests passing, frontend build clean.
 14. [Supabase (Auth + Hosted Postgres)](#14-supabase-auth--hosted-postgres)
 15. [Testing & Quality](#15-testing--quality)
 16. [Troubleshooting](#16-troubleshooting)
-17. [Demo Script](#17-demo-script)
-18. [How I Explain It (Interviews)](#18-how-i-explain-it-interviews)
-19. [Out of Scope](#19-out-of-scope)
-20. [Development Commands](#20-development-commands)
-21. [Project Status](#21-project-status)
+17. [Out of Scope](#17-out-of-scope)
+18. [Development Commands](#18-development-commands)
+19. [Project Status](#19-project-status)
 
 ---
 
 ## 1. Overview
 
-### What I built
+### What it does
 
-**FinSight AI** is my personal finance intelligence app. I upload bank transactions (or use seeded demo data), and a finance agent answers questions like *"How much did I spend on dining last month?"* or *"Find my Interac rent payments"* — grounded in real data, not made-up numbers.
+**FinSight AI** ingests bank transactions (CSV upload or Plaid sync) and answers questions like *"How much did I spend on dining last month?"* or *"Find my Interac rent payments"* — grounded in stored data, not invented numbers.
 
-Every chat is saved to Postgres. The agent reads my transactions through scoped SQL and RAG tools, so answers stay tied to what is actually in the database.
+Chats persist in Postgres. The advisor reads transactions through scoped SQL and RAG tools so answers stay tied to the database.
 
 ### Core capabilities
 
@@ -121,9 +118,9 @@ Every chat is saved to Postgres. The agent reads my transactions through scoped 
 | Canadian banks | RBC, TD, CIBC, Scotiabank, BMO, Simplii, Interac parser |
 | External tools (MCP) | BoC FX rates, currency conversion, demo market quotes |
 
-### How I describe it
+### Summary
 
-I built FinSight to ingest my transaction data, embed it in pgvector for semantic search, and run a stateful finance agent that answers spending questions through SQL and retrieval tools — not guessed numbers. FastAPI serves the API; Next.js is the dashboard, search, and chat UI. Supabase handles Google login; Postgres stores everything including saved chat history. I run it locally with Ollama; the same stack can swap to paid APIs via env vars when needed.
+FinSight ingests transaction data, embeds it in pgvector for semantic search, and runs a stateful finance agent that answers spending questions through SQL and retrieval tools. FastAPI serves the API; Next.js is the dashboard, search, and chat UI. Supabase handles Google login; Postgres stores data and chat history. Local dev uses Ollama; production can switch LLM/embeddings via env vars.
 
 ---
 
@@ -237,7 +234,7 @@ Google OAuth → Supabase JWT → POST /auth/sync → link users.auth_id
 FinSight_AI/
 ├── DOCUMENTATION.md          ← This file (master docs)
 ├── README.md                 ← Quick entry point
-├── CLAUDE.md                 ← Dev notes for working in this repo
+├── DEV.md                    ← Developer quick reference
 ├── .env.example              ← Environment template
 ├── docker-compose.yml        ← Local stack orchestration
 │
@@ -804,7 +801,7 @@ On first login, `POST /auth/sync` clones demo data (accounts + transactions + em
 
 ```bash
 cd backend
-uv run pytest -q                    # 91 tests
+uv run pytest -q                    # 102 tests
 uv run ruff check .                 # lint
 uv run ruff format .                # format
 uv run mypy app/ agent/ db/ rag/ insights/   # type check
@@ -854,72 +851,23 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 
 ---
 
-## 17. Demo Script
+## 17. Out of Scope (for now)
 
-**My 3-minute walkthrough:**
-
-1. **Login** — Google OAuth → dashboard with insight cards
-2. **Dashboard** — subscriptions, rent %, TFSA room, cash runway
-3. **Transactions** — upload `samples/rbc_sample.csv` (bank auto-detect)
-4. **Search** — *"Interac transfers to landlord"*
-5. **Chat** — *"How much TFSA room do I have?"* → answer with transaction citations
-6. **Settings** — add goal *"Summer internship relocation $3000"*
-7. **Settings → Connections** — Supabase auth + Postgres status
-
----
-
-## 18. How I Explain It (Interviews)
-
-### Questions I get and how I answer
-
-**Why pgvector instead of Pinecone?**  
-I only have thousands of transactions, not millions. I wanted one database to back up and migrate. I can JOIN embeddings to transactions in a single query, and CASCADE delete keeps vectors in sync.
-
-**How do you prevent wrong dollar amounts?**  
-The system prompt requires tool calls before answering. The agent has `search_transactions` (semantic retrieval) and `aggregate_spending` (SQL) — it never guesses numbers.
-
-**Why a ReAct graph instead of a simple chain?**  
-I needed an explicit loop: the model picks a tool, observes the result, and can iterate. Typed state, testable nodes, and session memory in Postgres made debugging much easier.
-
-**How does auth work?**  
-Supabase issues ES256 JWTs. My backend fetches the JWKS public key, verifies the signature, and links `auth_id` to the app user. Every query is scoped by `user_id`.
-
-**Why Ollama for local dev?**  
-Zero API cost while I'm iterating. The architecture swaps to Anthropic or Voyage via env vars when I want higher quality.
-
-**What would I add next at scale?**  
-Redis-backed rate limiting across replicas, full observability (OpenTelemetry), and household/shared finances once single-user PMF is proven.
-
-### Design trade-offs I made
-
-| Decision | Trade-off |
-|----------|-----------|
-| Client-side analytics | Simple, no extra API — fine for hundreds of rows |
-| Demo data clone on login | Fast onboarding — not real bank data until I upload CSV |
-| MCP market quotes | Live via Yahoo/Finnhub — Yahoo needs no key; Finnhub optional for reliability |
-| SQLite in tests | Fast tests — dialect differences handled in the aggregator |
-| Single Postgres | Simpler ops — I'd shard only at very large scale |
-| In-memory rate limit | Fine for single API instance — Redis if I scale horizontally |
-
----
-
-## 19. Out of Scope (for now)
-
-Things intentionally deferred beyond the startup MVP path:
+Deferred beyond the current release:
 
 | Item | Reason |
 |------|--------|
 | Flinks (alternative bank aggregator) | Plaid covers compliant OAuth bank link |
-| Mobile native apps | Responsive web + PWA install prompt is enough for beta |
-| CRA e-filing | Regulated tax filing — TFSA *awareness* only |
-| Household / shared finances | Schema + permissions redesign; defer until PMF |
-| Paid Claude/Voyage in CI | Ollama covers free CI path |
+| Mobile native apps | Responsive web + PWA install prompt |
+| CRA e-filing | Regulated tax filing — TFSA awareness only |
+| Household / shared finances | Schema + permissions redesign |
+| Paid LLM/embeddings in CI | Ollama covers the free CI path |
 
-**In scope (v1.3 startup path):** Plaid webhooks + background sync, budgets + in-app alerts, `DELETE /auth/me` + JSON export, subscriptions page, invite-only beta, weekly email digest.
+**Shipped in v1.4:** Plaid webhooks + background sync, budgets + in-app alerts, `DELETE /auth/me` + JSON export, goal progress, category rules, notifications inbox, GitHub Pages landing.
 
 ---
 
-## 20. Development Commands
+## 18. Development Commands
 
 ```bash
 # ── Start everything (Supabase path) ──────────────────────────
@@ -948,25 +896,11 @@ docker compose up --build
 
 ---
 
-## 21. Project Status
+## 19. Project Status
 
-**FinSight AI v1.4 — engineering-MVP max (code-complete, no live deploy required).**
+**FinSight AI v1.4** — code-complete for invite-only beta. Remaining work is production deploy and user retention, not core features.
 
-Private portfolio system with a credible Canadian fintech MVP layer: bank sync lifecycle, budgets, alerts, data rights, goal progress, category rules, and distribution hooks.
-
-### Completion score (out of 100)
-
-| Lens | Score | Notes |
-|------|-------|-------|
-| **Portfolio / interview** | **98** | Full-stack agent + RAG + 102 tests + GitHub Pages landing |
-| **Startup MVP (code shipped)** | **96** | Closed product loops: goals progress, rules, notifications inbox, advisor memory UI |
-| **Startup MVP (live product)** | **68** | Unchanged — needs stable DB URL, production deploy, 10+ beta users |
-| **Consumer fintech parity** | **62** | Category rules + goal progress; mobile/push still deferred |
-| **Overall project maturity** | **92** | Engineering-MVP target met in code; live ops still caps headline score |
-
-**Bottom line:** Code-complete for an invite-only startup MVP. Remaining gap is **live deploy + real user retention**, not missing features.
-
-### What ships
+### Shipped
 
 | Layer | Delivered |
 |-------|-----------|
@@ -987,51 +921,36 @@ Private portfolio system with a credible Canadian fintech MVP layer: bank sync l
 | **Distribution** | GitHub Pages landing (`docs/`) + `.github/workflows/pages.yml` |
 | **Deploy** | Railway configs + `infra/railway/DEPLOY.md` |
 
-### Startup roadmap (completed phases)
-
-| Phase | Exit criteria |
-|-------|----------------|
-| **A — Trust + data** | Plaid auto-sync, PATCH transactions, export + delete account |
-| **B — Retention** | Budget bars, alert inbox, subscriptions page |
-| **C — Distribution** | Beta allowlist, weekly digest email, production deploy docs |
-
-### Private vs deployed
+### Deployment modes
 
 | Mode | How |
 |------|-----|
 | **Local (default)** | Docker Postgres + Ollama + `npm run dev` |
-| **Private deploy** | Railway + Supabase — `BETA_ALLOWED_EMAILS` for invite-only |
-| **Not planned** | Public repo, open registration, Flinks |
+| **Production** | Railway + Supabase — `BETA_ALLOWED_EMAILS` for invite-only |
 
-### Final verification (June 2026)
+### Verification
 
 ```bash
-./scripts/dev-up.sh                     # Docker DB + alembic upgrade
+./scripts/dev-up.sh
 cd backend && uv run pytest -q          # 102 passed
-cd backend && uv run ruff check .       # clean
-cd frontend && npm run lint && npm run type-check && npm run build   # clean
+cd backend && uv run ruff check .
+cd frontend && npm run lint && npm run type-check && npm run build
 ```
 
 ### Favicon / tab icon
 
-Sidebar and browser tab use the same bold **F** mark (`app/icon.tsx`, `LogoMark.tsx`, `public/icon.svg`). If the tab still shows an old icon: **Cmd+Shift+R** hard refresh, incognito window, or restart the dev server.
+Sidebar and browser tab use the same bold **F** mark (`app/icon.tsx`, `LogoMark.tsx`, `public/icon.svg`). Hard refresh (`Cmd+Shift+R`) if the tab icon looks stale.
 
 ### GitHub Pages
 
-Static landing site lives in `docs/`. Enable **Settings → Pages → Source: GitHub Actions** in the repo. Workflow: `.github/workflows/pages.yml` deploys on push to `main` when `docs/` changes.
-
-### Repository
-
-Private GitHub portfolio repository. To run locally, follow the [Startup Guide](#startup-guide-read-this-first).
-
-**FinSight AI v1.4 is engineering-MVP complete in code — credible for an invite-only startup beta once deployed.**
+Static landing site in `docs/`. Enable **Settings → Pages → Source: GitHub Actions**. Workflow: `.github/workflows/pages.yml`.
 
 ---
 
 ## License
 
-Private project — not licensed for redistribution.
+MIT — see [LICENSE](./LICENSE).
 
 ---
 
-*Last updated: June 2026 — FinSight AI v1.4.0 (PRIVATE · ENGINEERING MVP)*
+*Last updated: June 2026 — FinSight AI v1.4.0*

@@ -1,25 +1,20 @@
-# CLAUDE.md
+# Developer guide
 
-Guidance for AI coding assistants working in this repository.
+Project reference: [DOCUMENTATION.md](./DOCUMENTATION.md)
 
-**Full project documentation:** [DOCUMENTATION.md](./DOCUMENTATION.md)
-
-## Project
-
-FinSight AI — personal finance intelligence agent. FastAPI backend, Next.js frontend, PostgreSQL + pgvector, LangGraph ReAct agent, Supabase Google OAuth.
-
-## Repo layout
+## Layout
 
 ```
 backend/   FastAPI, LangGraph agent, RAG, MCP tools, Alembic migrations
-frontend/  Next.js chat UI + dashboards
+frontend/  Next.js UI + dashboards
 infra/     Docker Compose, Supabase setup scripts
+scripts/   Local bootstrap helpers
 ```
 
-## Dev commands
+## Commands
 
 ```bash
-docker compose up --build                    # full stack
+docker compose up --build
 cd backend && uv run uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev
 
@@ -31,10 +26,10 @@ cd frontend && npm run lint && npm run type-check
 
 ## Conventions
 
-- Python package manager: `uv` (not pip)
+- Python package manager: `uv`
 - Backend code under `backend/app/`, `backend/agent/`, `backend/rag/`, `backend/db/`
 - FastAPI DI for DB sessions — do not instantiate inside route handlers
 - LangGraph state in TypedDict — new fields go there
 - MCP tools: one file per server in `backend/mcp/`
-- Default LLM: Ollama `llama3.2`; optional Anthropic `claude-sonnet-4-6`
+- Default LLM: Ollama `llama3.2`; optional Anthropic via `LLM_PROVIDER`
 - Secrets in `.env` only — never commit
