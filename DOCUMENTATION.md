@@ -1,7 +1,7 @@
 # FinSight AI — Project Documentation
 
 > **Author:** Arsalan Amir Ali — portfolio project, built and maintained by me.  
-> **Status:** ✅ **COMPLETE** — portfolio-ready, fully tested, documented, and published.
+> **Status:** ✅ **PRIVATE · PRODUCTION-GRADE** — v1.2, fully tested, deploy-ready, not public.
 
 ---
 
@@ -469,12 +469,25 @@ User message → Agent node (LLM + tool schemas)
 |------|---------|
 | `search_transactions` | RAG semantic search |
 | `aggregate_spending` | SQL totals/groups by category, merchant, month |
+| `get_user_financial_profile` | Learned spending fingerprint + remembered preferences |
 | `get_financial_insights` | Proactive insight bundle |
+| `search_web` | Live internet search (Tavily or DuckDuckGo) for current rates, rules, products |
 | `get_tfsa_status` | TFSA contribution room estimate |
 | `get_cash_runway` | Months of runway at current burn |
 | `convert_currency` | MCP — FX conversion |
 | `get_exchange_rates` | MCP — Bank of Canada live rates |
-| `get_market_quote` | MCP — demo stock quotes |
+| `get_market_quote` | MCP — live stock/ETF quotes |
+
+### User intelligence (learned, not fine-tuned)
+
+The agent does **not** retrain model weights. Instead it:
+
+1. **Data profile** — SQL analysis of the user's transactions (top categories, merchants, monthly burn/income) injected every turn.
+2. **Learned profile** — `users.agent_profile_json` updated after conversations (preferences, risk areas, summary).
+3. **Session memory** — `memory_summary` compresses long chats.
+4. **Web search** — `search_web` for facts outside the database (CRA limits, product rates, market news).
+
+Reasoning loop: **Understand → Plan → Gather (personal + web) → Synthesize → Recommend**.
 
 ### Session memory
 
@@ -482,6 +495,7 @@ User message → Agent node (LLM + tool schemas)
 - `chat_sessions.messages_json` — full LangChain message history
 - `memory_summary` — compressed context across long conversations
 - `goals_json` on user — injected into system prompt
+- `agent_profile_json` on user — persistent learned preferences across all chats
 
 ### LLM providers
 
@@ -803,8 +817,8 @@ Supabase issues ES256 JWTs. My backend fetches the JWKS public key, verifies the
 **Why Ollama for local dev?**  
 Zero API cost while I'm iterating. The architecture swaps to Anthropic or Voyage via env vars when I want higher quality.
 
-**What would I add for production?**  
-Flinks/Plaid bank sync, Redis rate limiting, Railway deploy with a connection pooler, structured logging, and RLS policies on Supabase.
+**What would I add next at scale?**  
+Flinks/Plaid bank sync, Redis-backed rate limiting across replicas, and full observability (OpenTelemetry).
 
 ### Design trade-offs I made
 
@@ -812,20 +826,20 @@ Flinks/Plaid bank sync, Redis rate limiting, Railway deploy with a connection po
 |----------|-----------|
 | Client-side analytics | Simple, no extra API — fine for hundreds of rows |
 | Demo data clone on login | Fast onboarding — not real bank data until I upload CSV |
-| MCP market quotes | Stub data for demo — not a live market feed |
+| MCP market quotes | Live via Yahoo/Finnhub — Yahoo needs no key; Finnhub optional for reliability |
 | SQLite in tests | Fast tests — dialect differences handled in the aggregator |
 | Single Postgres | Simpler ops — I'd shard only at very large scale |
+| In-memory rate limit | Fine for single API instance — Redis if I scale horizontally |
 
 ---
 
 ## 19. Out of Scope
 
-Things I intentionally left out (paid contracts, legal review, or ops beyond what I needed for this build):
+Things I intentionally left out (paid contracts, legal review, or ops beyond this build):
 
 | Item | Reason |
 |------|--------|
 | Flinks / Plaid live bank sync | Commercial API + compliance |
-| Public production deploy | Project targets private/local demo |
 | Mobile native apps | Responsive web is sufficient |
 | CRA e-filing | Regulated tax filing |
 | Paid Claude/Voyage in CI | Ollama covers free CI path |
@@ -863,36 +877,47 @@ docker compose up --build
 
 ## 21. Project Complete
 
-**This project has been completed.**
+**FinSight AI v1.2 — private, production-grade, complete.**
 
-I built FinSight AI as my personal finance intelligence portfolio system — end to end, from database schema to deployed-quality UI. As of June 2026, every planned feature is implemented, tested, and documented. There are no remaining tasks, stubs, or open build items.
+I built this as my personal finance intelligence portfolio system — end to end. The repo stays **private** on GitHub. The codebase is **deploy-ready** (Railway configs included) but I run it locally by default with Ollama.
 
 ### What ships
 
 | Layer | Delivered |
 |-------|-----------|
-| **Data** | PostgreSQL + pgvector, Alembic migrations, Canadian bank CSV ingest, per-user scoping |
+| **Data** | PostgreSQL + pgvector, Alembic migrations, Canadian bank CSV ingest, per-user scoping, optional Supabase RLS |
 | **Auth** | Supabase Google OAuth, JWT verification, demo provisioning for new users |
 | **RAG** | Transaction embeddings, semantic search, HNSW index |
-| **Agent** | ReAct finance agent with SQL + retrieval tools, live status streaming, session memory |
-| **Chat** | Saved history in Postgres, pin/rename/delete, citations on answers |
-| **Frontend** | Dashboard, analytics, transactions, search, chat, settings — all auth-gated |
-| **Reliability** | Local Postgres fallback when Supabase is unreachable, 76 automated tests |
-| **Docs** | This file — startup guide, API reference, troubleshooting, interview notes |
+| **Agent** | ReAct loop with SQL + retrieval + **web search** + **learned user profile** from transaction history |
+| **Intelligence** | SQL spending fingerprint, persistent `agent_profile_json`, session memory, goals injection |
+| **Chat** | Saved history, pin/rename/delete, live status streaming, citations |
+| **Market data** | Live stock/ETF quotes (Yahoo + optional Finnhub), live BoC FX |
+| **Frontend** | Dashboard, analytics, transactions, search, chat, settings — error/loading states, system health |
+| **Reliability** | DB fallback, JSON logs in prod, `/health/ready`, rate limiting, request IDs |
+| **Deploy** | Railway configs + `infra/railway/DEPLOY.md` (optional — use when I want a live URL) |
+| **Docs** | This file — startup, API, troubleshooting, interview notes |
+
+### Private vs deployed
+
+| Mode | How |
+|------|-----|
+| **Local (default)** | Docker Postgres + Ollama + `npm run dev` — see [Startup Guide](#startup-guide-read-this-first) |
+| **Private deploy** | Railway + Supabase — repo stays private; app URL can be invite-only via Supabase auth |
+| **Not planned** | Public repo, open registration, Plaid/Flinks bank sync |
 
 ### Final verification (June 2026)
 
 ```bash
-cd backend && uv run pytest -q          # 76 passed
+cd backend && uv run pytest -q          # 81 passed
 cd backend && uv run ruff check .       # clean
 cd frontend && npm run lint && npm run type-check && npm run build   # clean
 ```
 
 ### Repository
 
-Published on GitHub as a private portfolio repository. To run locally, follow the [Startup Guide](#startup-guide-read-this-first) at the top of this document.
+Private GitHub portfolio repository. To run locally, follow the [Startup Guide](#startup-guide-read-this-first).
 
-**FinSight AI is finished. No further development is planned on this codebase.**
+**FinSight AI v1.2 is complete and production-grade for a private portfolio system.**
 
 ---
 
@@ -902,4 +927,4 @@ Private project — not licensed for redistribution.
 
 ---
 
-*Last updated: June 2026 — FinSight AI v1.0.0 (COMPLETE)*
+*Last updated: June 2026 — FinSight AI v1.2.0 (PRIVATE · PRODUCTION-GRADE)*

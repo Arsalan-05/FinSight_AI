@@ -49,6 +49,30 @@ class Settings(BaseSettings):
     # Chat rate limit — requests per minute per client IP (0 = disabled)
     chat_rate_limit_per_minute: int = 30
 
+    # Production / deploy
+    cors_origins: str = ""  # comma-separated allowed origins (e.g. https://app.up.railway.app)
+    finnhub_api_key: str = ""  # optional — live quotes via Finnhub; Yahoo used as fallback
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    log_level: str = "INFO"
+    app_version: str = "1.2.0"
+
+    # Web search — Tavily optional; DuckDuckGo fallback when enabled
+    tavily_api_key: str = ""
+    web_search_enabled: bool = True
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        defaults = [
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3000",
+        ]
+        if self.environment != "production":
+            return defaults
+        extra = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        return extra or defaults
+
     @property
     def auth_enforced(self) -> bool:
         """True when API routes should require a valid Supabase JWT."""

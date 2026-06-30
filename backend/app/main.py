@@ -8,7 +8,9 @@ from sqlalchemy import text
 
 import agent._warn  # noqa: F401 — suppress third-party import warnings
 from app.config import settings
+from app.logging_config import configure_logging
 from app.middleware.api_key import ApiKeyMiddleware
+from app.middleware.request_id import RequestIdMiddleware
 from app.routers import accounts, auth, chat, goals, insights, search, transactions, users
 from db.base import DATABASE_URL, engine
 from mcp import register_mcp_tools
@@ -16,21 +18,23 @@ from mcp import register_mcp_tools
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    configure_logging(environment=settings.environment, log_level=settings.log_level)
     tools = register_mcp_tools()
     _app.state.mcp_tools = tools
     yield
 
 
-app = FastAPI(title="FinSight AI", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="FinSight AI", version=settings.app_version, lifespan=lifespan)
 
+app.add_middleware(RequestIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-    ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+):\d+",
+    allow_origins=settings.cors_origin_list,
+    allow_origin_regex=(
+        None
+        if settings.environment == "production"
+        else r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+):\d+"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,7 +55,27 @@ app.include_router(chat.router)
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "environment": settings.environment}
+    return {
+        "status": "ok",
+        "environment": settings.environment,
+        "version": settings.app_version,
+        "llm_provider": settings.llm_provider,
+    }
+
+
+@app.get("/health/ready")
+def health_ready() -> dict[str, object]:
+    """Readiness probe — verifies database connectivity."""
+    connected = False
+    error: Optional[str] = None
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        connected = True
+    except Exception as exc:
+        error = exc.__class__.__name__
+    status = "ok" if connected else "degraded"
+    return {"status": status, "database": connected, "error": error}
 
 
 @app.get("/health/db")

@@ -41,6 +41,8 @@ export interface SearchResponse {
 export interface HealthResponse {
   status: string;
   environment: string;
+  version?: string;
+  llm_provider?: string;
 }
 
 export interface DbHealthResponse {

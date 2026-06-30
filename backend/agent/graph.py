@@ -30,7 +30,11 @@ def build_graph(
 
     def agent_node(state: AgentState) -> dict[str, list[AIMessage]]:
         _emit("thinking", "Analyzing your question")
-        response = call_llm(state["messages"], state["memory_summary"])
+        response = call_llm(
+            state["messages"],
+            state["memory_summary"],
+            user_intelligence=state.get("user_intelligence", ""),
+        )
         return {"messages": [response]}
 
     def tools_node(state: AgentState) -> dict[str, list[ToolMessage]]:

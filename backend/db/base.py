@@ -31,7 +31,13 @@ def _pick_database_url() -> str:
 
 
 DATABASE_URL = _pick_database_url()
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+
+_engine_kwargs: dict[str, object] = {"pool_pre_ping": True}
+if settings.environment == "production":
+    _engine_kwargs["pool_size"] = settings.db_pool_size
+    _engine_kwargs["max_overflow"] = settings.db_max_overflow
+
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

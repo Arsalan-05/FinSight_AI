@@ -11,4 +11,5 @@ class AgentState(TypedDict):
 
     messages: Annotated[list[BaseMessage], add_messages]
     memory_summary: str
+    user_intelligence: str
     session_id: str

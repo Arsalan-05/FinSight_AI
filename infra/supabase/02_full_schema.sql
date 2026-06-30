@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     auth_id VARCHAR(36) UNIQUE,
     goals_json TEXT NOT NULL DEFAULT '[]',
+    agent_profile_json TEXT NOT NULL DEFAULT '{}',
     created_at TIMESTAMP DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS ix_users_auth_id ON users (auth_id);
