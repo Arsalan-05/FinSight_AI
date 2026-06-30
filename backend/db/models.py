@@ -42,6 +42,10 @@ class Account(Base):
     institution: Mapped[str] = mapped_column(String(255), nullable=False)
     # checking | savings | credit
     account_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    plaid_account_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    bank_connection_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("bank_connections.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user: Mapped[User] = relationship("User", back_populates="accounts")
@@ -59,6 +63,9 @@ class Transaction(Base):
     category: Mapped[str] = mapped_column(String(100), nullable=False, default="Uncategorized")
     merchant: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    plaid_transaction_id: Mapped[Optional[str]] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     account: Mapped[Account] = relationship("Account", back_populates="transactions")
@@ -68,6 +75,27 @@ class Transaction(Base):
         uselist=False,
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+
+
+class BankConnection(Base):
+    __tablename__ = "bank_connections"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, default="plaid")
+    item_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    access_token: Mapped[str] = mapped_column(Text, nullable=False)
+    institution_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    institution_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    transactions_cursor: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
     )
 
 

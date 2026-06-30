@@ -54,6 +54,29 @@ export interface DbHealthResponse {
   error?: string | null;
 }
 
+export interface PlaidStatus {
+  enabled: boolean;
+  environment: string | null;
+}
+
+export interface BankConnection {
+  id: string;
+  institution_name: string;
+  institution_id: string | null;
+  status: string;
+  last_synced_at: string | null;
+  created_at: string;
+}
+
+export interface PlaidSyncResult {
+  connection_id: string;
+  institution: string;
+  added?: number;
+  modified_seen?: number;
+  last_synced_at?: string | null;
+  error?: string;
+}
+
 export type ChatRole = "user" | "assistant";
 
 export interface ChatMessage {

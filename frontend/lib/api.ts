@@ -4,6 +4,9 @@ import type {
   ChatSessionSummary,
   ChatSSEEvent,
   FinancialGoal,
+  BankConnection,
+  PlaidSyncResult,
+  PlaidStatus,
   HealthResponse,
   DbHealthResponse,
   InsightsResponse,
@@ -155,6 +158,31 @@ export const api = {
 
   deleteGoal: (id: string): Promise<void> =>
     request(`/goals/${id}`, { method: "DELETE" }),
+
+  // ── Bank (Plaid) ──────────────────────────────────────────────────────────
+
+  getPlaidStatus: (): Promise<PlaidStatus> => request("/integrations/plaid/status"),
+
+  createPlaidLinkToken: (): Promise<{ link_token: string; expiration: string }> =>
+    request("/integrations/plaid/link-token", { method: "POST" }),
+
+  exchangePlaidToken: (
+    public_token: string,
+    institution_name?: string,
+  ): Promise<BankConnection> =>
+    request("/integrations/plaid/exchange", {
+      method: "POST",
+      body: JSON.stringify({ public_token, institution_name }),
+    }),
+
+  listBankConnections: (): Promise<BankConnection[]> =>
+    request("/integrations/plaid/connections"),
+
+  syncBankConnections: (): Promise<PlaidSyncResult[]> =>
+    request("/integrations/plaid/sync", { method: "POST" }),
+
+  disconnectBank: (id: string): Promise<void> =>
+    request(`/integrations/plaid/connections/${id}`, { method: "DELETE" }),
 
   listChatSessions: (): Promise<ChatSessionSummary[]> => request("/chat/sessions"),
 

@@ -181,6 +181,11 @@ body {
   pointer-events: none;
 }
 
+.panel-glow {
+  border-color: var(--border-glow);
+  box-shadow: var(--shadow-panel), 0 0 40px -12px var(--accent-glow);
+}
+
 .panel-interactive {
   transition:
     transform 0.4s var(--ease-spring),

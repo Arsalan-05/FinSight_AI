@@ -93,3 +93,41 @@ class ChatRequest(BaseModel):
 class ChatSessionUpdate(BaseModel):
     title: str | None = None
     pinned: bool | None = None
+
+
+# ── Plaid / bank connections ──────────────────────────────────────────────────
+
+
+class PlaidStatusOut(BaseModel):
+    enabled: bool
+    environment: str | None = None
+
+
+class PlaidLinkTokenOut(BaseModel):
+    link_token: str
+    expiration: str = ""
+
+
+class PlaidExchangeIn(BaseModel):
+    public_token: str
+    institution_name: str | None = None
+
+
+class BankConnectionOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: str
+    institution_name: str
+    institution_id: str | None
+    status: str
+    last_synced_at: datetime | None
+    created_at: datetime
+
+
+class PlaidSyncResultOut(BaseModel):
+    connection_id: str
+    institution: str
+    added: int | None = None
+    modified_seen: int | None = None
+    last_synced_at: str | None = None
+    error: str | None = None

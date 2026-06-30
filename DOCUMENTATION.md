@@ -839,7 +839,7 @@ Things I intentionally left out (paid contracts, legal review, or ops beyond thi
 
 | Item | Reason |
 |------|--------|
-| Flinks / Plaid live bank sync | Commercial API + compliance |
+| Flinks / Plaid live bank sync | **Plaid optional** — compliant OAuth via Settings; CSV always available |
 | Mobile native apps | Responsive web is sufficient |
 | CRA e-filing | Regulated tax filing |
 | Paid Claude/Voyage in CI | Ollama covers free CI path |
@@ -903,7 +903,7 @@ I built this as my personal finance intelligence portfolio system — end to end
 |------|-----|
 | **Local (default)** | Docker Postgres + Ollama + `npm run dev` — see [Startup Guide](#startup-guide-read-this-first) |
 | **Private deploy** | Railway + Supabase — repo stays private; app URL can be invite-only via Supabase auth |
-| **Not planned** | Public repo, open registration, Plaid/Flinks bank sync |
+| **Not planned** | Public repo, open registration, Flinks (Plaid covers compliant bank link) |
 
 ### Final verification (June 2026)
 
