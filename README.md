@@ -2,6 +2,8 @@
 
 Personal finance intelligence — transaction ingest, pgvector search, and a stateful advisor grounded in your data. Canadian bank CSV import, optional Plaid sync, budgets, and spending insights.
 
+**Status:** v1.4 completed June 30, 2026 · owned 100% by Arsalan Amir Ali
+
 Runs locally with Ollama. Supabase handles Google login.
 
 ## Quick start
@@ -26,6 +28,6 @@ Full reference: **[DOCUMENTATION.md](./DOCUMENTATION.md)** · **[infra/railway/D
 
 Python · FastAPI · LangGraph · PostgreSQL · pgvector · Next.js · Supabase Auth · Ollama
 
-## License
+## License & ownership
 
-MIT — see [LICENSE](./LICENSE).
+Copyright (c) 2026 **Arsalan Amir Ali** — 100% owner. MIT License — see [LICENSE](./LICENSE) and [DOCUMENTATION.md §20](./DOCUMENTATION.md#20-rights-license--ownership).
