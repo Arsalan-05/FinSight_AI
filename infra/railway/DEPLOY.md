@@ -22,6 +22,11 @@ Deploy as **two Railway services** from this monorepo (private repo is fine).
 | `CORS_ORIGINS` | `https://<your-frontend>.up.railway.app` |
 | `CHAT_RATE_LIMIT_PER_MINUTE` | `30` |
 | `FINNHUB_API_KEY` | optional — live stock quotes |
+| `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | optional — live bank link |
+| `PLAID_TOKEN_ENCRYPTION_KEY` | Fernet key for Plaid access tokens at rest |
+| `PLAID_WEBHOOK_SECRET` | verify Plaid webhook payloads |
+| `BETA_ALLOWED_EMAILS` | comma-separated invite list (empty = open) |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` | weekly email digest |
 | `LOG_LEVEL` | `INFO` |
 
 5. Generate domain → note API URL (e.g. `https://finsight-api.up.railway.app`).
@@ -62,6 +67,14 @@ curl https://<api>/health/ready
 ```
 
 Open frontend → sign in → dashboard loads.
+
+## 6. Invite-only beta
+
+Set `BETA_ALLOWED_EMAILS=you@example.com,friend@example.com` on the backend. Only listed emails can sign in; others receive HTTP 403.
+
+Configure Plaid webhook URL in the Plaid dashboard: `https://<api>/integrations/plaid/webhook`
+
+Weekly digest emails require SMTP vars and users enabling **Weekly email digest** in Settings.
 
 ## Local vs production
 

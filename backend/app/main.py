@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -14,16 +15,19 @@ from app.middleware.request_id import RequestIdMiddleware
 from app.routers import (
     accounts,
     auth,
+    budgets,
     capabilities,
     chat,
     goals,
     insights,
     integrations,
+    notifications,
     search,
     transactions,
     users,
 )
 from db.base import DATABASE_URL, engine
+from integrations.plaid_background import plaid_sync_loop, weekly_digest_loop
 from mcp import register_mcp_tools
 
 
@@ -32,7 +36,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     configure_logging(environment=settings.environment, log_level=settings.log_level)
     tools = register_mcp_tools()
     _app.state.mcp_tools = tools
-    yield
+    sync_task = asyncio.create_task(plaid_sync_loop())
+    digest_task = asyncio.create_task(weekly_digest_loop())
+    try:
+        yield
+    finally:
+        sync_task.cancel()
+        digest_task.cancel()
 
 
 app = FastAPI(title="FinSight AI", version=settings.app_version, lifespan=lifespan)
@@ -64,6 +74,8 @@ app.include_router(goals.router)
 app.include_router(chat.router)
 app.include_router(integrations.router)
 app.include_router(capabilities.router)
+app.include_router(budgets.router)
+app.include_router(notifications.router)
 
 
 @app.get("/health")

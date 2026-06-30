@@ -153,6 +153,18 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleCategoryChange = async (id: string, category: string) => {
+    try {
+      await api.updateTransaction(id, { category });
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, category } : t)),
+      );
+      toast("Category updated");
+    } catch {
+      toast("Could not update category", "error");
+    }
+  };
+
   const handleExport = () => {
     exportToCsv(`transactions-${new Date().toISOString().slice(0, 10)}.csv`, [
       ["Date", "Description", "Amount", "Category", "Merchant", "Notes", "ID"],
@@ -283,10 +295,16 @@ export default function TransactionsPage() {
                       <p className="truncate text-zinc-200">{tx.description}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="rounded-full px-2.5 py-0.5 text-xs font-medium"
-                        style={{ backgroundColor: getCategoryColor(tx.category) + "25", color: getCategoryColor(tx.category) }}>
-                        {tx.category}
-                      </span>
+                      <select
+                        value={tx.category}
+                        onChange={(e) => void handleCategoryChange(tx.id, e.target.value)}
+                        className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-200"
+                        style={{ color: getCategoryColor(tx.category) }}
+                      >
+                        {CATEGORIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className={["px-4 py-3 text-right tabular-nums font-medium whitespace-nowrap",
                       tx.amount < 0 ? "text-rose-400" : "text-emerald-400",

@@ -178,11 +178,18 @@ function AccountCard({ account }: { account: Account }) {
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)]">
           <Icon size={20} className="text-[var(--accent)]" />
         </div>
-        <span
-          className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${typeStyle}`}
-        >
-          {account.account_type}
-        </span>
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {account.plaid_linked && (
+            <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-300">
+              Plaid
+            </span>
+          )}
+          <span
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${typeStyle}`}
+          >
+            {account.account_type}
+          </span>
+        </div>
       </div>
 
       <div>
@@ -191,7 +198,11 @@ function AccountCard({ account }: { account: Account }) {
       </div>
 
       <p className="flex items-center justify-between text-xs text-[var(--muted)]">
-        <span>Added {formatDate(account.created_at.slice(0, 10))}</span>
+        <span>
+          {account.last_synced_at
+            ? `Synced ${formatDate(account.last_synced_at.slice(0, 10))}`
+            : `Added ${formatDate(account.created_at.slice(0, 10))}`}
+        </span>
         <ChevronRight size={14} className="opacity-0 transition-opacity group-hover:opacity-100" />
       </p>
     </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   Download,
   Lock,
   Palette,
@@ -8,6 +9,7 @@ import {
   User,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
 import BankConnectPanel from "@/components/BankConnectPanel";
@@ -17,15 +19,21 @@ import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import type { AlertPreferences } from "@/lib/types";
 import { exportToCsv } from "@/lib/utils";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const authReady = useAuthReady();
   const [profile, setProfile] = useState<{ email: string; name: string } | null>(null);
   const [dataCounts, setDataCounts] = useState({ accounts: 0, transactions: 0 });
+  const [alertPrefs, setAlertPrefs] = useState<AlertPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportingJson, setExportingJson] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [sendingDigest, setSendingDigest] = useState(false);
 
   const fetchAll = useCallback(async () => {
     const [accounts, txList] = await Promise.all([
@@ -34,10 +42,12 @@ export default function SettingsPage() {
     ]);
 
     let prof: { email: string; name: string } | null = null;
+    let prefs: AlertPreferences | null = null;
     if (isSupabaseConfigured()) {
       try {
         const u = await api.getMe();
         prof = { email: u.email, name: u.name };
+        prefs = await api.getAlertPreferences();
       } catch {
         prof = null;
       }
@@ -45,6 +55,7 @@ export default function SettingsPage() {
 
     return {
       profile: prof,
+      prefs,
       accounts: accounts.length,
       transactions: txList.total,
     };
@@ -57,6 +68,7 @@ export default function SettingsPage() {
       .then((data) => {
         if (!active) return;
         setProfile(data.profile);
+        setAlertPrefs(data.prefs);
         setDataCounts({ accounts: data.accounts, transactions: data.transactions });
         setLoading(false);
       })
@@ -66,7 +78,7 @@ export default function SettingsPage() {
     return () => { active = false; };
   }, [authReady, fetchAll]);
 
-  const handleExportAll = async () => {
+  const handleExportCsv = async () => {
     setExporting(true);
     try {
       const txs = await api.getAllTransactions("2000-01-01", new Date().toISOString().slice(0, 10));
@@ -86,6 +98,63 @@ export default function SettingsPage() {
       toast("Export failed", "error");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleExportJson = async () => {
+    setExportingJson(true);
+    try {
+      const data = await api.exportMyData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "finsight-export.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("Full data export downloaded");
+    } catch {
+      toast("Export failed", "error");
+    } finally {
+      setExportingJson(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("Permanently delete your account and all data? This cannot be undone.")) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await api.deleteMyAccount();
+      toast("Account deleted");
+      router.push("/login");
+    } catch {
+      toast("Could not delete account", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const togglePref = async (key: keyof AlertPreferences, value: boolean) => {
+    try {
+      const updated = await api.updateAlertPreferences({ [key]: value });
+      setAlertPrefs(updated);
+      toast("Preferences saved");
+    } catch {
+      toast("Could not save preferences", "error");
+    }
+  };
+
+  const handleSendDigest = async () => {
+    setSendingDigest(true);
+    try {
+      await api.sendDigest();
+      toast("Weekly digest sent to your email");
+    } catch {
+      toast("Digest not sent — enable email digest and configure SMTP", "error");
+    } finally {
+      setSendingDigest(false);
     }
   };
 
@@ -125,8 +194,43 @@ export default function SettingsPage() {
         <BankConnectPanel />
       </div>
 
+      <section className="panel settings-card stagger-item" style={{ "--stagger": 3 } as CSSProperties}>
+        <div className="mb-4 flex items-center gap-2">
+          <Shield size={16} className="text-[var(--accent)]" />
+          <h2 className="section-title">Alerts</h2>
+        </div>
+        {loading || !alertPrefs ? (
+          <div className="h-16 shimmer rounded-xl" />
+        ) : (
+          <div className="space-y-3">
+            <PrefRow
+              label="Spend alerts"
+              desc="In-app notifications when you exceed a budget"
+              checked={alertPrefs.spend_alerts}
+              onChange={(v) => void togglePref("spend_alerts", v)}
+            />
+            <PrefRow
+              label="Weekly email digest"
+              desc="Monday summary of spending and alerts"
+              checked={alertPrefs.email_digest}
+              onChange={(v) => void togglePref("email_digest", v)}
+            />
+            {alertPrefs.email_digest && (
+              <button
+                type="button"
+                onClick={() => void handleSendDigest()}
+                disabled={sendingDigest}
+                className="btn-ghost text-xs disabled:opacity-50"
+              >
+                {sendingDigest ? "Sending…" : "Send test digest now"}
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
       <div className="settings-grid settings-grid--2">
-        <section className="panel settings-card stagger-item" style={{ "--stagger": 3 } as CSSProperties}>
+        <section className="panel settings-card stagger-item" style={{ "--stagger": 4 } as CSSProperties}>
           <div className="mb-4 flex items-center gap-2">
             <Palette size={16} className="text-[var(--accent)]" />
             <h2 className="section-title">Appearance</h2>
@@ -140,7 +244,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="panel settings-card stagger-item" style={{ "--stagger": 4 } as CSSProperties}>
+        <section className="panel settings-card stagger-item" style={{ "--stagger": 5 } as CSSProperties}>
           <div className="mb-4 flex items-center gap-2">
             <Shield size={16} className="text-[var(--accent)]" />
             <h2 className="section-title">Your data</h2>
@@ -155,27 +259,88 @@ export default function SettingsPage() {
         </section>
       </div>
 
-      <section className="panel settings-card stagger-item" style={{ "--stagger": 5 } as CSSProperties}>
+      <section className="panel settings-card stagger-item" style={{ "--stagger": 6 } as CSSProperties}>
         <div className="mb-4 flex items-center gap-2">
           <Lock size={16} className="text-[var(--accent)]" />
           <h2 className="section-title">Privacy</h2>
         </div>
         <p className="mb-4 text-sm leading-relaxed text-[var(--muted)]">
-          Only you can see your transactions and chat history. Download a full copy anytime.
+          Only you can see your transactions and chat history. Download a full copy anytime or
+          permanently delete your account.
         </p>
-        <button
-          type="button"
-          onClick={() => void handleExportAll()}
-          disabled={exporting}
-          className="btn-ghost inline-flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"
-        >
-          <Download size={15} className={exporting ? "animate-pulse" : ""} />
-          {exporting ? "Exporting…" : "Download transactions (CSV)"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void handleExportCsv()}
+            disabled={exporting}
+            className="btn-ghost inline-flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"
+          >
+            <Download size={15} className={exporting ? "animate-pulse" : ""} />
+            {exporting ? "Exporting…" : "Transactions (CSV)"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleExportJson()}
+            disabled={exportingJson}
+            className="btn-ghost inline-flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"
+          >
+            <Download size={15} className={exportingJson ? "animate-pulse" : ""} />
+            {exportingJson ? "Exporting…" : "Full export (JSON)"}
+          </button>
+        </div>
         <Link href="/privacy" className="link-accent mt-4 inline-block text-sm">
           Read our privacy policy →
         </Link>
+        <div className="mt-6 border-t border-[var(--border)] pt-4">
+          <button
+            type="button"
+            onClick={() => void handleDeleteAccount()}
+            disabled={deleting || !profile}
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 disabled:opacity-40"
+          >
+            <AlertTriangle size={15} />
+            {deleting ? "Deleting…" : "Delete my account"}
+          </button>
+        </div>
       </section>
+    </div>
+  );
+}
+
+function PrefRow({
+  label,
+  desc,
+  checked,
+  onChange,
+}: {
+  label: string;
+  desc: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-sm font-medium text-[var(--foreground)]">{label}</p>
+        <p className="text-xs text-[var(--muted)]">{desc}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={[
+          "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+          checked ? "bg-[var(--accent)]" : "bg-[var(--surface-elevated)]",
+        ].join(" ")}
+      >
+        <span
+          className={[
+            "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform",
+            checked ? "translate-x-5" : "translate-x-0.5",
+          ].join(" ")}
+        />
+      </button>
     </div>
   );
 }

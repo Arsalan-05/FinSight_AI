@@ -126,3 +126,27 @@ def test_delete_transaction(client):
 
     get_r = client.get(f"/transactions/{tx_id}")
     assert get_r.status_code == 404
+
+
+def test_patch_transaction_category(client):
+    user = _make_user(client)
+    account = _make_account(client, user["id"])
+
+    create_r = client.post(
+        "/transactions/",
+        json={
+            "account_id": account["id"],
+            "transaction_date": "2026-06-10",
+            "description": "Misc purchase",
+            "amount": -25.0,
+            "category": "Uncategorized",
+        },
+    )
+    tx_id = create_r.json()["id"]
+
+    patch_r = client.patch(
+        f"/transactions/{tx_id}",
+        json={"category": "Groceries"},
+    )
+    assert patch_r.status_code == 200
+    assert patch_r.json()["category"] == "Groceries"

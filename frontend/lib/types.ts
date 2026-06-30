@@ -12,6 +12,8 @@ export interface Account {
   institution: string;
   account_type: "checking" | "savings" | "credit";
   created_at: string;
+  plaid_linked?: boolean;
+  last_synced_at?: string | null;
 }
 
 export interface Transaction {
@@ -57,6 +59,7 @@ export interface CapabilitiesResponse {
     max_tool_rounds: number;
   };
   integrations: Record<string, boolean>;
+  beta?: { invite_only: boolean };
 }
 
 export interface DbHealthResponse {
@@ -173,6 +176,45 @@ export interface WeeklyBrief {
   alerts: Array<{ id: string; severity: string; title: string; body: string }>;
   tfsa: { limit: number; estimated_contributions: number; remaining_room: number; note?: string };
   subscriptions_monthly: number;
+}
+
+export interface Budget {
+  id: string;
+  category: string;
+  monthly_limit: number;
+  created_at: string;
+  spent_this_month: number;
+  percent_used: number;
+}
+
+export interface AppNotification {
+  id: string;
+  kind: string;
+  severity: string;
+  title: string;
+  body: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface AlertPreferences {
+  spend_alerts: boolean;
+  email_digest: boolean;
+}
+
+export interface SubscriptionItem {
+  merchant: string;
+  category: string;
+  amount: number;
+  occurrences: number;
+  last_date: string;
+  estimated_monthly: number;
+  transaction_ids: string[];
+}
+
+export interface SubscriptionsResponse {
+  items: SubscriptionItem[];
+  summary: { count: number; estimated_monthly_total: number };
 }
 
 export interface FinancialGoal {

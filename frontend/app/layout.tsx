@@ -24,8 +24,9 @@ export const metadata: Metadata = {
     "Understand your money — spending insights, smart search, and a personal finance advisor grounded in your real transactions.",
   applicationName: "FinSight",
   icons: {
-    icon: [{ url: "/icon", type: "image/png", sizes: "32x32" }],
-    apple: [{ url: "/apple-icon", type: "image/png", sizes: "180x180" }],
+    icon: [{ url: "/icon.svg", type: "image/svg+xml", sizes: "any" }],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml", sizes: "180x180" }],
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
   manifest: "/manifest.webmanifest",
   robots: { index: false, follow: false },

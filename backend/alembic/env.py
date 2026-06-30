@@ -9,13 +9,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Pull DATABASE_URL from settings (loads .env from repo root or backend/)
-from app.config import settings  # noqa: E402
+# Pull DATABASE_URL from runtime engine (includes Supabase → local fallback)
+from db.base import DATABASE_URL  # noqa: E402
 
 # ConfigParser treats % as interpolation — escape URL-encoded passwords (e.g. %40 for @)
 config.set_main_option(
     "sqlalchemy.url",
-    settings.database_url_resolved.replace("%", "%%"),
+    DATABASE_URL.replace("%", "%%"),
 )
 
 # Import Base + all models so autogenerate picks up every table

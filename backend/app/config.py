@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     log_level: str = "INFO"
-    app_version: str = "1.2.0"
+    app_version: str = "1.3.0"
 
     # Web search — Tavily optional; DuckDuckGo fallback when enabled
     tavily_api_key: str = ""
@@ -65,6 +65,20 @@ class Settings(BaseSettings):
     plaid_client_id: str = ""
     plaid_secret: str = ""
     plaid_env: str = "sandbox"  # sandbox | development | production
+    plaid_token_encryption_key: str = ""
+    plaid_sync_interval_seconds: int = 14_400  # 4 hours
+    plaid_webhook_secret: str = ""
+
+    # Beta invite-only access (comma-separated emails; empty = open)
+    beta_allowed_emails: str = ""
+
+    # SMTP for weekly digest emails (optional)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
 
     @property
     def plaid_enabled(self) -> bool:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,8 @@ from app.auth import get_current_user
 from app.demo_provision import ensure_user_has_data
 from app.dependencies import get_db
 from app.schemas import BootstrapOut, UserOut
+from app.user_data import delete_user_and_data, export_user_data
+from notifications.digest import send_weekly_digest_to_user
 from db.base import DATABASE_URL, engine
 from db.models import Account, Transaction, User
 
@@ -68,3 +70,36 @@ def bootstrap(
         account_count=account_count,
         transaction_count=tx_count,
     )
+
+
+@router.get("/me/export")
+def export_me(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Download all user data as JSON."""
+    return export_user_data(db, user)
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Permanently delete the authenticated user and all financial data."""
+    delete_user_and_data(db, user)
+
+
+@router.post("/me/send-digest")
+def send_digest_now(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    """Trigger a weekly money brief email for the current user (beta testing)."""
+    sent = send_weekly_digest_to_user(db, user)
+    if not sent:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email digest not sent — enable email_digest in alert preferences and configure SMTP.",
+        )
+    return {"sent": True}

@@ -70,3 +70,7 @@ def sync_transactions(access_token: str, cursor: str = "") -> dict[str, Any]:
 
 def get_item(access_token: str) -> dict[str, Any]:
     return _post("/item/get", {"access_token": access_token})
+
+
+def remove_item(access_token: str) -> dict[str, Any]:
+    return _post("/item/remove", {"access_token": access_token})

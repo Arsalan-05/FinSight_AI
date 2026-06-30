@@ -1,5 +1,8 @@
 import type {
   Account,
+  AlertPreferences,
+  AppNotification,
+  Budget,
   ChatSessionDetail,
   ChatSessionSummary,
   ChatSSEEvent,
@@ -13,6 +16,7 @@ import type {
   DbHealthResponse,
   InsightsResponse,
   SearchResponse,
+  SubscriptionsResponse,
   Transaction,
   TransactionList,
   User,
@@ -135,6 +139,19 @@ export const api = {
   deleteTransaction: (id: string): Promise<void> =>
     request(`/transactions/${id}`, { method: "DELETE" }),
 
+  updateTransaction: (
+    id: string,
+    data: { category?: string; merchant?: string; notes?: string; description?: string },
+  ): Promise<Transaction> =>
+    request(`/transactions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  exportMyData: (): Promise<Record<string, unknown>> => request("/auth/me/export"),
+
+  deleteMyAccount: (): Promise<void> => request("/auth/me", { method: "DELETE" }),
+
+  sendDigest: (): Promise<{ sent: boolean }> =>
+    request("/auth/me/send-digest", { method: "POST" }),
+
   uploadCsv: async (
     file: File,
     account_id: string,
@@ -157,6 +174,37 @@ export const api = {
   getInsights: (): Promise<InsightsResponse> => request("/insights/"),
 
   getWeeklyBrief: (): Promise<WeeklyBrief> => request("/insights/weekly-brief"),
+
+  getSubscriptions: (): Promise<SubscriptionsResponse> =>
+    request("/insights/subscriptions"),
+
+  getBudgets: (): Promise<Budget[]> => request("/budgets/"),
+
+  createBudget: (data: { category: string; monthly_limit: number }) =>
+    request<Budget>("/budgets/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  deleteBudget: (id: string): Promise<void> =>
+    request(`/budgets/${id}`, { method: "DELETE" }),
+
+  getNotifications: (): Promise<AppNotification[]> => request("/notifications/"),
+
+  markNotificationRead: (id: string) =>
+    request<AppNotification>(`/notifications/${id}/read`, { method: "POST" }),
+
+  markAllNotificationsRead: (): Promise<void> =>
+    request("/notifications/read-all", { method: "POST" }),
+
+  getAlertPreferences: (): Promise<AlertPreferences> =>
+    request("/notifications/preferences"),
+
+  updateAlertPreferences: (data: Partial<AlertPreferences>) =>
+    request<AlertPreferences>("/notifications/preferences", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
 
   getGoals: (): Promise<FinancialGoal[]> => request("/goals/"),
 
