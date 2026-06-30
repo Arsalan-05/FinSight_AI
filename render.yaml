@@ -24,6 +24,10 @@ services:
         value: INFO
       - key: DATABASE_URL
         sync: false
+      - key: SUPABASE_DB_PASSWORD
+        sync: false
+      - key: SUPABASE_POOLER_HOST
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: CORS_ORIGINS

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -32,6 +34,8 @@ class Settings(BaseSettings):
     # When true, backend uses Supabase hosted Postgres (requires supabase_db_password)
     use_supabase_db: bool = False
     supabase_db_password: str = ""
+    # Session pooler host (Supabase → Connect → Session pooler)
+    supabase_pooler_host: str = ""
 
     # Local Postgres used when Supabase direct/pooler is unreachable (campus Wi-Fi, etc.)
     database_fallback_url: str = "postgresql://finsight:finsight@localhost:5432/finsight"
@@ -124,29 +128,64 @@ class Settings(BaseSettings):
 
     @property
     def database_url_resolved(self) -> str:
-        """Postgres URL — use DATABASE_URL if Supabase pooler/direct, else build from password."""
+        """Postgres URL — prefer session pooler; direct db.* hosts fail from cloud deploys."""
         url = self.database_url
-        if "supabase.co" in url or "pooler.supabase.com" in url:
-            return _normalize_supabase_database_url(url)
-        if not self.use_supabase_db and not self.supabase_db_password:
-            return url
-        if not self.supabase_url or not self.supabase_db_password:
-            return url
-        from urllib.parse import quote_plus
+        pooler = _supabase_session_pooler_url(self, url)
 
-        host = self.supabase_url.rstrip("/").replace("https://", "").replace("http://", "")
-        ref = host.replace(".supabase.co", "")
-        pwd = quote_plus(self.supabase_db_password)
-        # Session pooler — works from cloud hosts (Render); avoid direct db.* host.
-        return (
-            f"postgresql://postgres.{ref}:{pwd}@aws-1-us-east-2.pooler.supabase.com:5432/postgres"
-            f"?sslmode=require"
-        )
+        if "pooler.supabase.com" in url:
+            return _normalize_supabase_database_url(url)
+        if _is_direct_supabase_db_url(url):
+            return pooler or _normalize_supabase_database_url(url)
+        if pooler and (self.use_supabase_db or self.supabase_db_password):
+            return pooler
+        if "supabase.co" in url:
+            return _normalize_supabase_database_url(url)
+        return url
 
     @property
     def using_supabase_postgres(self) -> bool:
         url = self.database_url_resolved
         return "supabase.co" in url or "pooler.supabase.com" in url
+
+
+def _supabase_project_ref(supabase_url: str) -> str | None:
+    host = supabase_url.rstrip("/").replace("https://", "").replace("http://", "")
+    if not host.endswith(".supabase.co"):
+        return None
+    return host.replace(".supabase.co", "")
+
+
+def _is_direct_supabase_db_url(url: str) -> bool:
+    from urllib.parse import urlparse
+
+    host = urlparse(url).hostname or ""
+    return host.startswith("db.") and host.endswith(".supabase.co")
+
+
+def _supabase_session_pooler_url(settings: Settings, database_url: str = "") -> str | None:
+    """Build session-pooler URL from SUPABASE_URL + password (no manual URL encoding)."""
+    from urllib.parse import quote_plus, unquote, urlparse
+
+    ref = _supabase_project_ref(settings.supabase_url) if settings.supabase_url else None
+    if not ref and database_url:
+        host = urlparse(database_url).hostname or ""
+        if host.startswith("db.") and host.endswith(".supabase.co"):
+            ref = host.removeprefix("db.").removesuffix(".supabase.co")
+
+    password = settings.supabase_db_password
+    if not password and database_url:
+        parsed = urlparse(database_url)
+        if parsed.password:
+            password = unquote(parsed.password)
+
+    if not ref or not password:
+        return None
+
+    pooler_host = settings.supabase_pooler_host or "aws-1-us-east-2.pooler.supabase.com"
+    pwd = quote_plus(password)
+    return (
+        f"postgresql://postgres.{ref}:{pwd}@{pooler_host}:5432/postgres?sslmode=require"
+    )
 
 
 def _normalize_supabase_database_url(url: str) -> str:
