@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Search,
   Settings,
+  Receipt,
   Users,
   X,
 } from "lucide-react";
@@ -16,8 +17,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 
+import { BetaBanner } from "@/components/BetaBanner";
 import { LogoMark, LogoWordmark } from "@/components/brand/Logo";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { NotificationBell } from "@/components/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
@@ -26,6 +29,7 @@ const NAV = [
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/transactions", label: "Transactions", icon: CreditCard },
   { href: "/accounts", label: "Accounts", icon: Users },
+  { href: "/subscriptions", label: "Subscriptions", icon: Receipt },
   { href: "/search", label: "Search", icon: Search },
   { href: "/chat", label: "Advisor", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -88,11 +92,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ].join(" ")}
       >
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-[var(--border)] px-5">
-          <Link href="/" className="flex min-w-0 items-center gap-3">
-            <span className="shrink-0 overflow-hidden rounded-xl">
-              <LogoMark size={36} />
+          <Link href="/" className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="logo-float flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl shadow-lg shadow-teal-900/25">
+              <LogoMark size={40} className="rounded-xl" />
             </span>
-            <LogoWordmark />
+            <LogoWordmark subtitle="Intelligence" />
           </Link>
         </div>
 
@@ -131,6 +135,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <ThemeToggle />
               {isSupabaseConfigured() && (
                 <button
@@ -149,6 +154,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className={`min-h-screen md:pl-64 ${pathname.startsWith("/chat") ? "md:px-4" : ""}`}>
+        <BetaBanner />
         <main
           className={[
             "min-h-screen pb-10 pt-[4.5rem] md:pt-8",

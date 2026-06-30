@@ -1,7 +1,35 @@
 # FinSight AI — Project Documentation
 
 > **Author:** Arsalan Amir Ali — portfolio project, built and maintained by me.  
-> **Status:** ✅ **PRIVATE · PRODUCTION-GRADE** — v1.2, fully tested, deploy-ready, not public.
+> **Status:** ✅ **PRIVATE · PRODUCTION-GRADE** — v1.3, startup MVP shipped, 91 tests, deploy-ready.
+
+---
+
+## Restart everything (clean local start)
+
+Use this when data stops loading, port 8000 is stuck, or after pulling new code:
+
+```bash
+# 1 — Stop stuck processes (macOS)
+lsof -tiTCP:8000 -sTCP:LISTEN | xargs kill -9 2>/dev/null
+lsof -tiTCP:3000 -sTCP:LISTEN | xargs kill -9 2>/dev/null
+
+# 2 — Database (local Docker — always run this for dev fallback)
+docker compose up -d db
+
+# 3 — Migrations (uses same DB URL as the running app, with Supabase → local fallback)
+cd backend && uv sync && uv run alembic upgrade head
+
+# 4 — Backend (terminal 1)
+cd backend && uv run uvicorn app.main:app --reload --port 8000
+
+# 5 — Frontend (terminal 2)
+cd frontend && npm run dev
+```
+
+Open **http://localhost:3000** → hard refresh (`Cmd+Shift+R`) if the tab icon looks stale.
+
+**Local dev tip:** If Supabase Postgres is unreachable, set `USE_SUPABASE_DB=false` and `DATABASE_URL=postgresql://finsight:finsight@localhost:5432/finsight` in `.env` so auth (Supabase) and data (Docker) are clearly separated.
 
 ---
 
@@ -38,7 +66,7 @@ cd backend && uv run pytest -q
 cd frontend && npm run lint && npm run type-check && npm run build
 ```
 
-Expected: **16/16** e2e checkpoints, **76** tests passing, frontend build clean.
+Expected: **16/16** e2e checkpoints, **91** tests passing, frontend build clean.
 
 **Campus Wi-Fi note:** If Supabase Postgres is unreachable, keep `docker compose up -d db` running — the backend auto-falls back to local Postgres (`DATABASE_FALLBACK_ENABLED=true` in `.env.example`).
 
@@ -66,7 +94,7 @@ Expected: **16/16** e2e checkpoints, **76** tests passing, frontend build clean.
 18. [How I Explain It (Interviews)](#18-how-i-explain-it-interviews)
 19. [Out of Scope](#19-out-of-scope)
 20. [Development Commands](#20-development-commands)
-21. [Project Complete](#21-project-complete)
+21. [Project Status](#21-project-status)
 
 ---
 
@@ -240,7 +268,7 @@ FinSight_AI/
 │   ├── scripts/
 │   │   ├── seed.py           # Canadian demo data
 │   │   └── check_e2e.py      # Full-stack checkpoint script
-│   └── tests/                # 76 pytest tests
+│   └── tests/                # 91 pytest tests
 │
 ├── frontend/
 │   ├── app/                  # Next.js pages (dashboard, chat, etc.)
@@ -383,6 +411,7 @@ Auth: `Authorization: Bearer <supabase_access_token>` on all routes except `/hea
 | POST | `/transactions/upload` | CSV upload (multipart, auto bank-detect) |
 | GET | `/transactions/` | List with filters: `account_id`, `category`, `date_from`, `date_to`, `limit`, `offset` |
 | GET | `/transactions/{id}` | Get one |
+| PATCH | `/transactions/{id}` | Update category, merchant, notes, description |
 | DELETE | `/transactions/{id}` | Delete (cascades embedding) |
 
 **CSV required columns:** `date`, `description`, `amount`  
@@ -399,6 +428,41 @@ Auth: `Authorization: Bearer <supabase_access_token>` on all routes except `/hea
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/insights/` | Proactive cards: subscriptions, rent ratio, runway, TFSA, anomalies, credit |
+| GET | `/insights/weekly-brief` | Structured weekly money brief (headline, sections, alerts) |
+| GET | `/insights/subscriptions` | Recurring charges list + monthly total |
+
+### Auth & data rights
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/auth/me` | Current user |
+| GET | `/auth/me/export` | Full JSON export (accounts, txs, goals, chat metadata) |
+| DELETE | `/auth/me` | Cascade delete user and all data |
+| POST | `/auth/me/send-digest` | Trigger weekly email digest (requires SMTP + prefs) |
+
+### Budgets & notifications
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/budgets/` | List budgets with current-month spend |
+| POST | `/budgets/` | Create monthly category budget |
+| DELETE | `/budgets/{id}` | Remove budget |
+| GET | `/notifications/` | In-app alert inbox |
+| POST | `/notifications/{id}/read` | Mark one read |
+| POST | `/notifications/read-all` | Mark all read |
+| GET/PATCH | `/notifications/preferences` | Spend alerts + email digest toggles |
+
+### Plaid (optional)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/integrations/plaid/status` | Whether Plaid is configured |
+| POST | `/integrations/plaid/link-token` | Create Link token |
+| POST | `/integrations/plaid/exchange` | Exchange public token |
+| GET | `/integrations/plaid/connections` | List bank connections |
+| POST | `/integrations/plaid/sync` | Manual sync all connections |
+| POST | `/integrations/plaid/webhook` | Plaid webhook receiver |
+| DELETE | `/integrations/plaid/connections/{id}` | Hard disconnect (`item/remove`) |
 
 ### Goals
 
@@ -550,13 +614,16 @@ Live USD/CAD, EUR/CAD, GBP/CAD from Bank of Canada API.
 
 | Route | Features |
 |-------|----------|
-| `/` | Dashboard — KPIs, insight cards, spend chart, recent transactions |
+| `/` | Dashboard — KPIs, weekly brief, spend alerts, budgets, goals, TFSA, spend chart |
 | `/analytics` | Period selector, charts, top merchants, CSV export |
-| `/transactions` | CRUD table, filters, bulk delete, CSV upload |
-| `/accounts` | Account management |
-| `/search` | Semantic search with example queries |
-| `/chat` | SSE streaming chat with citations, live status, history sidebar (pin/rename/delete) |
-| `/settings` | Health, DB status, goals, export |
+| `/transactions` | CRUD table, inline category edit, filters, bulk delete, CSV upload |
+| `/accounts` | Account management; Plaid badge + last-synced on cards |
+| `/accounts/[id]` | Account detail with recent transactions |
+| `/subscriptions` | Recurring charges, monthly total, Ask Advisor links |
+| `/search` | Semantic search with presets |
+| `/chat` | SSE streaming chat with citations, live status, history sidebar |
+| `/settings` | Banks, alert prefs, export, account deletion |
+| `/privacy` | Public privacy policy (no auth shell) |
 | `/login` | Google OAuth + email magic link |
 
 ### Key implementation details
@@ -734,7 +801,7 @@ On first login, `POST /auth/sync` clones demo data (accounts + transactions + em
 
 ```bash
 cd backend
-uv run pytest -q                    # 76 tests
+uv run pytest -q                    # 91 tests
 uv run ruff check .                 # lint
 uv run ruff format .                # format
 uv run mypy app/ agent/ db/ rag/ insights/   # type check
@@ -818,7 +885,7 @@ Supabase issues ES256 JWTs. My backend fetches the JWKS public key, verifies the
 Zero API cost while I'm iterating. The architecture swaps to Anthropic or Voyage via env vars when I want higher quality.
 
 **What would I add next at scale?**  
-Flinks/Plaid bank sync, Redis-backed rate limiting across replicas, and full observability (OpenTelemetry).
+Redis-backed rate limiting across replicas, full observability (OpenTelemetry), and household/shared finances once single-user PMF is proven.
 
 ### Design trade-offs I made
 
@@ -833,16 +900,19 @@ Flinks/Plaid bank sync, Redis-backed rate limiting across replicas, and full obs
 
 ---
 
-## 19. Out of Scope
+## 19. Out of Scope (for now)
 
-Things I intentionally left out (paid contracts, legal review, or ops beyond this build):
+Things intentionally deferred beyond the startup MVP path:
 
 | Item | Reason |
 |------|--------|
-| Flinks / Plaid live bank sync | **Plaid optional** — compliant OAuth via Settings; CSV always available |
-| Mobile native apps | Responsive web is sufficient |
-| CRA e-filing | Regulated tax filing |
+| Flinks (alternative bank aggregator) | Plaid covers compliant OAuth bank link |
+| Mobile native apps | Responsive web + PWA install prompt is enough for beta |
+| CRA e-filing | Regulated tax filing — TFSA *awareness* only |
+| Household / shared finances | Schema + permissions redesign; defer until PMF |
 | Paid Claude/Voyage in CI | Ollama covers free CI path |
+
+**In scope (v1.3 startup path):** Plaid webhooks + background sync, budgets + in-app alerts, `DELETE /auth/me` + JSON export, subscriptions page, invite-only beta, weekly email digest.
 
 ---
 
@@ -875,40 +945,61 @@ docker compose up --build
 
 ---
 
-## 21. Project Complete
+## 21. Project Status
 
-**FinSight AI v1.2 — private, production-grade, complete.**
+**FinSight AI v1.3 — portfolio-complete and startup MVP path shipped (June 2026).**
 
-I built this as my personal finance intelligence portfolio system — end to end. The repo stays **private** on GitHub. The codebase is **deploy-ready** (Railway configs included) but I run it locally by default with Ollama.
+Private portfolio system with a credible Canadian fintech MVP layer: bank sync lifecycle, budgets, alerts, data rights, and distribution hooks.
+
+### Completion score (out of 100)
+
+| Lens | Score | Notes |
+|------|-------|-------|
+| **Portfolio / interview** | **96** | Full-stack agent + RAG + auth + deploy + 91 tests — interview-ready |
+| **Startup MVP (code shipped)** | **82** | Phases A–C implemented; Plaid production keys + live users not validated |
+| **Startup MVP (live product)** | **68** | Needs stable DB URL, production deploy, 10+ beta users with retention data |
+| **Consumer fintech parity** | **55** | No native mobile, push alerts, or household mode — intentionally deferred |
+| **Overall project maturity** | **85** | Strong engineering; distribution and ops are the remaining gap |
+
+**Bottom line:** You are past “student project” and into “credible invite-only beta.” The next 15 points come from **deploying**, **fixing DB connectivity**, and **proving retention with real users** — not more features.
 
 ### What ships
 
 | Layer | Delivered |
 |-------|-----------|
 | **Data** | PostgreSQL + pgvector, Alembic migrations, Canadian bank CSV ingest, per-user scoping, optional Supabase RLS |
-| **Auth** | Supabase Google OAuth, JWT verification, demo provisioning for new users |
+| **Auth** | Supabase Google OAuth, JWT verification, invite-only beta (`BETA_ALLOWED_EMAILS`), demo provisioning |
+| **Bank link** | Plaid Link, webhooks, background sync, modified/removed txs, encrypted tokens, hard disconnect |
+| **Trust** | `GET /auth/me/export`, `DELETE /auth/me` cascade, public `/privacy` |
 | **RAG** | Transaction embeddings, semantic search, HNSW index |
-| **Agent** | ReAct loop with SQL + retrieval + **web search** + **learned user profile** from transaction history |
-| **Intelligence** | SQL spending fingerprint, persistent `agent_profile_json`, session memory, goals injection |
+| **Agent** | ReAct loop with SQL + retrieval + web search + learned user profile |
+| **Retention** | Budgets, in-app notifications, weekly brief API + email digest |
+| **Insights** | Subscriptions page, TFSA room, spend alerts, weekly brief panel |
 | **Chat** | Saved history, pin/rename/delete, live status streaming, citations |
-| **Market data** | Live stock/ETF quotes (Yahoo + optional Finnhub), live BoC FX |
-| **Frontend** | Dashboard, analytics, transactions, search, chat, settings — error/loading states, system health |
+| **Frontend** | Dashboard, analytics, transactions, subscriptions, search, chat, settings — notification bell, unified SVG branding |
 | **Reliability** | DB fallback, JSON logs in prod, `/health/ready`, rate limiting, request IDs |
-| **Deploy** | Railway configs + `infra/railway/DEPLOY.md` (optional — use when I want a live URL) |
-| **Docs** | This file — startup, API, troubleshooting, interview notes |
+| **Deploy** | Railway configs + `infra/railway/DEPLOY.md` |
+
+### Startup roadmap (completed phases)
+
+| Phase | Exit criteria |
+|-------|----------------|
+| **A — Trust + data** | Plaid auto-sync, PATCH transactions, export + delete account |
+| **B — Retention** | Budget bars, alert inbox, subscriptions page |
+| **C — Distribution** | Beta allowlist, weekly digest email, production deploy docs |
 
 ### Private vs deployed
 
 | Mode | How |
 |------|-----|
-| **Local (default)** | Docker Postgres + Ollama + `npm run dev` — see [Startup Guide](#startup-guide-read-this-first) |
-| **Private deploy** | Railway + Supabase — repo stays private; app URL can be invite-only via Supabase auth |
-| **Not planned** | Public repo, open registration, Flinks (Plaid covers compliant bank link) |
+| **Local (default)** | Docker Postgres + Ollama + `npm run dev` |
+| **Private deploy** | Railway + Supabase — `BETA_ALLOWED_EMAILS` for invite-only |
+| **Not planned** | Public repo, open registration, Flinks |
 
 ### Final verification (June 2026)
 
 ```bash
-cd backend && uv run pytest -q          # 81 passed
+cd backend && uv run pytest -q          # 91 passed
 cd backend && uv run ruff check .       # clean
 cd frontend && npm run lint && npm run type-check && npm run build   # clean
 ```
@@ -917,7 +1008,7 @@ cd frontend && npm run lint && npm run type-check && npm run build   # clean
 
 Private GitHub portfolio repository. To run locally, follow the [Startup Guide](#startup-guide-read-this-first).
 
-**FinSight AI v1.2 is complete and production-grade for a private portfolio system.**
+**FinSight AI v1.3 is production-grade for a private portfolio system and credible for an invite-only startup beta.**
 
 ---
 
@@ -927,4 +1018,4 @@ Private project — not licensed for redistribution.
 
 ---
 
-*Last updated: June 2026 — FinSight AI v1.2.0 (PRIVATE · PRODUCTION-GRADE)*
+*Last updated: June 2026 — FinSight AI v1.3.0 (PRIVATE · STARTUP MVP)*

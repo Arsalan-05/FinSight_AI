@@ -16,6 +16,18 @@ from db.models import User
 logger = logging.getLogger(__name__)
 
 
+def _check_beta_access(email: str) -> None:
+    allowed_raw = settings.beta_allowed_emails.strip()
+    if not allowed_raw or not email:
+        return
+    allowed = {e.strip().lower() for e in allowed_raw.split(",") if e.strip()}
+    if email.lower() not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="FinSight is in invite-only beta. Contact support for access.",
+        )
+
+
 @lru_cache(maxsize=1)
 def _jwks_client() -> PyJWKClient:
     if not settings.supabase_url:
@@ -80,6 +92,7 @@ def _sync_user_from_claims(db: Session, claims: dict[str, Any]) -> User:
             user.name = name
             db.commit()
             db.refresh(user)
+        _check_beta_access(email)
         return user
 
     if email:
@@ -90,8 +103,10 @@ def _sync_user_from_claims(db: Session, claims: dict[str, Any]) -> User:
                 existing.name = name
             db.commit()
             db.refresh(existing)
+            _check_beta_access(email)
             return existing
 
+    _check_beta_access(email)
     user = User(auth_id=auth_id, email=email or f"{auth_id}@supabase.local", name=name)
     db.add(user)
     db.commit()

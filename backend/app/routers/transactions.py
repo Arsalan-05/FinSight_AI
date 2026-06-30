@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user_optional
 from app.config import settings
 from app.dependencies import get_db
-from app.schemas import TransactionCreate, TransactionListOut, TransactionOut
+from app.schemas import TransactionCreate, TransactionListOut, TransactionOut, TransactionUpdate
 from app.scoping import assert_account_owned, scope_transactions
 from db.models import Transaction, TransactionEmbedding, User
 from ingest.bank_csv import detect_and_parse_csv, guess_merchant
@@ -61,6 +61,10 @@ def create_transaction(
     db.commit()
     db.refresh(tx)
     _embed_and_store([tx], db)
+    if current_user:
+        from notifications.alerts import check_budget_alerts
+
+        check_budget_alerts(db, current_user)
     return tx
 
 
@@ -160,6 +164,32 @@ def get_transaction(
     tx = q.filter(Transaction.id == transaction_id).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
+    return tx
+
+
+@router.patch("/{transaction_id}", response_model=TransactionOut)
+def update_transaction(
+    transaction_id: str,
+    payload: TransactionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+) -> Transaction:
+    q = scope_transactions(db.query(Transaction), db, current_user)
+    tx = q.filter(Transaction.id == transaction_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        return tx
+    for key, value in data.items():
+        setattr(tx, key, value)
+    db.commit()
+    db.refresh(tx)
+    _embed_and_store([tx], db)
+    if current_user:
+        from notifications.alerts import check_budget_alerts
+
+        check_budget_alerts(db, current_user)
     return tx
 
 

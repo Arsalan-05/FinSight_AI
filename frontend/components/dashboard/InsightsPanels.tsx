@@ -5,13 +5,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import type { WeeklyBrief } from "@/lib/types";
 
 export function WeeklyBriefPanel({ stagger = 1 }: { stagger?: number }) {
+  const authReady = useAuthReady();
   const [brief, setBrief] = useState<WeeklyBrief | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!authReady) return;
     let active = true;
     api
       .getWeeklyBrief()
@@ -27,9 +30,9 @@ export function WeeklyBriefPanel({ stagger = 1 }: { stagger?: number }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authReady]);
 
-  if (loading) {
+  if (!authReady || loading) {
     return <div className="panel h-40 shimmer rounded-2xl" />;
   }
   if (!brief || brief.sections.length === 0) return null;
@@ -71,10 +74,12 @@ export function WeeklyBriefPanel({ stagger = 1 }: { stagger?: number }) {
 }
 
 export function SpendAlertsPanel({ stagger = 2 }: { stagger?: number }) {
+  const authReady = useAuthReady();
   const [alerts, setAlerts] = useState<WeeklyBrief["alerts"]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!authReady) return;
     let active = true;
     api
       .getWeeklyBrief()
@@ -90,9 +95,9 @@ export function SpendAlertsPanel({ stagger = 2 }: { stagger?: number }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authReady]);
 
-  if (loading || alerts.length === 0) return null;
+  if (!authReady || loading || alerts.length === 0) return null;
 
   return (
     <section
@@ -121,9 +126,11 @@ export function SpendAlertsPanel({ stagger = 2 }: { stagger?: number }) {
 }
 
 export function TfsaRoomCard({ stagger = 3 }: { stagger?: number }) {
+  const authReady = useAuthReady();
   const [tfsa, setTfsa] = useState<WeeklyBrief["tfsa"] | null>(null);
 
   useEffect(() => {
+    if (!authReady) return;
     let active = true;
     api
       .getWeeklyBrief()
@@ -134,9 +141,9 @@ export function TfsaRoomCard({ stagger = 3 }: { stagger?: number }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authReady]);
 
-  if (!tfsa) return null;
+  if (!authReady || !tfsa) return null;
 
   const used = tfsa.estimated_contributions;
   const pct = tfsa.limit > 0 ? Math.min(100, (used / tfsa.limit) * 100) : 0;

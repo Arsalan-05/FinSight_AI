@@ -48,6 +48,8 @@ class AccountOut(BaseModel):
     institution: str
     account_type: str
     created_at: datetime
+    plaid_linked: bool = False
+    last_synced_at: datetime | None = None
 
 
 # ── Transaction ───────────────────────────────────────────────────────────────
@@ -80,6 +82,13 @@ class TransactionOut(BaseModel):
 class TransactionListOut(BaseModel):
     total: int
     items: list[TransactionOut]
+
+
+class TransactionUpdate(BaseModel):
+    description: str | None = None
+    category: str | None = None
+    merchant: str | None = None
+    notes: str | None = None
 
 
 # ── Chat ──────────────────────────────────────────────────────────────────────
@@ -141,6 +150,49 @@ class PlaidSyncResultOut(BaseModel):
     connection_id: str
     institution: str
     added: int | None = None
+    modified: int | None = None
+    removed: int | None = None
     modified_seen: int | None = None
     last_synced_at: str | None = None
     error: str | None = None
+
+
+class BudgetCreate(BaseModel):
+    category: str
+    monthly_limit: float
+
+
+class BudgetOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: str
+    category: str
+    monthly_limit: float
+    created_at: datetime
+
+
+class BudgetWithSpendOut(BudgetOut):
+    spent_this_month: float = 0
+    percent_used: float = 0
+
+
+class NotificationOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: str
+    kind: str
+    severity: str
+    title: str
+    body: str
+    read: bool
+    created_at: datetime
+
+
+class AlertPreferencesIn(BaseModel):
+    spend_alerts: bool | None = None
+    email_digest: bool | None = None
+
+
+class AlertPreferencesOut(BaseModel):
+    spend_alerts: bool = True
+    email_digest: bool = False

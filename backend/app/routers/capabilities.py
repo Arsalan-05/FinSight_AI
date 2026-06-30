@@ -55,4 +55,7 @@ def capabilities() -> dict[str, object]:
             "structured_logging_production",
             "per_user_data_scoping",
         ],
+        "beta": {
+            "invite_only": bool(settings.beta_allowed_emails.strip()),
+        },
     }

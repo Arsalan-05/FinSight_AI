@@ -1,10 +1,10 @@
-"""Plaid bank connections — link token, exchange, sync."""
+"""Plaid bank connections — link token, exchange, sync, webhooks."""
 
 from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -17,13 +17,16 @@ from app.schemas import (
     PlaidSyncResultOut,
 )
 from db.models import BankConnection, User
+from integrations.plaid_background import sync_all_active_connections
 from integrations.plaid_client import (
     create_link_token,
     exchange_public_token,
     get_item,
     plaid_configured,
+    remove_item,
 )
 from integrations.plaid_sync import sync_connection
+from integrations.token_crypto import connection_access_token, encrypt_token
 
 router = APIRouter(prefix="/integrations/plaid", tags=["integrations"])
 
@@ -80,16 +83,17 @@ def plaid_exchange(
         )
         .first()
     )
+    stored_token = encrypt_token(access_token)
     if existing:
         conn = existing
-        conn.access_token = access_token
+        conn.access_token = stored_token
         conn.status = "active"
     else:
         conn = BankConnection(
             id=str(uuid.uuid4()),
             user_id=current_user.id,
             item_id=item_id,
-            access_token=access_token,
+            access_token=stored_token,
             institution_name=institution_name,
             institution_id=institution or None,
         )
@@ -149,6 +153,43 @@ def sync_all(
     return results
 
 
+@router.post("/webhook")
+async def plaid_webhook(request: Request, db: Session = Depends(get_db)) -> dict[str, bool]:
+    """Plaid TRANSACTIONS webhooks trigger sync for the linked item."""
+    body = await request.json()
+    webhook_type = body.get("webhook_type")
+    webhook_code = body.get("webhook_code")
+    if webhook_type == "TRANSACTIONS" and webhook_code in {
+        "SYNC_UPDATES_AVAILABLE",
+        "DEFAULT_UPDATE",
+        "INITIAL_UPDATE",
+        "HISTORICAL_UPDATE",
+    }:
+        item_id = body.get("item_id")
+        if item_id:
+            conn = (
+                db.query(BankConnection)
+                .filter(
+                    BankConnection.item_id == item_id,
+                    BankConnection.status == "active",
+                )
+                .first()
+            )
+            if conn:
+                try:
+                    sync_connection(db, conn)
+                except RuntimeError:
+                    pass
+    return {"ok": True}
+
+
+@router.post("/sync-all", include_in_schema=False)
+def sync_all_connections_admin(db: Session = Depends(get_db)) -> dict[str, int]:
+    """Background-style sync for all active connections (callable by cron)."""
+    count = sync_all_active_connections(db)
+    return {"synced": count}
+
+
 @router.delete("/connections/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
 def disconnect(
     connection_id: str,
@@ -158,5 +199,10 @@ def disconnect(
     conn = db.get(BankConnection, connection_id)
     if not conn or conn.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Connection not found")
+    if conn.status == "active" and plaid_configured():
+        try:
+            remove_item(connection_access_token(conn))
+        except RuntimeError:
+            pass
     conn.status = "disconnected"
     db.commit()

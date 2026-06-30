@@ -28,6 +28,11 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     goals_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     agent_profile_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    alert_prefs_json: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='{"spend_alerts": true, "email_digest": false}',
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     accounts: Mapped[list[Account]] = relationship("Account", back_populates="user")
@@ -133,3 +138,30 @@ class TransactionEmbedding(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     transaction: Mapped[Transaction] = relationship("Transaction", back_populates="embedding")
+
+
+class Budget(Base):
+    __tablename__ = "budgets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+    monthly_limit: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(50), nullable=False, default="info")
+    severity: Mapped[str] = mapped_column(String(20), nullable=False, default="info")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

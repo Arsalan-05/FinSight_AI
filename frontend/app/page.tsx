@@ -21,6 +21,7 @@ import {
 import { KpiCard } from "@/components/ui/KpiCard";
 import { OnboardingBanner } from "@/components/OnboardingBanner";
 import { DataStatusBanner } from "@/components/DataStatusBanner";
+import { BudgetsPanel } from "@/components/BudgetsPanel";
 import { FinancialGoalsPanel } from "@/components/FinancialGoalsPanel";
 import {
   SpendAlertsPanel,
@@ -228,7 +229,9 @@ export default function DashboardPage() {
 
       <FinancialGoalsPanel stagger={3} />
 
-      {accounts.length > 0 && !dataError && <TfsaRoomCard stagger={4} />}
+      <BudgetsPanel stagger={4} />
+
+      {accounts.length > 0 && !dataError && <TfsaRoomCard stagger={5} />}
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
