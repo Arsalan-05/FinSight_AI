@@ -29,6 +29,7 @@ import {
   WeeklyBriefPanel,
 } from "@/components/dashboard/InsightsPanels";
 import { api } from "@/lib/api";
+import { chatUrl, promptFromInsightAction } from "@/lib/chat-url";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import type { Account, InsightCard, Transaction, TransactionList } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
@@ -218,7 +219,10 @@ export default function DashboardPage() {
               <p className="text-sm font-medium text-[var(--foreground)]">{card.title}</p>
               <p className="mt-1 text-xs text-[var(--muted)]">{card.body}</p>
               {card.action && (
-                <Link href="/chat" className="link-accent mt-2 inline-block text-xs">
+                <Link
+                  href={chatUrl(promptFromInsightAction(card.action))}
+                  className="link-accent mt-2 inline-block text-xs"
+                >
                   {card.action}
                 </Link>
               )}

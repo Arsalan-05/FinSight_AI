@@ -13,7 +13,8 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { ChatHistorySidebar } from "@/components/chat/ChatHistorySidebar";
 import { FormatAgentText } from "@/components/chat/formatAgentText";
@@ -79,8 +80,25 @@ function newMessage(role: ChatMessage["role"], content: string): ChatMessage {
 }
 
 export default function ChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="page-container flex min-h-[50vh] items-center justify-center text-sm text-[var(--muted)]">
+          Loading advisor…
+        </div>
+      }
+    >
+      <ChatPageContent />
+    </Suspense>
+  );
+}
+
+function ChatPageContent() {
   const { toast } = useToast();
   const authReady = useAuthReady();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const consumedQuery = useRef(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(isSupabaseConfigured);
@@ -244,6 +262,28 @@ export default function ChatPage() {
     },
     [input, loading, sessionId, toast, refreshSessions],
   );
+
+  useEffect(() => {
+    if (!authReady || historyLoading || consumedQuery.current) return;
+
+    const q = searchParams.get("q")?.trim();
+    if (!q) return;
+
+    consumedQuery.current = true;
+    const autoSend = searchParams.get("send") !== "0";
+    router.replace("/chat", { scroll: false });
+
+    const timer = window.setTimeout(() => {
+      if (autoSend) {
+        void sendMessage(q);
+      } else {
+        setInput(q);
+        inputRef.current?.focus();
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [authReady, historyLoading, searchParams, router, sendMessage]);
 
   const handleStop = () => {
     abortRef.current?.abort();

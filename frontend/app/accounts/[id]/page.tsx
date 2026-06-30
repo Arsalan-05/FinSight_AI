@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
+import { chatUrl } from "@/lib/chat-url";
 import type { Account, Transaction } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
 import { formatCurrency, formatDate, formatDateShort, getDateRange } from "@/lib/utils";
@@ -121,7 +122,9 @@ export default function AccountDetailPage() {
         subtitle={`${account.account_type.charAt(0).toUpperCase()}${account.account_type.slice(1)} · Added ${formatDate(account.created_at.slice(0, 10))}`}
         actions={
           <Link
-            href={`/chat`}
+            href={chatUrl(
+              `Analyze spending and trends for my ${account.name} account (${institution}).`,
+            )}
             className="btn-primary inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium"
           >
             <MessageSquare size={14} />
