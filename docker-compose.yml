@@ -24,6 +24,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://finsight:finsight@db:5432/finsight}
+      # Inside Docker, fallback must use the db service hostname — not localhost
+      DATABASE_FALLBACK_URL: postgresql://finsight:finsight@db:5432/finsight
       SUPABASE_URL: ${SUPABASE_URL:-}
       REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
       LLM_PROVIDER: ollama

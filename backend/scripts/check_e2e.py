@@ -23,6 +23,8 @@ TABLES = (
     "transactions",
     "transaction_embeddings",
     "chat_sessions",
+    "budgets",
+    "notifications",
 )
 
 
@@ -126,6 +128,31 @@ def main() -> int:
         ok(f"POST /search/ route live ({r.status_code})")
     else:
         fail(f"POST /search/ → {r.status_code}")
+
+    # ── Budgets / notifications / export ────────────────────────────────────
+    r = client.get("/budgets/")
+    if r.status_code in (401, 200):
+        ok(f"GET /budgets/ route live ({r.status_code})")
+    else:
+        fail(f"GET /budgets/ → {r.status_code}")
+
+    r = client.get("/notifications/")
+    if r.status_code in (401, 200):
+        ok(f"GET /notifications/ route live ({r.status_code})")
+    else:
+        fail(f"GET /notifications/ → {r.status_code}")
+
+    r = client.get("/auth/me/export")
+    if r.status_code in (401, 200):
+        ok(f"GET /auth/me/export route live ({r.status_code})")
+    else:
+        fail(f"GET /auth/me/export → {r.status_code}")
+
+    r = client.get("/transactions/rules")
+    if r.status_code in (401, 200):
+        ok(f"GET /transactions/rules route live ({r.status_code})")
+    else:
+        fail(f"GET /transactions/rules → {r.status_code}")
 
     print("\n".join(CHECKS))
     print()

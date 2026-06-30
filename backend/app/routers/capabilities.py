@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from agent.tools import get_tool_definitions
 from app.config import settings
+from db.base import DATABASE_URL
 from integrations.plaid_client import plaid_configured
 
 router = APIRouter(tags=["meta"])
@@ -57,5 +58,15 @@ def capabilities() -> dict[str, object]:
         ],
         "beta": {
             "invite_only": bool(settings.beta_allowed_emails.strip()),
+        },
+        "ops": {
+            "database_host": (
+                DATABASE_URL.split("@")[-1].split("/")[0] if "@" in DATABASE_URL else "local"
+            ),
+            "plaid_configured": plaid_configured(),
+            "smtp_configured": bool(settings.smtp_host and settings.smtp_from),
+            "embeddings_configured": settings.embeddings_configured,
+            "llm_configured": settings.llm_configured,
+            "auth_enforced": settings.auth_enforced,
         },
     }
