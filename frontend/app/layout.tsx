@@ -17,16 +17,21 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "FinSight — Personal Finance Intelligence",
+    default: "FinSight — Personal Finance",
     template: "%s · FinSight",
   },
   description:
-    "Production-grade personal finance intelligence — transaction RAG, live market data, and a grounded finance agent.",
-  applicationName: "FinSight AI",
+    "Understand your money — spending insights, smart search, and a personal finance advisor grounded in your real transactions.",
+  applicationName: "FinSight",
+  icons: {
+    icon: [{ url: "/icon", type: "image/png", sizes: "32x32" }],
+    apple: [{ url: "/apple-icon", type: "image/png", sizes: "180x180" }],
+  },
+  manifest: "/manifest.webmanifest",
   robots: { index: false, follow: false },
   openGraph: {
-    title: "FinSight AI",
-    description: "Personal finance intelligence with grounded AI and live market tools.",
+    title: "FinSight — Personal Finance",
+    description: "Personal finance intelligence for Canadians.",
     type: "website",
   },
 };
