@@ -3,29 +3,95 @@
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Car,
   Clock,
+  Coffee,
   Download,
+  Film,
+  Home,
+  Loader2,
+  Receipt,
   Search,
+  ShoppingBag,
   Sparkles,
   Trash2,
-  Zap,
+  TrendingUp,
+  Utensils,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import type { Transaction } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
 import { exportToCsv, formatCurrency, formatDate } from "@/lib/utils";
 
-const EXAMPLE_QUERIES = [
-  "Coffee and dining last month",
-  "Subscription services",
-  "Grocery spending",
-  "Large purchases over $100",
-  "Transport and commute",
-  "Entertainment spending",
-];
+const SEARCH_PRESETS = [
+  {
+    id: "dining",
+    label: "Dining & coffee",
+    query: "Coffee shops, restaurants, and takeout spending",
+    icon: Coffee,
+    accent: "#f59e0b",
+  },
+  {
+    id: "groceries",
+    label: "Groceries",
+    query: "Grocery store and supermarket purchases",
+    icon: ShoppingBag,
+    accent: "#22c55e",
+  },
+  {
+    id: "subscriptions",
+    label: "Subscriptions",
+    query: "Recurring subscription and streaming charges",
+    icon: Receipt,
+    accent: "#6366f1",
+  },
+  {
+    id: "transport",
+    label: "Transport",
+    query: "Uber, transit, gas, and commute expenses",
+    icon: Car,
+    accent: "#3b82f6",
+  },
+  {
+    id: "housing",
+    label: "Housing & rent",
+    query: "Rent, mortgage, and housing related payments",
+    icon: Home,
+    accent: "#8b5cf6",
+  },
+  {
+    id: "entertainment",
+    label: "Entertainment",
+    query: "Movies, events, and entertainment spending",
+    icon: Film,
+    accent: "#f97316",
+  },
+  {
+    id: "large",
+    label: "Large purchases",
+    query: "Transactions over one hundred dollars",
+    icon: TrendingUp,
+    accent: "#ec4899",
+  },
+  {
+    id: "income",
+    label: "Income & deposits",
+    query: "Payroll deposits and incoming transfers",
+    icon: ArrowUpRight,
+    accent: "#10b981",
+  },
+] as const;
+
+const TIME_FILTERS = [
+  { id: "any", label: "Any time", suffix: "" },
+  { id: "month", label: "This month", suffix: " this month" },
+  { id: "last", label: "Last month", suffix: " last month" },
+  { id: "quarter", label: "Last 3 months", suffix: " in the last 3 months" },
+] as const;
 
 const HISTORY_KEY = "finsight_search_history";
 
@@ -44,6 +110,7 @@ function saveHistory(history: string[]) {
 export default function SearchPage() {
   const { toast } = useToast();
   const [query, setQuery] = useState("");
+  const [timeFilter, setTimeFilter] = useState<(typeof TIME_FILTERS)[number]["id"]>("any");
   const [results, setResults] = useState<Transaction[]>([]);
   const [embeddingEnabled, setEmbeddingEnabled] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,22 +120,29 @@ export default function SearchPage() {
     if (typeof window === "undefined") return [];
     return loadHistory();
   });
-  const [kValue, setKValue] = useState(8);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSearch = async (q?: string) => {
-    const sq = (q ?? query).trim();
-    if (!sq) return;
+  const buildQuery = (base: string) => {
+    const tf = TIME_FILTERS.find((t) => t.id === timeFilter);
+    return `${base}${tf?.suffix ?? ""}`.trim();
+  };
+
+  const handleSearch = async (q?: string, presetId?: string) => {
+    const raw = (q ?? query).trim();
+    if (!raw) return;
+    const sq = buildQuery(raw);
     setLoading(true);
     setError(null);
     setSearched(true);
-    if (q) setQuery(q);
+    if (q) setQuery(raw);
+    if (presetId) setActivePreset(presetId);
+    else setActivePreset(null);
     try {
-      const res = await api.search(sq, kValue);
+      const res = await api.search(sq, 10);
       setResults(res.results);
       setEmbeddingEnabled(res.embedding_enabled);
-      // Update history
-      const next = [sq, ...history.filter((h) => h !== sq)];
+      const next = [raw, ...history.filter((h) => h !== raw)];
       setHistory(next);
       saveHistory(next);
     } catch (e) {
@@ -88,183 +162,278 @@ export default function SearchPage() {
     exportToCsv(`search-results-${new Date().toISOString().slice(0, 10)}.csv`, [
       ["Rank", "Date", "Description", "Amount", "Category", "Merchant"],
       ...results.map((t, i) => [
-        String(i + 1), t.transaction_date, t.description,
-        String(t.amount), t.category, t.merchant ?? "",
+        String(i + 1),
+        t.transaction_date,
+        t.description,
+        String(t.amount),
+        t.category,
+        t.merchant ?? "",
       ]),
     ]);
     toast(`Exported ${results.length} results`);
   };
 
   return (
-    <div className="page-container">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold text-zinc-50">Transaction Search</h1>
-        </div>
-        <p className="mt-1 text-sm text-zinc-500">
-          Ask a natural-language question to semantically retrieve your most relevant transactions.
-        </p>
-      </div>
+    <div className="page-container max-w-4xl gap-8">
+      <PageHeader
+        eyebrow="Find transactions"
+        title="Smart"
+        titleAccent="Search"
+        subtitle="Describe what you're looking for in plain English — FinSight finds the most relevant transactions."
+      />
 
-      {/* Search input + k-selector */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+      {/* Hero search */}
+      <section className="panel panel-glow rounded-2xl p-6 md:p-8">
+        <div className="chat-search-wrap">
+          <Search size={18} className="chat-search-icon" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") void handleSearch(); }}
-            placeholder="e.g. What did I spend on food last month?"
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 py-3 pl-10 pr-4 text-sm text-zinc-200 placeholder-zinc-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void handleSearch();
+            }}
+            placeholder="e.g. What did I spend on Uber last month?"
+            className="input-field chat-search-input py-3.5 text-base"
           />
         </div>
-        <select value={kValue} onChange={(e) => setKValue(Number(e.target.value))}
-          className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-          {[3, 5, 8, 10, 15, 20].map((n) => <option key={n} value={n}>Top {n}</option>)}
-        </select>
-        <button onClick={() => void handleSearch()} disabled={!query.trim() || loading}
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-40">
-          <Zap size={14} />
-          {loading ? "Searching…" : "Search"}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-[var(--muted)]">Time:</span>
+          {TIME_FILTERS.map((tf) => (
+            <button
+              key={tf.id}
+              type="button"
+              onClick={() => setTimeFilter(tf.id)}
+              className={[
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                timeFilter === tf.id
+                  ? "border-[var(--accent)]/40 bg-[var(--accent-soft)] text-[var(--accent)]"
+                  : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--border-glow)] hover:text-[var(--foreground)]",
+              ].join(" ")}
+            >
+              {tf.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleSearch()}
+          disabled={!query.trim() || loading}
+          className="btn-primary mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium disabled:opacity-40 sm:w-auto sm:px-8"
+        >
+          {loading ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Searching…
+            </>
+          ) : (
+            <>
+              <Sparkles size={16} />
+              Search transactions
+            </>
+          )}
         </button>
-      </div>
+      </section>
 
-      {/* History + examples */}
+      {/* Preset categories */}
       {!searched && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Examples */}
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-medium text-zinc-600">Try an example</p>
-            <div className="flex flex-wrap gap-2">
-              {EXAMPLE_QUERIES.map((q) => (
-                <button key={q} onClick={() => void handleSearch(q)}
-                  className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 hover:border-indigo-600 hover:text-indigo-300">
-                  {q}
-                </button>
-              ))}
+        <>
+          <section>
+            <h2 className="section-title mb-1">Search by topic</h2>
+            <p className="mb-4 text-sm text-[var(--muted)]">
+              Tap a category to run a curated search instantly.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {SEARCH_PRESETS.map((preset, i) => {
+                const Icon = preset.icon;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => void handleSearch(preset.query, preset.id)}
+                    className="search-preset-card panel-interactive stagger-item text-left"
+                    style={{ "--stagger": i + 1 } as CSSProperties}
+                  >
+                    <span
+                      className="search-preset-icon"
+                      style={{ backgroundColor: `${preset.accent}20`, color: preset.accent }}
+                    >
+                      <Icon size={18} />
+                    </span>
+                    <p className="text-sm font-medium text-[var(--foreground)]">{preset.label}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--muted)] line-clamp-2">
+                      {preset.query}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </section>
 
-          {/* History */}
           {history.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-zinc-600">Recent searches</p>
-                <button onClick={clearHistory} className="flex items-center gap-1 text-xs text-zinc-700 hover:text-zinc-500">
-                  <Trash2 size={11} /> Clear
+            <section className="panel rounded-2xl p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="section-title">Recent searches</h2>
+                <button
+                  type="button"
+                  onClick={clearHistory}
+                  className="flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
+                >
+                  <Trash2 size={12} />
+                  Clear
                 </button>
               </div>
               <ul className="flex flex-col gap-1">
                 {history.map((h) => (
                   <li key={h}>
-                    <button onClick={() => void handleSearch(h)}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200">
-                      <Clock size={13} className="text-zinc-600" />
-                      {h}
+                    <button
+                      type="button"
+                      onClick={() => void handleSearch(h)}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[var(--muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+                    >
+                      <Clock size={14} className="shrink-0 opacity-60" />
+                      <span className="truncate">{h}</span>
                     </button>
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           )}
-        </div>
+        </>
       )}
 
-      {/* Embedding not configured */}
       {embeddingEnabled === false && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-800/50 bg-amber-900/20 p-4">
-          <Sparkles size={16} className="mt-0.5 shrink-0 text-amber-400" />
+        <div className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <Sparkles size={16} className="mt-0.5 shrink-0 text-[var(--accent)]" />
           <div>
-            <p className="text-sm font-medium text-amber-300">Embeddings not configured</p>
-            <p className="mt-1 text-xs text-amber-500">
-              Set <code className="text-amber-400">VOYAGE_API_KEY</code> in your{" "}
-              <code className="text-amber-400">.env</code> file and re-ingest transactions to enable semantic search.
-              Get a free key at{" "}
-              <a href="https://www.voyageai.com" target="_blank" rel="noreferrer" className="underline hover:text-amber-300">
-                voyageai.com
-              </a>.
+            <p className="text-sm font-medium text-[var(--foreground)]">Smart search is setting up</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Upload transactions first — semantic search activates once your data is indexed.
             </p>
           </div>
         </div>
       )}
 
-      {/* Error */}
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-900/20 px-4 py-3 text-sm text-red-400">{error}</div>
-      )}
-
-      {/* Results header */}
-      {results.length > 0 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-zinc-400">
-            <span className="font-medium text-zinc-200">{results.length}</span> result{results.length !== 1 ? "s" : ""}
-            {" "}·{" "}
-            <span className="text-zinc-600">ranked by semantic similarity to</span>{" "}
-            <span className="italic text-zinc-500">&ldquo;{query}&rdquo;</span>
-          </p>
-          <button onClick={handleExport}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-100">
-            <Download size={12} /> Export
-          </button>
+        <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 px-4 py-3 text-sm text-rose-400">
+          {error}
         </div>
       )}
 
-      {/* No results */}
+      {searched && !loading && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="section-title">
+              {results.length > 0
+                ? `${results.length} result${results.length !== 1 ? "s" : ""}`
+                : "No results"}
+            </h2>
+            <p className="mt-0.5 text-xs text-[var(--muted)]">
+              {activePreset
+                ? `Showing matches for ${SEARCH_PRESETS.find((p) => p.id === activePreset)?.label}`
+                : `Best matches for “${query}”`}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSearched(false);
+                setResults([]);
+                setActivePreset(null);
+              }}
+              className="btn-ghost rounded-xl px-3 py-2 text-xs"
+            >
+              New search
+            </button>
+            {results.length > 0 && (
+              <button
+                type="button"
+                onClick={handleExport}
+                className="btn-ghost flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs"
+              >
+                <Download size={13} />
+                Export
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {searched && !loading && results.length === 0 && embeddingEnabled && (
-        <div className="py-12 text-center text-sm text-zinc-600">
-          No matching transactions found. Try a different query or upload transactions first.
+        <div className="panel flex flex-col items-center gap-3 rounded-2xl py-14 text-center">
+          <Utensils size={28} className="text-[var(--muted)]" />
+          <p className="text-sm text-[var(--muted)]">
+            No matching transactions. Try a preset above or broaden your time range.
+          </p>
         </div>
       )}
 
-      {/* Results list */}
-      {results.length > 0 && (
-        <div className="flex flex-col divide-y divide-zinc-800/60 panel rounded-2xl">
-          {results.map((tx, idx) => (
-            <div key={tx.id} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-zinc-800/40">
-              <span className="w-5 shrink-0 text-center text-xs font-semibold text-zinc-700">{idx + 1}</span>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                style={{ backgroundColor: getCategoryColor(tx.category) + "20" }}>
-                {tx.amount < 0
-                  ? <ArrowDownLeft size={14} style={{ color: getCategoryColor(tx.category) }} />
-                  : <ArrowUpRight size={14} className="text-emerald-400" />
-                }
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-zinc-200">{tx.description}</p>
-                <p className="text-xs text-zinc-500">
-                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                    style={{ backgroundColor: getCategoryColor(tx.category) + "20", color: getCategoryColor(tx.category) }}>
-                    {tx.category}
-                  </span>
-                  {tx.merchant ? <> · {tx.merchant}</> : null}
-                  {" · "}
-                  {formatDate(tx.transaction_date)}
-                </p>
-              </div>
-              <span className={["shrink-0 text-sm font-semibold tabular-nums",
-                tx.amount < 0 ? "text-rose-400" : "text-emerald-400",
-              ].join(" ")}>
-                {tx.amount < 0 ? "−" : "+"}{formatCurrency(tx.amount)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Loading skeleton */}
       {loading && (
-        <div className="flex flex-col gap-1 panel rounded-2xl p-2">
-          {Array.from({ length: kValue }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-3">
-              <div className="h-9 w-9 shimmer rounded-lg" />
+        <div className="panel flex flex-col divide-y divide-[var(--border)] rounded-2xl">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4">
+              <div className="h-10 w-10 shimmer rounded-xl" />
               <div className="flex flex-1 flex-col gap-2">
                 <div className="h-3.5 w-3/4 shimmer rounded" />
                 <div className="h-3 w-1/2 shimmer rounded" />
               </div>
               <div className="h-4 w-16 shimmer rounded" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {results.length > 0 && !loading && (
+        <div className="panel flex flex-col divide-y divide-[var(--border)] rounded-2xl overflow-hidden">
+          {results.map((tx, idx) => (
+            <div
+              key={tx.id}
+              className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[var(--accent-soft)]/20"
+            >
+              <span className="w-6 shrink-0 text-center text-xs font-semibold tabular-nums text-[var(--muted)]">
+                {idx + 1}
+              </span>
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: `${getCategoryColor(tx.category)}20` }}
+              >
+                {tx.amount < 0 ? (
+                  <ArrowDownLeft size={16} style={{ color: getCategoryColor(tx.category) }} />
+                ) : (
+                  <ArrowUpRight size={16} className="text-emerald-400" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-[var(--foreground)]">
+                  {tx.description}
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--muted)]">
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    style={{
+                      backgroundColor: `${getCategoryColor(tx.category)}20`,
+                      color: getCategoryColor(tx.category),
+                    }}
+                  >
+                    {tx.category}
+                  </span>
+                  {tx.merchant && <span>· {tx.merchant}</span>}
+                  <span>· {formatDate(tx.transaction_date)}</span>
+                </p>
+              </div>
+              <span
+                className={[
+                  "shrink-0 text-sm font-semibold tabular-nums",
+                  tx.amount < 0 ? "text-rose-400" : "text-emerald-400",
+                ].join(" ")}
+              >
+                {tx.amount < 0 ? "−" : "+"}
+                {formatCurrency(tx.amount)}
+              </span>
             </div>
           ))}
         </div>
