@@ -19,7 +19,7 @@ Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **
 
 > **Use production for daily use.** Local is only for coding, testing, and debugging.
 
-> **AI stack (free):** **Groq** (Llama 3.3 70B) for chat · **Voyage** `voyage-4-large` for semantic search. Ollama is optional offline fallback only.
+> **AI stack (free):** **Groq** `llama-3.1-8b-instant` for chat · **Voyage** `voyage-4-large` for semantic search. Ollama is optional offline fallback only.
 
 ## Free AI stack (Groq + Voyage)
 
@@ -31,7 +31,7 @@ Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **
 | Semantic search | **Voyage** `voyage-4-large` | Voyage cloud |
 | Dollar amounts | SQL tools | Your database |
 
-Set `GROQ_API_KEY` and `VOYAGE_API_KEY` in `.env` (Mac) and Render. Sign up free at [console.groq.com](https://console.groq.com) and [dash.voyageai.com](https://dash.voyageai.com).
+Set `GROQ_API_KEY`, `GROQ_MODEL=llama-3.1-8b-instant`, and `VOYAGE_API_KEY` in `.env` (Mac) and Render. Sign up free at [console.groq.com](https://console.groq.com) and [dash.voyageai.com](https://dash.voyageai.com).
 
 Deploy guide: **[infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)** ($0 stack)
 

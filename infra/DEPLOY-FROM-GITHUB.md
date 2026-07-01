@@ -49,10 +49,12 @@ Users visit **one app URL** (Railway frontend). GitHub Pages is optional marketi
 | `DATABASE_URL` | Supabase pooler URL |
 | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `REQUIRE_AUTH` | `true` |
-| `LLM_PROVIDER` | `anthropic` |
-| `ANTHROPIC_API_KEY` | your key |
-| `EMBEDDING_PROVIDER` | `voyage` (or keep ollama only for local) |
-| `VOYAGE_API_KEY` | if using Voyage |
+| `LLM_PROVIDER` | `groq` |
+| `GROQ_API_KEY` | free at [console.groq.com](https://console.groq.com) |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` |
+| `EMBEDDING_PROVIDER` | `voyage` |
+| `VOYAGE_API_KEY` | from [dash.voyageai.com](https://dash.voyageai.com) |
+| `ANTHROPIC_API_KEY` | optional paid alternative |
 | `CORS_ORIGINS` | `https://<frontend-url>.up.railway.app` (fill after Step 3) |
 | `BETA_ALLOWED_EMAILS` | `your@gmail.com` (invite-only) |
 
@@ -111,7 +113,7 @@ curl https://finsight-api.up.railway.app/health/ready
 1. Open `https://finsight.up.railway.app`
 2. Sign in with Google
 3. Dashboard loads data
-4. Chat responds (needs `ANTHROPIC_API_KEY`)
+4. Chat responds (needs `GROQ_API_KEY` on backend)
 
 ---
 
@@ -133,7 +135,7 @@ curl https://finsight-api.up.railway.app/health/ready
 | CORS error | Add frontend URL to backend `CORS_ORIGINS` |
 | Google login fails | Add Railway URL to Supabase redirect URLs |
 | Empty dashboard | Run `alembic upgrade head` on production DB |
-| Chat no response | Set `ANTHROPIC_API_KEY`, `LLM_PROVIDER=anthropic` |
+| Chat no response | Set `GROQ_API_KEY`, `GROQ_MODEL=llama-3.1-8b-instant`, redeploy backend |
 | 403 on login | Add your email to `BETA_ALLOWED_EMAILS` |
 
 More detail: [infra/railway/DEPLOY.md](./railway/DEPLOY.md)

@@ -35,7 +35,7 @@ You do **not** need local running to use FinSight. Start local only when you cha
 
 **Vercel:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-**Render:** `DATABASE_URL` (session pooler port **5432**), `SUPABASE_URL`, `CORS_ORIGINS`, `BETA_ALLOWED_EMAILS`, `GROQ_API_KEY`, `VOYAGE_API_KEY`, `LLM_PROVIDER=groq`, `EMBEDDING_PROVIDER=voyage`, `DATABASE_FALLBACK_ENABLED=false`
+**Render:** `DATABASE_URL` (session pooler port **5432**), `SUPABASE_URL`, `CORS_ORIGINS`, `BETA_ALLOWED_EMAILS`, `GROQ_API_KEY`, `GROQ_MODEL=llama-3.1-8b-instant`, `VOYAGE_API_KEY`, `LLM_PROVIDER=groq`, `EMBEDDING_PROVIDER=voyage`, `DATABASE_FALLBACK_ENABLED=false`
 
 **Supabase Auth redirect URLs** (must include wildcards):
 
@@ -201,7 +201,7 @@ flowchart TB
     end
 
     subgraph llm [AI Layer]
-        Groq[Groq — Llama 3.3 70B chat]
+        Groq[Groq — llama-3.1-8b-instant chat]
         Voyage[Voyage — voyage-4-large embeddings]
         Ollama[Ollama — optional offline fallback]
     end
@@ -475,6 +475,8 @@ Auth: `Authorization: Bearer <supabase_access_token>` on all routes except `/hea
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
 | POST | `/search/` | `{"query":"coffee shops","k":5}` | Semantic transaction search |
+| GET | `/search/status` | — | Indexed vs total transactions; `needs_reindex` flag |
+| POST | `/search/reindex` | `{"batch_size":8,"offset":0}` | Batched embedding rebuild (Voyage rate-limit safe) |
 
 ### Insights
 
@@ -500,7 +502,7 @@ Auth: `Authorization: Bearer <supabase_access_token>` on all routes except `/hea
 | GET | `/budgets/` | List budgets with current-month spend |
 | POST | `/budgets/` | Create monthly category budget |
 | DELETE | `/budgets/{id}` | Remove budget |
-| GET | `/notifications/` | In-app alert inbox |
+| GET | `/notifications/` | In-app alert inbox (also scans budgets and creates breach alerts) |
 | POST | `/notifications/{id}/read` | Mark one read |
 | POST | `/notifications/read-all` | Mark all read |
 | GET/PATCH | `/notifications/preferences` | Spend alerts + email digest toggles |
@@ -536,6 +538,8 @@ Auth: `Authorization: Bearer <supabase_access_token>` on all routes except `/hea
 | DELETE | `/chat/sessions/{id}` | — | Delete a saved conversation (204, removes from DB) |
 
 **SSE events:** `status` (live tool progress), `token`, `done`, `error`
+
+**Deep links (frontend):** `/chat?q=<prompt>&send=1&new=1` — pre-fills and auto-sends in a **new** conversation (used by “Ask advisor” links across the app). Omit `new=1` only if you want to continue the current session.
 
 ```bash
 curl -N -X POST http://localhost:8000/chat/ \
@@ -618,7 +622,8 @@ Reasoning loop: **Understand → Plan → Gather (personal + web) → Synthesize
 
 | Provider | Config | Models | When |
 |----------|--------|--------|------|
-| **Groq (default)** | `LLM_PROVIDER=groq` | `llama-3.1-8b-instant` | Production + local (free) |
+| **Groq (default)** | `LLM_PROVIDER=groq` | `llama-3.1-8b-instant` (`GROQ_MODEL`) | Production + local (free tier) |
+| Groq (heavier) | `GROQ_MODEL=llama-3.3-70b-versatile` | 70B | Better reasoning; stricter free rate limits |
 | Ollama (fallback) | `LLM_PROVIDER=ollama` | `qwen2.5:7b` | Keys missing / offline dev |
 | Anthropic (paid) | `LLM_PROVIDER=anthropic` | `claude-sonnet-4-6` | Optional upgrade |
 
@@ -629,6 +634,21 @@ Reasoning loop: **Understand → Plan → Gather (personal + web) → Synthesize
 ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 ```
+
+### Free AI tier (Groq + Voyage)
+
+| Provider | What it does | Cost at FinSight scale | Card on file? |
+|----------|--------------|------------------------|---------------|
+| **Groq** | Chat / advisor (runs Llama models) | **$0** on free tier | Optional — Developer tier is pay-per-token with spend caps |
+| **Voyage** | Search embeddings (`voyage-4-large`) | **$0** — 200M tokens total per account | Recommended — unlocks RPM without charging at personal use |
+| **Llama** | Open model inside Groq | **Not billed separately** | N/A |
+| **Ollama** | Local offline fallback | **$0** | N/A |
+
+**Why `llama-3.1-8b-instant`:** Faster, higher free-tier request limits, and sufficient for spending/budget Q&A. Use 70B only if answers feel too shallow.
+
+**Groq free limits (approx.):** 30 RPM, 6K TPM on 8B; agent tool calls burn tokens quickly → occasional HTTP 429. Backend auto-retries with backoff.
+
+**Voyage without billing card:** ~3 RPM — search reindex is batched with ~22s delays between batches.
 
 ---
 
@@ -677,7 +697,8 @@ Live USD/CAD, EUR/CAD, GBP/CAD from Bank of Canada API.
 | `/accounts` | Account management; Plaid badge + last-synced on cards |
 | `/accounts/[id]` | Account detail with recent transactions |
 | `/subscriptions` | Recurring charges, monthly total, Ask Advisor links |
-| `/search` | Semantic search with presets |
+| `/search` | Semantic search with presets; rebuild-index banner when embeddings missing |
+| `/notifications` | Live spend signals, budget limits, saved alerts, alert preferences |
 | `/chat` | SSE streaming chat with citations, live status, history sidebar |
 | `/settings` | Banks, alert prefs, export, account deletion |
 | `/privacy` | Public privacy policy (no auth shell) |
@@ -687,6 +708,7 @@ Live USD/CAD, EUR/CAD, GBP/CAD from Bank of Canada API.
 
 - **`lib/api.ts`** — typed client, waits for Supabase JWT before protected calls
 - **`hooks/useAuthReady.ts`** — waits for Supabase JWT, runs `/auth/sync`, then allows data fetching
+- **`lib/chat-url.ts`** — builds `/chat?q=…&new=1` links so “Ask advisor” starts a fresh session
 - **Premium UI** — glass surfaces, mesh gradients, dark fintech theme
 - **OnboardingBanner** — guides new users to upload CSV or create accounts
 
@@ -705,16 +727,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ### Root `.env` (backend + docker-compose)
 
 ```env
-# ── LLM (free local default) ──────────────────────────────────
-LLM_PROVIDER=ollama
-EMBEDDING_PROVIDER=ollama
+# ── LLM (free cloud default) ──────────────────────────────────
+LLM_PROVIDER=groq
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-8b-instant
+
+# ── Embeddings (free cloud default) ───────────────────────────
+EMBEDDING_PROVIDER=voyage
+VOYAGE_API_KEY=
+VOYAGE_MODEL=voyage-4-large
+VOYAGE_OUTPUT_DIMENSION=1024
+
+# ── Ollama (optional offline fallback) ────────────────────────
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:7b
 OLLAMA_EMBED_MODEL=nomic-embed-text
 
 # ── Paid providers (optional) ─────────────────────────────────
 # ANTHROPIC_API_KEY=sk-ant-...
-# VOYAGE_API_KEY=pa-...
 
 # ── Supabase Auth ─────────────────────────────────────────────
 SUPABASE_URL=https://your-project.supabase.co
@@ -902,11 +932,14 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 | **Google login fails** | Provider not enabled | Supabase → Auth → Providers → Google |
 | **Login redirects to Vercel** | Redirect URL missing wildcard | Add `http://localhost:3000/**` not just `http://localhost:3000` |
 | **Chat no response** | Missing `GROQ_API_KEY` or Render cold start | Set keys on Render; wait ~30–50s on first request |
+| **Groq HTTP 429** | Free-tier TPM/RPM exceeded | Wait ~10s (auto-retry); use `llama-3.1-8b-instant`; optional Groq Developer + spend cap |
 | **Groq tool_use_failed** | Model emitted invalid tool XML | Fixed in v1.5.0 — redeploy latest `main` |
+| **Voyage embedding failed (billing)** | No card on Voyage account | Add card at dashboard.voyageai.com (200M tokens still free); rebuild search index |
+| **Search reindex slow** | Voyage 3 RPM without card | Normal — batched reindex with delays; add Voyage billing card for faster limits |
 | **Supabase pool exhausted** | Too many DB connections (local + Render) | Kill duplicate backends; use `DB_POOL_SIZE=2` locally |
 | **Chat history missing** | Different DB (local fallback vs Supabase) | Hotspot + shared Supabase; or use production only |
 | **Agent stuck loading** | DB hung on Supabase timeout | Restart backend; check `127.0.0.1:8000/health/db` |
-| **Embeddings / search empty** | Voyage migration cleared vectors | Re-upload CSV or run `scripts/seed.py` |
+| **Embeddings / search empty** | Voyage migration cleared vectors | Search page → **Rebuild search index**, or re-upload CSV |
 | **Embeddings skipped (offline)** | No Voyage key, Ollama embed missing | `ollama pull nomic-embed-text` or set `VOYAGE_API_KEY` |
 | **Alembic % error in password** | ConfigParser interpolation | URL-encode `@` as `%40`; use `uv run python -m db.migrate` |
 | **CORS error** | Wrong origin | Render `CORS_ORIGINS` must include Vercel URL |
@@ -926,6 +959,8 @@ Deferred beyond the current release:
 | Paid LLM/embeddings in CI | Ollama covers the free CI path |
 
 **Shipped in v1.4:** Plaid webhooks + background sync, budgets + in-app alerts, `DELETE /auth/me` + JSON export, goal progress, category rules, notifications inbox, GitHub Pages landing.
+
+**Post v1.5.0 updates:** Voyage reindex batching, Groq rate-limit retries, full Alerts page, notification bell live signals, new chat per advisor deep link, default model `llama-3.1-8b-instant`.
 
 ---
 
@@ -1000,10 +1035,10 @@ Verify: `curl https://finsight-api-byrl.onrender.com/capabilities` → `chat_ava
 | **Goals & rules** | Progress tracking, merchant categorization rules |
 | **RAG** | Transaction embeddings (1024-dim), semantic search, HNSW index |
 | **Agent** | ReAct loop — SQL + retrieval + web search + learned profile |
-| **Retention** | Budgets, notifications inbox, weekly brief |
-| **Chat** | Saved history (persists even on LLM failure), pin/rename/delete, citations |
-| **Frontend** | Dashboard, analytics, transactions, subscriptions, search, chat, settings |
-| **Deploy** | Vercel + Render + Supabase ($0), `render.yaml`, `frontend/vercel.json` |
+| **Retention** | Alerts page (live signals + budgets), notifications inbox, weekly brief |
+| **Chat** | Saved history, pin/rename/delete, citations, fresh session per “Ask advisor” deep link |
+| **Frontend** | Dashboard, analytics, transactions, subscriptions, search, alerts, chat, settings |
+| **Deploy** | Vercel (auto on push) + Render (manual or auto) + Supabase ($0) |
 | **Local dev** | Optional — Groq/Voyage same as prod, Docker DB fallback, `127.0.0.1` API fix |
 
 ### Deployment modes
@@ -1011,7 +1046,7 @@ Verify: `curl https://finsight-api-byrl.onrender.com/capabilities` → `chat_ava
 | Mode | How |
 |------|-----|
 | **Production (default)** | Vercel + Render + Supabase — [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) |
-| **Local (coding only)** | `source .env` → backend + frontend → test → push → Render auto-deploys |
+| **Local (coding only)** | `source .env` → backend + frontend → test → `git push` → Vercel auto-deploys frontend |
 | **Local (shared cloud data)** | Hotspot + Supabase pooler + same keys as Render |
 
 ### Verification
@@ -1093,4 +1128,4 @@ User transaction data, chat history, and account information belong to each end 
 
 ---
 
-*Last updated: July 1, 2026 — FinSight AI v1.5.0 — complete · locked*
+*Last updated: June 29, 2026 — FinSight AI v1.5.0 docs (Groq 8B, Alerts page, search reindex, chat deep links)*

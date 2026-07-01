@@ -41,12 +41,29 @@ docker compose up --build
 
 | Layer | Default | Fallback |
 |-------|---------|----------|
-| Chat | Groq `llama-3.1-8b-instant` | Ollama `qwen2.5:7b` if no `GROQ_API_KEY` |
+| Chat | Groq `llama-3.1-8b-instant` (`GROQ_MODEL`) | Ollama `qwen2.5:7b` if no `GROQ_API_KEY` |
 | Embeddings | Voyage `voyage-4-large` | Ollama `nomic-embed-text` if no `VOYAGE_API_KEY` |
 
-Set `GROQ_API_KEY` and `VOYAGE_API_KEY` in `.env` (local) and Render (production).
+Set `GROQ_API_KEY`, `GROQ_MODEL`, and `VOYAGE_API_KEY` in `.env` (local) and **Render** (production). Vercel and Supabase do not need Groq/Voyage keys.
 
-## Conventions
+**Why 8B not 70B:** Better free-tier rate limits for the advisor agent; sufficient for personal finance Q&A.
+
+## Deploy after changes
+
+```bash
+git push origin main   # Vercel auto-deploys frontend
+# Render: manual deploy (or enable auto-deploy) for backend API changes
+curl https://finsight-api-byrl.onrender.com/capabilities
+```
+
+**What deploys where:**
+
+| Change type | Vercel | Render | Supabase |
+|-------------|--------|--------|----------|
+| Frontend UI (pages, chat links) | ✅ auto | — | — |
+| Backend API / agent / search | — | ✅ manual/auto | — |
+| `GROQ_MODEL` env var | — | ✅ Render only | — |
+| Database schema | — | migrations on deploy | — |
 
 - Python package manager: `uv`
 - Backend code under `backend/app/`, `backend/agent/`, `backend/rag/`, `backend/db/`
@@ -57,9 +74,4 @@ Set `GROQ_API_KEY` and `VOYAGE_API_KEY` in `.env` (local) and Render (production
 - Use `127.0.0.1` not `localhost` for `NEXT_PUBLIC_API_URL` (macOS IPv6)
 - Cap `DB_POOL_SIZE=2` locally — Supabase session pooler shares ~15 slots with Render
 
-## Deploy after changes
-
-```bash
-git push origin main   # Render auto-deploys backend; redeploy Vercel if frontend env changed
-curl https://finsight-api-byrl.onrender.com/capabilities
-```
+## Conventions

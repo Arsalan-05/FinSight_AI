@@ -15,9 +15,11 @@ Deploy as **two Railway services** from this monorepo (private repo is fine).
 | `DATABASE_URL` | Supabase **pooler** URL (`?pgbouncer=true` for transaction mode) |
 | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `REQUIRE_AUTH` | `true` |
-| `LLM_PROVIDER` | `anthropic` (recommended for production) |
-| `ANTHROPIC_API_KEY` | your key |
-| `EMBEDDING_PROVIDER` | `voyage` or `ollama` |
+| `LLM_PROVIDER` | `groq` (recommended — free tier) |
+| `GROQ_API_KEY` | free at [console.groq.com](https://console.groq.com) |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` |
+| `ANTHROPIC_API_KEY` | optional paid alternative |
+| `EMBEDDING_PROVIDER` | `voyage` |
 | `VOYAGE_API_KEY` | if using Voyage |
 | `CORS_ORIGINS` | `https://<your-frontend>.up.railway.app` |
 | `CHAT_RATE_LIMIT_PER_MINUTE` | `30` |

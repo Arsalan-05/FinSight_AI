@@ -11,7 +11,7 @@ One live app URL on **Vercel**. Backend on **Render free tier**. Database + auth
 
 **Your app URL:** `https://<project>.vercel.app` (one link for everything)
 
-> **Free cloud AI:** **Groq** for chat (`GROQ_API_KEY`) and **Voyage** for search (`VOYAGE_API_KEY`, `voyage-4-large`, 200M free tokens). Ollama is optional offline fallback only.
+> **Free cloud AI:** **Groq** `llama-3.1-8b-instant` for chat (`GROQ_API_KEY`, `GROQ_MODEL`) and **Voyage** for search (`VOYAGE_API_KEY`, `voyage-4-large`, 200M free tokens total). Ollama is optional offline fallback only.
 
 ---
 
@@ -70,7 +70,8 @@ Set **Root Directory** to `frontend` if not auto-detected.
 | `CORS_ORIGINS` | `https://YOUR-PROJECT.vercel.app` (set after Vercel — redeploy once) |
 | `BETA_ALLOWED_EMAILS` | `your@gmail.com` |
 | `GROQ_API_KEY` | **free** — chat ([console.groq.com](https://console.groq.com)) |
-| `VOYAGE_API_KEY` | **free** — semantic search ([dash.voyageai.com](https://dash.voyageai.com)) |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` (recommended free tier) |
+| `VOYAGE_API_KEY` | **free** — semantic search ([dash.voyageai.com](https://dash.voyageai.com); add billing card for higher RPM, 200M tokens still free) |
 | `ANTHROPIC_API_KEY` | optional paid — alternative cloud chat |
 
 4. Wait for deploy → copy URL, e.g. `https://finsight-api.onrender.com`
@@ -142,6 +143,18 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 
 ---
 
+## Deploy workflow (after `git push`)
+
+| Service | Typical behavior |
+|---------|------------------|
+| **Vercel** (frontend) | **Auto-deploys** on push to `main` — no action needed |
+| **Render** (backend) | **Manual deploy** if auto-deploy is off — Dashboard → service → Deploy |
+| **Supabase** | No deploy — DB/auth unchanged unless you run migrations |
+
+Only **Render** needs `GROQ_API_KEY`, `GROQ_MODEL`, and `VOYAGE_API_KEY`. Vercel only needs `NEXT_PUBLIC_*` vars.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -151,7 +164,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 | `Could not load your data` | Run `alembic upgrade head` on production DB |
 | 30–50s first load | Render free tier waking up — normal |
 | Chat errors | Missing `GROQ_API_KEY` / `VOYAGE_API_KEY` on Render | Add keys → Manual Deploy |
+| Groq HTTP 429 | Free-tier rate limit | Use `llama-3.1-8b-instant`; wait for auto-retry |
 | Groq `tool_use_failed` | Old deploy | Pull latest `main` and redeploy Render |
+| Voyage slow / billing message | No card on Voyage | Add card at dashboard.voyageai.com; rebuild search index on Search page |
+| Search empty after deploy | Embeddings cleared by migration | Search → **Rebuild search index** (batched, may take time) |
 | Chat history not shared local↔cloud | Campus Wi-Fi blocks Supabase | Use hotspot; or use production only |
 | Local `Failed to fetch` | Use `NEXT_PUBLIC_API_URL=http://127.0.0.1:8000` not `localhost` |
 | 403 on login | Add your email to `BETA_ALLOWED_EMAILS` |
