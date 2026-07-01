@@ -29,6 +29,7 @@ import {
   hydrateSessionState,
   loadChatDraft,
   loadSessionId,
+  resolveStreamId,
   saveSessionId,
   sessionMigrations,
 } from "@/lib/chat-stream-manager";
@@ -98,14 +99,15 @@ function ChatPageContent() {
   const consumedQueryKey = useRef<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(isSupabaseConfigured);
+  const [sessionsLoading, setSessionsLoading] = useState(isSupabaseConfigured);
+  const [conversationLoading, setConversationLoading] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [agentStatus, setAgentStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chatAvailable, setChatAvailable] = useState(true);
   const [chatUnavailableReason, setChatUnavailableReason] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState(() =>
+  const [viewSessionId, setViewSessionId] = useState(() =>
     typeof window === "undefined" ? "" : loadSessionId(),
   );
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -114,32 +116,105 @@ function ChatPageContent() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const syncFromManager = useCallback(
-    (id: string) => {
-      if (!id) return;
+  const sidebarActiveId = viewSessionId.startsWith("new:")
+    ? resolveStreamId(viewSessionId)
+    : viewSessionId;
+
+  const refreshSessions = useCallback(async () => {
+    if (!authReady) return;
+    try {
+      const rows = await api.listChatSessions();
+      setSessions(rows);
+    } catch {
+      // optional without auth
+    }
+  }, [authReady]);
+
+  const applyView = useCallback(
+    async (id: string, opts?: { fetchFromApi?: boolean }) => {
+      setError(null);
+      setViewSessionId(id);
+
+      if (!id) {
+        setMessages([]);
+        setLoading(false);
+        setAgentStatus(null);
+        return;
+      }
+
       const live = getSessionState(id);
-      if (!live) return;
-      setMessages(live.messages);
-      setLoading(live.loading);
-      setAgentStatus(live.agentStatus);
-      if (live.error) setError(live.error);
+      if (live) {
+        setMessages(live.messages);
+        setLoading(live.loading);
+        setAgentStatus(live.agentStatus);
+        if (live.error) setError(live.error);
+        return;
+      }
+
+      const resolved = id.startsWith("new:") ? id : resolveStreamId(id);
+      const draft = loadChatDraft(resolved);
+      if (draft) {
+        hydrateSessionState(resolved, draft.messages);
+        setMessages(draft.messages);
+        setLoading(draft.loading);
+        return;
+      }
+
+      if (!opts?.fetchFromApi || !authReady || id.startsWith("new:")) {
+        setMessages([]);
+        setLoading(false);
+        setAgentStatus(null);
+        return;
+      }
+
+      setConversationLoading(true);
+      try {
+        const detail = await api.getChatSession(id);
+        const hydrated = hydrateSessionState(
+          detail.id,
+          detail.messages.map((m) => newMessage(m.role, m.content)),
+        );
+        saveSessionId(detail.id);
+        setMessages(hydrated.messages);
+        setLoading(hydrated.loading);
+        setAgentStatus(null);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Could not load chat";
+        setError(msg);
+        toast(msg, "error");
+      } finally {
+        setConversationLoading(false);
+      }
     },
-    [getSessionState],
+    [authReady, toast, getSessionState],
   );
 
   useEffect(() => {
-    if (!sessionId) return;
-    if (sessionId.startsWith("new:")) {
-      const migrated = sessionMigrations.get(sessionId);
+    if (!viewSessionId) return;
+
+    if (viewSessionId.startsWith("new:")) {
+      const migrated = sessionMigrations.get(viewSessionId);
       if (migrated) {
-        setSessionId(migrated);
+        setViewSessionId(migrated);
         saveSessionId(migrated);
-        syncFromManager(migrated);
         return;
       }
     }
-    syncFromManager(sessionId);
-  }, [version, sessionId, syncFromManager]);
+
+    const live = getSessionState(viewSessionId);
+    if (!live) return;
+
+    setMessages(live.messages);
+    setLoading(live.loading);
+    setAgentStatus(live.agentStatus);
+    if (live.error) setError(live.error);
+    else setError(null);
+  }, [version, viewSessionId, getSessionState]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    void refreshSessions();
+  }, [authReady, version, refreshSessions]);
 
   useEffect(() => {
     void api.capabilities().then((c) => {
@@ -158,71 +233,26 @@ function ChatPageContent() {
     void api.getGoals().then(setGoals).catch(() => setGoals([]));
   }, [authReady]);
 
-  const refreshSessions = useCallback(async () => {
-    if (!authReady) return;
-    try {
-      const rows = await api.listChatSessions();
-      setSessions(rows);
-    } catch {
-      // optional without auth
-    }
-  }, [authReady]);
-
   const loadSession = useCallback(
-    async (id: string) => {
+    (id: string) => {
       if (!authReady) return;
-      setHistoryLoading(true);
-      setError(null);
-      try {
-        const live = getSessionState(id);
-        if (live?.loading) {
-          setSessionId(id);
-          saveSessionId(id);
-          setMessages(live.messages);
-          setLoading(true);
-          setAgentStatus(live.agentStatus);
-          return;
-        }
-        const draft = loadChatDraft(id);
-        if (draft?.loading) {
-          setSessionId(id);
-          saveSessionId(id);
-          hydrateSessionState(id, draft.messages);
-          setMessages(draft.messages);
-          setLoading(true);
-          return;
-        }
-        const detail = await api.getChatSession(id);
-        const hydrated = hydrateSessionState(
-          detail.id,
-          detail.messages.map((m) => newMessage(m.role, m.content)),
-        );
-        setSessionId(detail.id);
-        saveSessionId(detail.id);
-        setMessages(hydrated.messages);
-        setLoading(hydrated.loading);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Could not load chat";
-        setError(msg);
-        toast(msg, "error");
-      } finally {
-        setHistoryLoading(false);
-      }
+      saveSessionId(id);
+      void applyView(id, { fetchFromApi: true });
     },
-    [authReady, toast, getSessionState],
+    [authReady, applyView],
   );
 
   useEffect(() => {
-    if (!authReady || !sessionId || sessionId.startsWith("new:")) return;
-    const live = getSessionState(sessionId);
+    if (!authReady || !viewSessionId || viewSessionId.startsWith("new:")) return;
+    const live = getSessionState(viewSessionId);
     if (live?.loading) return;
-    const draft = loadChatDraft(sessionId);
+    const draft = loadChatDraft(viewSessionId);
     if (!draft?.loading) return;
 
     let cancelled = false;
     const poll = async () => {
       try {
-        const detail = await api.getChatSession(sessionId);
+        const detail = await api.getChatSession(viewSessionId);
         const last = detail.messages[detail.messages.length - 1];
         if (last?.role === "assistant" && last.content?.trim()) {
           if (cancelled) return;
@@ -233,7 +263,7 @@ function ChatPageContent() {
           setMessages(hydrated.messages);
           setLoading(false);
           setAgentStatus(null);
-          clearChatDraft(sessionId);
+          clearChatDraft(viewSessionId);
           void refreshSessions();
         }
       } catch {
@@ -246,59 +276,40 @@ function ChatPageContent() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [authReady, sessionId, version, getSessionState, refreshSessions]);
+  }, [authReady, viewSessionId, version, getSessionState, refreshSessions]);
 
   useEffect(() => {
     if (!authReady) return;
-    if (searchParams.get("q")?.trim()) {
-      void api.listChatSessions().then(setSessions).catch(() => setSessions([]));
-      setHistoryLoading(false);
-      return;
-    }
+
     let active = true;
-    const saved = loadSessionId();
-    const draft = saved ? loadChatDraft(saved) : null;
-    if (draft && draft.loading) {
-      setSessionId(draft.sessionId);
-      hydrateSessionState(draft.sessionId, draft.messages);
-      setMessages(draft.messages);
-      setLoading(true);
-      setHistoryLoading(false);
-      void api.listChatSessions().then((rows) => {
+    setSessionsLoading(true);
+    void api
+      .listChatSessions()
+      .then((rows) => {
         if (active) setSessions(rows);
-      }).catch(() => {});
+      })
+      .catch(() => {
+        if (active) setSessions([]);
+      })
+      .finally(() => {
+        if (active) setSessionsLoading(false);
+      });
+
+    if (searchParams.get("q")?.trim()) {
       return () => {
         active = false;
       };
     }
-    Promise.all([
-      api.listChatSessions().catch(() => [] as ChatSessionSummary[]),
-      (async () => {
-        const saved = loadSessionId();
-        if (!saved) return null;
-        try {
-          return await api.getChatSession(saved);
-        } catch {
-          clearSessionId();
-          return null;
-        }
-      })(),
-    ])
-      .then(([rows, detail]) => {
-        if (!active) return;
-        setSessions(rows);
-        if (detail) {
-          setSessionId(detail.id);
-          setMessages(detail.messages.map((m) => newMessage(m.role, m.content)));
-        }
-      })
-      .finally(() => {
-        if (active) setHistoryLoading(false);
-      });
+
+    const saved = loadSessionId();
+    if (saved && !saved.startsWith("new:")) {
+      void applyView(saved, { fetchFromApi: true });
+    }
+
     return () => {
       active = false;
     };
-  }, [authReady, searchParams]);
+  }, [authReady, searchParams, applyView]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -310,8 +321,20 @@ function ChatPageContent() {
       if (!message) return;
 
       const isNew = Boolean(options?.newSession);
-      const activeId = isNew ? "" : sessionId;
-      if (!isNew && activeId && getSessionState(activeId)?.loading) return;
+      let activeId = "";
+      if (!isNew && viewSessionId) {
+        if (viewSessionId.startsWith("new:")) {
+          const migrated = sessionMigrations.get(viewSessionId);
+          if (migrated) {
+            activeId = migrated;
+          } else if (getSessionState(viewSessionId)?.loading) {
+            return;
+          }
+        } else {
+          activeId = viewSessionId;
+        }
+      }
+      if (activeId && getSessionState(activeId)?.loading) return;
 
       setInput("");
       setError(null);
@@ -328,22 +351,26 @@ function ChatPageContent() {
         priorMessages,
       });
 
-      if (streamKey.startsWith("new:")) {
-        setSessionId(streamKey);
-      } else if (streamKey) {
-        setSessionId(streamKey);
+      setViewSessionId(streamKey);
+      if (!streamKey.startsWith("new:")) {
         saveSessionId(streamKey);
       }
 
-      syncFromManager(streamKey);
+      const live = getSessionState(streamKey);
+      if (live) {
+        setMessages(live.messages);
+        setLoading(live.loading);
+        setAgentStatus(live.agentStatus);
+      }
+
       void refreshSessions();
       inputRef.current?.focus();
     },
-    [input, sessionId, messages, sendStream, getSessionState, syncFromManager, refreshSessions],
+    [input, viewSessionId, messages, sendStream, getSessionState, refreshSessions],
   );
 
   useEffect(() => {
-    if (!authReady || historyLoading) return;
+    if (!authReady || sessionsLoading) return;
 
     const q = searchParams.get("q")?.trim();
     if (!q) {
@@ -359,11 +386,8 @@ function ChatPageContent() {
     const startNewChat = searchParams.get("new") !== "0";
 
     if (startNewChat) {
-      if (sessionId) stopSession(sessionId);
-      setMessages([]);
-      setError(null);
-      setSessionId("");
       clearSessionId();
+      void applyView("");
     }
 
     router.replace("/chat", { scroll: false });
@@ -378,37 +402,36 @@ function ChatPageContent() {
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [authReady, historyLoading, loading, searchParams, router, sendMessage]);
+  }, [authReady, sessionsLoading, searchParams, router, sendMessage, applyView]);
 
   const handleStop = () => {
-    if (sessionId) stopSession(sessionId);
+    if (!viewSessionId) return;
+    stopSession(viewSessionId);
+    const resolved = resolveStreamId(viewSessionId);
+    if (resolved !== viewSessionId) stopSession(resolved);
     setLoading(false);
     setAgentStatus(null);
   };
 
   const handleNewChat = () => {
-    if (sessionId) stopSession(sessionId);
-    setMessages([]);
-    setError(null);
-    setSessionId("");
     clearSessionId();
+    void applyView("");
     inputRef.current?.focus();
   };
 
   const handleDeleteSession = async (id: string) => {
     const previous = sessions;
     setSessions((prev) => prev.filter((s) => s.id !== id));
-    if (sessionId === id) {
-      setMessages([]);
-      setSessionId("");
+    if (viewSessionId === id || sidebarActiveId === id) {
       clearSessionId();
+      void applyView("");
     }
     try {
       await api.deleteChatSession(id);
       toast("Conversation deleted");
     } catch {
       setSessions(previous);
-      if (sessionId === id) void loadSession(id);
+      if (viewSessionId === id) void applyView(id, { fetchFromApi: true });
       toast("Could not delete conversation", "error");
     }
   };
@@ -474,9 +497,9 @@ function ChatPageContent() {
       <div className="chat-shell">
         <ChatHistorySidebar
           sessions={sessions}
-          sessionId={sessionId}
+          sessionId={sidebarActiveId}
           streamingSessionIds={streamingSessionIds}
-          loading={!authReady || historyLoading}
+          loading={!authReady || sessionsLoading}
           renamingId={renamingId}
           renameValue={renameValue}
           onNewChat={handleNewChat}
@@ -508,7 +531,7 @@ function ChatPageContent() {
             </div>
 
             <div className="chat-messages">
-              {messages.length === 0 && !loading && !historyLoading && (
+              {messages.length === 0 && !loading && !conversationLoading && (
                 <div className="flex flex-1 flex-col items-center justify-center gap-8 py-6">
                   <div className="text-center">
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent-soft)] glow-accent">
@@ -576,7 +599,7 @@ function ChatPageContent() {
                 </div>
               )}
 
-              {historyLoading && messages.length === 0 && (
+              {conversationLoading && messages.length === 0 && (
                 <div className="flex flex-1 items-center justify-center gap-2 text-sm text-[var(--muted)]">
                   <Loader2 size={16} className="animate-spin text-[var(--accent)]" />
                   Loading conversation…
