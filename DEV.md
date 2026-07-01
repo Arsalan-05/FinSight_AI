@@ -31,5 +31,5 @@ cd frontend && npm run lint && npm run type-check
 - FastAPI DI for DB sessions — do not instantiate inside route handlers
 - LangGraph state in TypedDict — new fields go there
 - MCP tools: one file per server in `backend/mcp/`
-- Default LLM: Ollama `qwen2.5:7b` (free, local); optional paid Anthropic for cloud
+- Default LLM: Ollama `qwen2.5:7b` (free local); Groq free tier on Render; Anthropic optional paid
 - Secrets in `.env` only — never commit
