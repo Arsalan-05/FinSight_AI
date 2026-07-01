@@ -38,13 +38,14 @@ function notify() {
   listeners.forEach((cb) => cb());
 }
 
-function saveDraft(state: SessionChatState) {
-  if (!state.sessionId) return;
+function saveDraft(state: SessionChatState, storageKey?: string) {
+  const key = state.sessionId || storageKey;
+  if (!key) return;
   try {
     sessionStorage.setItem(
-      draftKey(state.sessionId),
+      draftKey(key),
       JSON.stringify({
-        sessionId: state.sessionId,
+        sessionId: state.sessionId || key,
         messages: state.messages,
         loading: state.loading,
         at: Date.now(),
@@ -114,24 +115,58 @@ export function subscribe(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
+export function resolveStreamId(id: string): string {
+  if (id.startsWith("new:")) {
+    return sessionMigrations.get(id) ?? id;
+  }
+  return id;
+}
+
 export function getSessionState(sessionId: string): SessionChatState | undefined {
-  return states.get(sessionId);
+  const direct = states.get(sessionId);
+  if (direct) return direct;
+
+  const resolved = resolveStreamId(sessionId);
+  if (resolved !== sessionId) {
+    const migrated = states.get(resolved);
+    if (migrated) return migrated;
+  }
+
+  for (const state of states.values()) {
+    if (state.sessionId === sessionId) return state;
+  }
+
+  for (const [key, state] of states.entries()) {
+    if (sessionMigrations.get(key) === sessionId) return state;
+  }
+
+  return undefined;
 }
 
 export function getStreamingSessionIds(): string[] {
-  return [...states.entries()].filter(([, s]) => s.loading).map(([id]) => id);
+  const ids = new Set<string>();
+  for (const [key, state] of states.entries()) {
+    if (!state.loading) continue;
+    if (state.sessionId) {
+      ids.add(state.sessionId);
+    } else {
+      const migrated = sessionMigrations.get(key);
+      if (migrated) ids.add(migrated);
+    }
+  }
+  return [...ids];
 }
 
 export function isSessionLoading(sessionId: string): boolean {
   return Boolean(states.get(sessionId)?.loading);
 }
 
-function setState(sessionId: string, patch: Partial<SessionChatState>) {
-  const prev = states.get(sessionId);
+function setState(sessionKey: string, patch: Partial<SessionChatState>) {
+  const prev = states.get(sessionKey);
   if (!prev) return;
   const next = { ...prev, ...patch };
-  states.set(sessionId, next);
-  saveDraft(next);
+  states.set(sessionKey, next);
+  saveDraft(next, sessionKey);
   notify();
 }
 
@@ -146,7 +181,7 @@ function migrateState(fromId: string, toId: string) {
     abortControllers.set(toId, abortControllers.get(fromId)!);
     abortControllers.delete(fromId);
   }
-  saveDraft(next);
+  saveDraft(next, toId);
   notify();
   return toId;
 }
@@ -160,11 +195,17 @@ const AGENT_STATUS = [
 ];
 
 export function stopChatStream(sessionId: string) {
-  abortControllers.get(sessionId)?.abort();
-  abortControllers.delete(sessionId);
-  const state = states.get(sessionId);
-  if (state?.loading) {
-    setState(sessionId, { loading: false, agentStatus: null });
+  const keys = new Set<string>([sessionId, resolveStreamId(sessionId)]);
+  for (const [key, state] of states.entries()) {
+    if (state.sessionId === sessionId) keys.add(key);
+  }
+  for (const key of keys) {
+    abortControllers.get(key)?.abort();
+    abortControllers.delete(key);
+    const state = states.get(key);
+    if (state?.loading) {
+      setState(key, { loading: false, agentStatus: null });
+    }
   }
 }
 

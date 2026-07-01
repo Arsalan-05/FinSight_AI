@@ -972,7 +972,7 @@ Deferred beyond the current release:
 
 **Post v1.5.0 updates:** Voyage reindex batching, Groq rate-limit retries, full Alerts page, notification bell live signals, new chat per advisor deep link, default model `llama-3.1-8b-instant`.
 
-**v1.5.1 (July 1, 2026):** Finance-only scope guard (`backend/agent/scope.py`), background/concurrent chat streams (`chat-stream-manager`), unified alert toggles, follow-up context + Groq trim, reliable profile learning via `call_llm_plain`, notification bell fixed positioning, typewriter SSE streaming.
+**v1.5.1 (July 1, 2026):** Finance-only scope guard (`backend/agent/scope.py`), background/concurrent chat streams (`chat-stream-manager`), unified alert toggles, follow-up context + Groq trim, reliable profile learning via `call_llm_plain`, notification bell fixed positioning, typewriter SSE streaming, sidebar/conversation loading split (history visible while a reply generates).
 
 ---
 
