@@ -242,6 +242,7 @@ def _groq_system_hint() -> str:
         "- Use the function-calling API only — never XML or <function=...> tags.\n"
         "- For general finance education (credit vs debit, budgeting basics), answer "
         "directly when the user is not asking about their own transactions.\n"
+        "- REFUSE off-topic questions (celebrities, trivia, entertainment) without tools.\n"
         "- Use search_web only for time-sensitive facts (2026 tax limits, current rates)."
     )
 

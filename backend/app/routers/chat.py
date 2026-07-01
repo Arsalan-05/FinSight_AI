@@ -9,11 +9,14 @@ from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import AIMessage, HumanMessage
 from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from agent.llm import chat_unavailable_message, llm_runtime_available
+from agent.memory import load_messages, load_session, save_session
 from agent.runner import AgentResult, run_agent
+from agent.scope import finance_scope_refusal
 from app.auth import get_current_user, get_current_user_optional
 from app.chat_history import session_to_detail, session_to_summary
 from app.dependencies import get_db
@@ -40,6 +43,33 @@ def _chunk_reply(text: str, *, words_per_chunk: int = 3) -> list[str]:
         part = " ".join(words[i : i + words_per_chunk])
         chunks.append(part + (" " if i + words_per_chunk < len(words) else ""))
     return chunks
+
+
+async def _stream_scoped_refusal(
+    message: str,
+    session_id: str,
+    db: Session,
+    user_id: str | None,
+    refusal: str,
+) -> AsyncIterator[str]:
+    """Skip the agent for off-topic questions — instant reply, no Groq tokens."""
+    yield _sse({"type": "session", "session_id": session_id})
+    session = load_session(db, session_id, user_id=user_id)
+    messages = load_messages(session)
+    messages.append(HumanMessage(content=message))
+    messages.append(AIMessage(content=refusal))
+    save_session(db, session_id, messages, session.memory_summary or "", user_id=user_id)
+    for chunk in _chunk_reply(refusal):
+        yield _sse({"type": "token", "content": chunk})
+        await asyncio.sleep(0.022)
+    yield _sse(
+        {
+            "type": "done",
+            "session_id": session_id,
+            "content": refusal,
+            "citations": [],
+        }
+    )
 
 
 async def _stream_reply(
@@ -126,8 +156,15 @@ async def chat(
     session_id = payload.session_id or str(uuid.uuid4())
     user_id = current_user.id if current_user else None
 
+    refusal = finance_scope_refusal(payload.message)
+    stream = (
+        _stream_scoped_refusal(payload.message, session_id, db, user_id, refusal)
+        if refusal
+        else _stream_reply(payload.message, session_id, db, user_id)
+    )
+
     return StreamingResponse(
-        _stream_reply(payload.message, session_id, db, user_id),
+        stream,
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
