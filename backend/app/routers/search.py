@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ from app.schemas import TransactionOut
 from app.scoping import account_ids_for_user
 from db.models import Transaction, User
 from rag.embedder import embeddings_runtime_available
-from rag.indexing import count_indexed_transactions, reindex_transactions
+from rag.indexing import count_indexed_transactions, index_missing_batch, reindex_transactions
 from rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,9 @@ class SearchStatusResponse(BaseModel):
 class ReindexResponse(BaseModel):
     indexed: int
     transaction_count: int
+    indexed_count: int
+    remaining: int
+    complete: bool
 
 
 @router.get("/status", response_model=SearchStatusResponse)
@@ -76,21 +79,39 @@ def search_status(
 
 @router.post("/reindex", response_model=ReindexResponse)
 def reindex_search_index(
+    batch_size: int = Query(default=24, ge=1, le=64),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReindexResponse:
-    """Rebuild embeddings for all of the user's transactions (after Voyage migration)."""
+    """Index the next batch of transactions missing embeddings (call until complete)."""
     account_ids = account_ids_for_user(db, current_user)
     if not account_ids:
-        return ReindexResponse(indexed=0, transaction_count=0)
-    txs = (
-        db.query(Transaction)
-        .filter(Transaction.account_id.in_(account_ids))
-        .order_by(Transaction.transaction_date.desc())
-        .all()
-    )
-    indexed = reindex_transactions(db, txs)
-    return ReindexResponse(indexed=indexed, transaction_count=len(txs))
+        return ReindexResponse(
+            indexed=0,
+            transaction_count=0,
+            indexed_count=0,
+            remaining=0,
+            complete=True,
+        )
+    try:
+        indexed, total, indexed_total, remaining = index_missing_batch(
+            db, account_ids, batch_size=batch_size
+        )
+        return ReindexResponse(
+            indexed=indexed,
+            transaction_count=total,
+            indexed_count=indexed_total,
+            remaining=remaining,
+            complete=remaining == 0,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Search reindex failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Search indexing failed. Try again in a moment.",
+        ) from exc
 
 
 @router.post("/", response_model=SearchResponse)
