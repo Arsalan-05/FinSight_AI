@@ -4,9 +4,9 @@ Usage:
     uv run python -m agent.cli "How much did I spend on dining?"
     uv run python -m agent.cli --session my-session "What about last month?"
 
-Requires Groq (free, same as Render) or Ollama fallback:
-    GROQ_API_KEY=...  # console.groq.com
-    ollama pull nomic-embed-text  # embeddings
+Requires Groq (free, same as Render) + Voyage (free search, same as Render):
+    GROQ_API_KEY=...   # console.groq.com
+    VOYAGE_API_KEY=... # dash.voyageai.com (200M free tokens)
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from agent.llm import ollama_llm_available
 from agent.runner import run_agent
 from app.config import settings
 from db.base import SessionLocal
-from rag.embedder import ollama_embeddings_available
+from rag.embedder import embeddings_runtime_available, ollama_embeddings_available
 
 
 def _check_setup() -> None:
@@ -40,9 +40,15 @@ def _check_setup() -> None:
         print("Prefer Groq (free): set GROQ_API_KEY and LLM_PROVIDER=groq", file=sys.stderr)
         sys.exit(1)
 
-    if settings.embedding_provider == "ollama" and not ollama_embeddings_available():
+    if settings.effective_embedding_provider == "ollama" and not ollama_embeddings_available():
         print("Warning: nomic-embed-text not found — semantic search disabled.", file=sys.stderr)
-        print("Run: ollama pull nomic-embed-text", file=sys.stderr)
+        print(
+            "Prefer Voyage (free): set VOYAGE_API_KEY from https://dash.voyageai.com",
+            file=sys.stderr,
+        )
+    elif settings.effective_embedding_provider == "voyage" and not embeddings_runtime_available():
+        print("Warning: VOYAGE_API_KEY not set — semantic search disabled.", file=sys.stderr)
+        print("Free key: https://dash.voyageai.com (voyage-4-large, 200M tokens)", file=sys.stderr)
 
 
 def main() -> None:

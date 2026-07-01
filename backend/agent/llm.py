@@ -380,7 +380,7 @@ def chat_unavailable_message() -> str:
         )
     return (
         "Advisor needs a free GROQ_API_KEY (console.groq.com) on Mac and Render. "
-        "Ollama is only for local search embeddings."
+        "Semantic search uses Voyage voyage-4-large (dash.voyageai.com)."
     )
 
 

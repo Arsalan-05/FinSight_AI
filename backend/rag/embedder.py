@@ -26,7 +26,7 @@ def build_content(tx: Transaction) -> str:
 
 
 def _embed_ollama(texts: list[str]) -> list[list[float]]:
-    """Embed via local Ollama (nomic-embed-text, 768-dim) — free, no API key."""
+    """Embed via local Ollama (nomic-embed-text, 768-dim) — offline fallback only."""
     url = f"{settings.ollama_base_url.rstrip('/')}/api/embed"
     with httpx.Client(timeout=120.0) as client:
         response = client.post(
@@ -39,9 +39,14 @@ def _embed_ollama(texts: list[str]) -> list[list[float]]:
 
 
 def _embed_voyage(texts: list[str], api_key: str, input_type: str) -> list[list[float]]:
-    """Embed via Voyage AI voyage-3 (1024-dim) — requires VOYAGE_API_KEY."""
+    """Embed via Voyage AI (free tier: voyage-4-large, 200M tokens/account)."""
     client = voyageai.Client(api_key=api_key)  # type: ignore[attr-defined]
-    result = client.embed(texts, model="voyage-3", input_type=input_type)
+    result = client.embed(
+        texts,
+        model=settings.voyage_model,
+        input_type=input_type,
+        output_dimension=settings.voyage_output_dimension,
+    )
     return cast("list[list[float]]", result.embeddings)
 
 
@@ -51,11 +56,12 @@ def embed_texts(
     *,
     api_key: str = "",
 ) -> list[list[float]]:
-    """Embed texts using the configured provider (Ollama by default).
+    """Embed texts using the configured provider (Voyage by default).
 
     input_type is used by Voyage AI only ("document" vs "query").
     """
-    if settings.embedding_provider == "voyage":
+    provider = settings.effective_embedding_provider
+    if provider == "voyage":
         key = api_key or settings.voyage_api_key
         if not key:
             raise ValueError("VOYAGE_API_KEY is required when EMBEDDING_PROVIDER=voyage")
@@ -63,9 +69,30 @@ def embed_texts(
     return _embed_ollama(texts)
 
 
+def embeddings_runtime_available() -> bool:
+    """True when semantic search can embed queries and documents."""
+    provider = settings.effective_embedding_provider
+    if provider == "voyage":
+        return bool(settings.voyage_api_key)
+    return ollama_embeddings_available()
+
+
+def embeddings_unavailable_message() -> str:
+    provider = settings.effective_embedding_provider
+    if provider == "voyage":
+        return (
+            "Semantic search needs a free VOYAGE_API_KEY (dash.voyageai.com) "
+            "on Mac and Render — 200M free tokens with voyage-4-large."
+        )
+    return (
+        "Semantic search needs Ollama with nomic-embed-text, or set VOYAGE_API_KEY "
+        "for cloud embeddings (recommended)."
+    )
+
+
 def ollama_embeddings_available() -> bool:
     """Return True when Ollama is running and the embed model is pulled."""
-    if settings.embedding_provider != "ollama":
+    if settings.effective_embedding_provider != "ollama":
         return True
     try:
         url = f"{settings.ollama_base_url.rstrip('/')}/api/tags"

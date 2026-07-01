@@ -12,7 +12,7 @@ from app.dependencies import get_db
 from app.schemas import TransactionOut
 from app.scoping import account_ids_for_user
 from db.models import User
-from rag.embedder import ollama_embeddings_available
+from rag.embedder import embeddings_runtime_available
 from rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def semantic_search(
             k=payload.k,
             embedding_enabled=False,
         )
-    if settings.embedding_provider == "ollama" and not ollama_embeddings_available():
+    if not embeddings_runtime_available():
         return SearchResponse(
             results=[],
             query=payload.query,

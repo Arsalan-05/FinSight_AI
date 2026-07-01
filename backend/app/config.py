@@ -21,10 +21,13 @@ class Settings(BaseSettings):
     groq_model: str = "llama-3.3-70b-versatile"
     anthropic_api_key: str = ""
     voyage_api_key: str = ""
+    # Best free Voyage tier: 200M tokens/account — https://docs.voyageai.com/docs/pricing
+    voyage_model: str = "voyage-4-large"
+    voyage_output_dimension: int = 1024
 
-    # groq = default (needs GROQ_API_KEY); ollama = offline fallback for embeddings + no-key dev
+    # groq = default chat; voyage = default search (Mac + Render); ollama = offline embed fallback
     llm_provider: str = "groq"  # groq | ollama | anthropic
-    embedding_provider: str = "ollama"  # ollama | voyage
+    embedding_provider: str = "voyage"  # voyage | ollama
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:7b"  # strong tool-calling; override via OLLAMA_MODEL
     ollama_embed_model: str = "nomic-embed-text"
@@ -63,7 +66,7 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     log_level: str = "INFO"
-    app_version: str = "1.4.0"
+    app_version: str = "1.5.0"
 
     # Web search — Tavily optional; DuckDuckGo fallback when enabled
     tavily_api_key: str = ""
@@ -116,13 +119,31 @@ class Settings(BaseSettings):
 
     @property
     def embedding_dim(self) -> int:
-        return 1024 if self.embedding_provider == "voyage" else 768
+        if self.effective_embedding_provider == "voyage":
+            return self.voyage_output_dimension
+        return 768
+
+    @property
+    def effective_embedding_provider(self) -> str:
+        """Voyage when key is set (same model local + Render). Ollama fallback for offline dev."""
+        provider = self.embedding_provider.lower()
+        if provider == "ollama":
+            return "ollama"
+        if self.voyage_api_key:
+            return "voyage"
+        if self.environment == "production":
+            return "voyage"
+        return "ollama"
 
     @property
     def embeddings_configured(self) -> bool:
-        if self.embedding_provider == "voyage":
+        if self.effective_embedding_provider == "voyage":
             return bool(self.voyage_api_key)
         return True
+
+    @property
+    def voyage_configured(self) -> bool:
+        return bool(self.voyage_api_key)
 
     @property
     def groq_configured(self) -> bool:

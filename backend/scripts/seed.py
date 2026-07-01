@@ -22,12 +22,12 @@ from scripts.canadian_demo import prior_month_transactions
 def _embed_seeded_transactions(db, txs: list[Transaction]) -> None:
     """Best-effort embedding of seeded transactions for semantic search."""
     from app.config import settings
-    from rag.embedder import build_content, embed_texts, ollama_embeddings_available
+    from rag.embedder import build_content, embed_texts, embeddings_runtime_available
 
     if not settings.embeddings_configured:
         return
-    if settings.embedding_provider == "ollama" and not ollama_embeddings_available():
-        print("Skipping embeddings — run: ollama pull nomic-embed-text")
+    if not embeddings_runtime_available():
+        print("Skipping embeddings — set VOYAGE_API_KEY (dash.voyageai.com) or run Ollama")
         return
     try:
         contents = [build_content(tx) for tx in txs]
