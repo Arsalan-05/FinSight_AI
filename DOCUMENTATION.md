@@ -949,7 +949,8 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 | **Embeddings / search empty** | Voyage migration cleared vectors | Search page → **Rebuild search index**, or re-upload CSV |
 | **Embeddings skipped (offline)** | No Voyage key, Ollama embed missing | `ollama pull nomic-embed-text` or set `VOYAGE_API_KEY` |
 | **Alembic % error in password** | ConfigParser interpolation | URL-encode `@` as `%40`; use `uv run python -m db.migrate` |
-| **Chat left mid-response** | Stream tied to page (pre-v1.5.1) | Redeploy v1.5.1 — background stream manager + per-session draft |
+| **Chat stuck loading after refresh** | SSE state lost; draft not saved | v1.5.1+ polls API every 2s until reply saved; sidebar spinner from sessionStorage drafts |
+| **First chat slow (~60s)** | Render free tier cold start | Normal — health ping on chat load; message after 12s explains wait |
 | **Advisor answers trivia** | No scope guard (pre-v1.5.1) | Redeploy — `finance_scope_refusal` blocks off-topic before Groq |
 | **Follow-up repeats same answer** | Context trim | Redeploy v1.5.1 — last 2 user turns kept + follow-up prompt rule |
 | **CORS error** | Wrong origin | Render `CORS_ORIGINS` must include Vercel URL |
