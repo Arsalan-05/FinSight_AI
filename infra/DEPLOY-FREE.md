@@ -150,22 +150,25 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 | Google login redirect error | Add Vercel URL to Supabase redirect URLs |
 | `Could not load your data` | Run `alembic upgrade head` on production DB |
 | 30–50s first load | Render free tier waking up — normal |
-| Chat empty / errors (deployed) | Expected without `ANTHROPIC_API_KEY` — Ollama is local-only; chat **history** still syncs via Supabase |
-| Chat history not shared local↔cloud | Use hotspot if campus Wi-Fi blocks Supabase; both must reach same Supabase DB |
+| Chat errors | Missing `GROQ_API_KEY` / `VOYAGE_API_KEY` on Render | Add keys → Manual Deploy |
+| Groq `tool_use_failed` | Old deploy | Pull latest `main` and redeploy Render |
+| Chat history not shared local↔cloud | Campus Wi-Fi blocks Supabase | Use hotspot; or use production only |
 | Local `Failed to fetch` | Use `NEXT_PUBLIC_API_URL=http://127.0.0.1:8000` not `localhost` |
 | 403 on login | Add your email to `BETA_ALLOWED_EMAILS` |
 
 ---
 
-## What stays local-only
+## Production vs local
 
-| Feature | Free cloud | Local (`npm run dev`) |
-|---------|------------|------------------------|
+| | **Production** | **Local (optional)** |
+|--|----------------|----------------------|
+| Purpose | Daily use, demos, portfolio | Coding, tests, experiments |
 | Login + dashboard | Yes | Yes |
-| Transactions / CSV | Yes | Yes |
-| Budgets / alerts | Yes | Yes |
-| Chat (Ollama) | No (history syncs) | Yes |
-| Chat (Anthropic) | Yes (paid API) | Yes |
+| Advisor chat (Groq) | Yes | Yes (same API keys) |
+| Semantic search (Voyage) | Yes | Yes (same API keys) |
+| Required to use FinSight? | **Yes** | **No** |
+
+Ollama is optional offline fallback when Groq/Voyage keys are unset locally.
 
 ---
 

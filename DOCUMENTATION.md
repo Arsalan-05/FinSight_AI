@@ -1,7 +1,24 @@
 # FinSight AI — Project Documentation
 
-> **FinSight AI v1.4.0** — **100% complete · locked · June 30, 2026.**  
-> Production live on Vercel + Render + Supabase. Local Ollama advisor. 102 tests passing.
+> **FinSight AI v1.5.0** — **100% complete · locked · July 1, 2026.**  
+> **Production** is live on Vercel + Render + Supabase (Groq + Voyage).  
+> **Local** is optional — for coding, testing, experiments, and debugging only.
+
+---
+
+## Production vs local (read this first)
+
+| | **Production (primary)** | **Local (workshop)** |
+|--|--------------------------|----------------------|
+| **Use when** | Daily use, demos, portfolio, real data | Editing code, fixing bugs, running tests |
+| **Frontend** | `https://fin-sight-ai-sepia.vercel.app` | `http://localhost:3000` |
+| **Backend** | `https://finsight-api-byrl.onrender.com` | `http://127.0.0.1:8000` |
+| **Database** | Supabase (always) | Supabase (hotspot) or Docker fallback |
+| **Chat** | Groq `llama-3.3-70b-versatile` | Same Groq keys (Ollama only if keys missing) |
+| **Search** | Voyage `voyage-4-large` | Same Voyage keys |
+| **Required?** | ✅ This is the product | ❌ Only when developing |
+
+You do **not** need local running to use FinSight. Start local only when you change code.
 
 ---
 
@@ -18,7 +35,7 @@
 
 **Vercel:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-**Render:** `DATABASE_URL` (session pooler port **5432**), `SUPABASE_URL`, `CORS_ORIGINS`, `BETA_ALLOWED_EMAILS`, `DATABASE_FALLBACK_ENABLED=false`
+**Render:** `DATABASE_URL` (session pooler port **5432**), `SUPABASE_URL`, `CORS_ORIGINS`, `BETA_ALLOWED_EMAILS`, `GROQ_API_KEY`, `VOYAGE_API_KEY`, `LLM_PROVIDER=groq`, `EMBEDDING_PROVIDER=voyage`, `DATABASE_FALLBACK_ENABLED=false`
 
 **Supabase Auth redirect URLs** (must include wildcards):
 
@@ -32,9 +49,9 @@ Full guide: [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)
 
 ---
 
-## Restart everything (clean local start)
+## Restart local dev (optional — only when coding)
 
-Use this when data stops loading, port 8000 is stuck, or after pulling new code:
+Use this when testing changes locally — not required for normal use of the deployed app:
 
 ```bash
 # 1 — Stop stuck processes (macOS)
@@ -47,8 +64,9 @@ docker compose up -d db
 # 3 — Migrations (uses same DB URL as the running app, with Supabase → local fallback)
 cd backend && uv sync && uv run alembic upgrade head
 
-# 4 — Backend (terminal 1) — bind 127.0.0.1 (avoids IPv6 localhost failures)
-cd backend && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+# 4 — Backend (terminal 1) — load .env for Groq + Voyage keys
+cd backend && set -a && source ../.env && set +a
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 # 5 — Frontend (terminal 2)
 cd frontend && npm run dev
@@ -62,29 +80,30 @@ Open **http://localhost:3000** → hard refresh (`Cmd+Shift+R`) if stale.
 
 ---
 
-## Startup Guide (read this first)
+## Startup Guide (local development only)
 
-Local setup in four steps:
+Skip this section if you only use the **deployed app**. For coding and tests:
 
 ```bash
-# Quick bootstrap (Docker Postgres + migrations only)
+# Quick bootstrap (Docker Postgres fallback + migrations)
 ./scripts/dev-up.sh
 
 # 1 — Environment
 cp .env.example .env
 cp frontend/.env.local.example frontend/.env.local
-# Fill DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY in both files
+# Add GROQ_API_KEY, VOYAGE_API_KEY, Supabase keys (see .env.example)
 
-# 2 — Database (Supabase direct connection — use hotspot if campus Wi-Fi blocks port 5432)
+# 2 — Database (Supabase — use hotspot if campus Wi-Fi blocks pooler)
 chmod +x infra/supabase/setup-e2e.sh
 ./infra/supabase/setup-e2e.sh
 
-# 3 — Ollama models (one-time)
-ollama pull qwen2.5:7b
-ollama pull nomic-embed-text
+# 3 — Optional offline fallback (only if Groq/Voyage keys unset)
+# ollama pull qwen2.5:7b
+# ollama pull nomic-embed-text
 
 # 4 — Run services (two terminals)
-cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000
+cd backend && set -a && source ../.env && set +a
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 cd frontend && npm install && npm run dev
 ```
 
@@ -142,7 +161,7 @@ Chats persist in Postgres. The advisor reads transactions through scoped SQL and
 | Capability | Implementation |
 |------------|----------------|
 | Structured finance data | PostgreSQL — users, accounts, transactions |
-| Semantic search (RAG) | pgvector HNSW + Ollama/Voyage embeddings |
+| Semantic search (RAG) | pgvector HNSW + Voyage embeddings (Ollama offline fallback) |
 | Reasoning agent | LangGraph ReAct loop with tool calls |
 | Auth & multi-user | Supabase Google OAuth + per-user data scoping |
 | Proactive insights | Subscriptions, runway, TFSA, anomalies, credit tips |
@@ -151,7 +170,7 @@ Chats persist in Postgres. The advisor reads transactions through scoped SQL and
 
 ### Summary
 
-FinSight ingests transaction data, embeds it in pgvector for semantic search, and runs a stateful finance agent that answers spending questions through SQL and retrieval tools. FastAPI serves the API; Next.js is the dashboard, search, and chat UI. Supabase handles Google login; Postgres stores data and chat history. Local dev uses Ollama; production can switch LLM/embeddings via env vars.
+FinSight ingests transaction data, embeds it in pgvector for semantic search, and runs a stateful finance agent that answers spending questions through SQL and retrieval tools. FastAPI serves the API; Next.js is the dashboard, search, and chat UI. Supabase handles Google login; Postgres stores data and chat history. **Production and local both use Groq (chat) and Voyage (search)** when API keys are set; Ollama is an optional offline fallback only.
 
 ---
 
@@ -181,9 +200,10 @@ flowchart TB
         Sessions[(chat_sessions)]
     end
 
-    subgraph llm [LLM Layer]
-        Ollama[Ollama — local default]
-        Claude[Anthropic Claude — optional]
+    subgraph llm [AI Layer]
+        Groq[Groq — Llama 3.3 70B chat]
+        Voyage[Voyage — voyage-4-large embeddings]
+        Ollama[Ollama — optional offline fallback]
     end
 
     AuthUI -->|session cookies| UI
@@ -196,8 +216,9 @@ flowchart TB
     Agent --> Tools
     RAG --> Vec
     Tools --> Rel
-    Agent --> Ollama
-    Agent --> Claude
+    Agent --> Groq
+    RAG --> Voyage
+    Agent -.-> Ollama
 ```
 
 ### Data flows
@@ -246,10 +267,11 @@ Google OAuth → Supabase JWT → POST /auth/sync → link users.auth_id
 | Database | PostgreSQL 16 + pgvector | ACID + vectors in one store |
 | Migrations | Alembic | Versioned schema changes |
 | Agent | LangGraph | Explicit ReAct state machine, testable |
-| LLM (default) | Ollama `qwen2.5:7b` | Free local inference |
-| LLM (optional) | Anthropic Claude | Production-quality reasoning |
-| Embeddings (default) | Ollama `nomic-embed-text` (768-dim) | Free local embeddings |
-| Embeddings (optional) | Voyage `voyage-3` (1024-dim) | Higher retrieval quality |
+| LLM (default) | Groq `llama-3.3-70b-versatile` | Free cloud chat — production + local |
+| LLM (fallback) | Ollama `qwen2.5:7b` | Offline dev when `GROQ_API_KEY` unset |
+| LLM (optional paid) | Anthropic Claude | Alternative cloud provider |
+| Embeddings (default) | Voyage `voyage-4-large` (1024-dim) | Semantic search — production + local |
+| Embeddings (fallback) | Ollama `nomic-embed-text` (768-dim) | Offline when `VOYAGE_API_KEY` unset |
 | Frontend | Next.js 16 App Router | SSR, standalone Docker output |
 | Styling | Tailwind CSS v4 | Glass fintech UI, CSS variables |
 | Charts | Recharts | Theme-aware analytics |
@@ -281,7 +303,7 @@ FinSight_AI/
 │   ├── agent/
 │   │   ├── graph.py          # LangGraph ReAct graph
 │   │   ├── runner.py         # Chat runner + citations
-│   │   ├── llm.py            # Ollama / Anthropic client
+│   │   ├── llm.py            # Groq / Ollama / Anthropic client
 │   │   ├── memory.py         # Session summarization
 │   │   ├── goals.py          # Financial goals in prompt
 │   │   └── tools/            # search, aggregate, insights, dates
@@ -594,13 +616,16 @@ Reasoning loop: **Understand → Plan → Gather (personal + web) → Synthesize
 
 ### LLM providers
 
-| Provider | Config | Models |
-|----------|--------|--------|
-| Ollama (default) | `LLM_PROVIDER=ollama` | `qwen2.5:7b`, `nomic-embed-text` |
-| Groq (free cloud) | `LLM_PROVIDER=groq` | `llama-3.3-70b-versatile` |
-| Anthropic (paid) | `LLM_PROVIDER=anthropic` | `claude-sonnet-4-6` |
+| Provider | Config | Models | When |
+|----------|--------|--------|------|
+| **Groq (default)** | `LLM_PROVIDER=groq` | `llama-3.3-70b-versatile` | Production + local (free) |
+| Ollama (fallback) | `LLM_PROVIDER=ollama` | `qwen2.5:7b` | Keys missing / offline dev |
+| Anthropic (paid) | `LLM_PROVIDER=anthropic` | `claude-sonnet-4-6` | Optional upgrade |
+
+**Embeddings:** `EMBEDDING_PROVIDER=voyage` + `VOYAGE_API_KEY` (default). Ollama `nomic-embed-text` when Voyage key is unset.
 
 ```bash
+# Optional offline fallback only
 ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 ```
@@ -876,11 +901,13 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 | **DNS error on `db.*.supabase.co`** | Direct host blocked from cloud/local | Use session pooler URL; Render auto-rewrites direct URLs |
 | **Google login fails** | Provider not enabled | Supabase → Auth → Providers → Google |
 | **Login redirects to Vercel** | Redirect URL missing wildcard | Add `http://localhost:3000/**` not just `http://localhost:3000` |
-| **Chat no response (local)** | Ollama not running | `ollama serve` + pull models |
-| **Chat no response (deployed)** | Ollama not on Render | Expected — use local for AI; history still syncs to Supabase |
-| **Chat history missing** | Different DB (local fallback vs Supabase) | Hotspot + `DATABASE_FALLBACK_ENABLED=true` with reachable pooler |
-| **Agent stuck loading** | DB hung on Supabase timeout | Re-enable fallback; restart backend; check `127.0.0.1:8000/health/db` |
-| **Embeddings skipped** | Ollama embed model missing | `ollama pull nomic-embed-text` |
+| **Chat no response** | Missing `GROQ_API_KEY` or Render cold start | Set keys on Render; wait ~30–50s on first request |
+| **Groq tool_use_failed** | Model emitted invalid tool XML | Fixed in v1.5.0 — redeploy latest `main` |
+| **Supabase pool exhausted** | Too many DB connections (local + Render) | Kill duplicate backends; use `DB_POOL_SIZE=2` locally |
+| **Chat history missing** | Different DB (local fallback vs Supabase) | Hotspot + shared Supabase; or use production only |
+| **Agent stuck loading** | DB hung on Supabase timeout | Restart backend; check `127.0.0.1:8000/health/db` |
+| **Embeddings / search empty** | Voyage migration cleared vectors | Re-upload CSV or run `scripts/seed.py` |
+| **Embeddings skipped (offline)** | No Voyage key, Ollama embed missing | `ollama pull nomic-embed-text` or set `VOYAGE_API_KEY` |
 | **Alembic % error in password** | ConfigParser interpolation | URL-encode `@` as `%40`; use `uv run python -m db.migrate` |
 | **CORS error** | Wrong origin | Render `CORS_ORIGINS` must include Vercel URL |
 
@@ -933,11 +960,11 @@ docker compose up --build
 
 ## 19. Project Status
 
-**FinSight AI v1.4.0 — 100% complete · locked · June 30, 2026.**
+**FinSight AI v1.5.0 — 100% complete · locked · July 1, 2026.**
 
-All engineering-MVP scope is shipped and **deployed to production**. No open development blockers.
+All engineering-MVP scope is shipped and **deployed to production**. Local development is **optional** — for coding, testing, and debugging only.
 
-### Production (live)
+### Production (primary — use this)
 
 | Check | Status |
 |-------|--------|
@@ -945,9 +972,21 @@ All engineering-MVP scope is shipped and **deployed to production**. No open dev
 | Render API | ✅ `https://finsight-api-byrl.onrender.com` |
 | Supabase DB + auth | ✅ `schema_ready: true` |
 | Google OAuth | ✅ |
+| Groq advisor (chat) | ✅ `llama-3.3-70b-versatile` |
+| Voyage search (RAG) | ✅ `voyage-4-large` |
 | Invite-only beta | ✅ `BETA_ALLOWED_EMAILS` |
-| Shared chat history (Supabase) | ✅ local + deployed when pooler reachable |
-| Ollama advisor | ✅ local only (by design) |
+| Shared chat history | ✅ Supabase |
+
+Verify: `curl https://finsight-api-byrl.onrender.com/capabilities` → `chat_available: true`
+
+### Local development (optional workshop)
+
+| Purpose | When to run |
+|---------|-------------|
+| Fix bugs / add features | `uvicorn` + `npm run dev` |
+| Run `pytest`, lint, type-check | Before pushing to `main` |
+| Experiment safely | Break things without affecting production users |
+| Daily personal use | **Use production URL instead** — no local needed |
 
 ### Shipped
 
@@ -955,33 +994,36 @@ All engineering-MVP scope is shipped and **deployed to production**. No open dev
 |-------|-----------|
 | **Data** | PostgreSQL + pgvector, Alembic migrations (auto on Render deploy), Canadian bank CSV ingest, per-user scoping |
 | **Auth** | Supabase Google OAuth, JWT verification, invite-only beta, demo provisioning |
+| **AI** | Groq chat + Voyage embeddings (free tier); Ollama offline fallback |
 | **Bank link** | Plaid Link, webhooks, background sync, encrypted tokens |
 | **Trust** | Data export, account deletion, learned profile clear, `/privacy` |
 | **Goals & rules** | Progress tracking, merchant categorization rules |
-| **RAG** | Transaction embeddings, semantic search, HNSW index |
+| **RAG** | Transaction embeddings (1024-dim), semantic search, HNSW index |
 | **Agent** | ReAct loop — SQL + retrieval + web search + learned profile |
 | **Retention** | Budgets, notifications inbox, weekly brief |
 | **Chat** | Saved history (persists even on LLM failure), pin/rename/delete, citations |
 | **Frontend** | Dashboard, analytics, transactions, subscriptions, search, chat, settings |
 | **Deploy** | Vercel + Render + Supabase ($0), `render.yaml`, `frontend/vercel.json` |
-| **Local dev** | Ollama, Docker fallback, `127.0.0.1` API fix, Supabase OAuth redirect fix |
+| **Local dev** | Optional — Groq/Voyage same as prod, Docker DB fallback, `127.0.0.1` API fix |
 
 ### Deployment modes
 
 | Mode | How |
 |------|-----|
-| **Production** | Vercel + Render + Supabase — see [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) |
-| **Local (full)** | Docker Postgres fallback + Ollama + `npm run dev` |
-| **Local (shared cloud)** | Hotspot + Supabase pooler + Ollama — same data & chat as Vercel |
+| **Production (default)** | Vercel + Render + Supabase — [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) |
+| **Local (coding only)** | `source .env` → backend + frontend → test → push → Render auto-deploys |
+| **Local (shared cloud data)** | Hotspot + Supabase pooler + same keys as Render |
 
 ### Verification
 
 ```bash
-./scripts/dev-up.sh
-cd backend && uv run pytest -q          # 102 passed
-cd backend && uv run ruff check .
-cd frontend && npm run lint && npm run type-check && npm run build
+# Production health
 curl https://finsight-api-byrl.onrender.com/health/db
+curl https://finsight-api-byrl.onrender.com/capabilities
+
+# Local (when developing)
+cd backend && uv run pytest -q          # 106+ passed
+cd frontend && npm run lint && npm run type-check && npm run build
 ```
 
 ### Deployment guides
@@ -992,13 +1034,13 @@ curl https://finsight-api-byrl.onrender.com/health/db
 | [infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md) | Railway + Supabase | ~$5/mo |
 | [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md) | Railway detail | ~$5/mo |
 
-### Optional future (not required for v1.4)
+### Optional future (not required for v1.5)
 
 | Item | Notes |
 |------|-------|
-| `ANTHROPIC_API_KEY` on Render | Cloud AI advisor replies |
 | Custom domain | Vercel + Render settings |
 | Plaid production keys | Live bank linking |
+| Tavily / Finnhub keys | Better web search / market quotes |
 
 ## 20. Rights, License & Ownership
 
@@ -1037,7 +1079,7 @@ The MIT License applies only to parties who obtain a lawful copy of the software
 
 ### Third-party components
 
-FinSight integrates open-source libraries (FastAPI, Next.js, LangGraph, PostgreSQL, etc.) and optional external APIs (Supabase, Anthropic, Plaid, Ollama). Each third-party component remains subject to its own license. Integration code written for this project is owned by Arsalan Amir Ali.
+FinSight integrates open-source libraries (FastAPI, Next.js, LangGraph, PostgreSQL, etc.) and optional external APIs (Supabase, Groq, Voyage, Anthropic, Plaid, Ollama). Each third-party component remains subject to its own license. Integration code written for this project is owned by Arsalan Amir Ali.
 
 ### Privacy & user data
 
@@ -1045,10 +1087,10 @@ User transaction data, chat history, and account information belong to each end 
 
 ### Completion declaration
 
-> **FinSight AI v1.4.0** is **100% complete and locked** as of **June 30, 2026** by **Arsalan Amir Ali**.  
-> Production is live (Vercel + Render + Supabase). Local Ollama advisor works. Engineering MVP is finished.  
-> Future work (cloud LLM, custom domain, Plaid production) is optional enhancement only — not in scope for v1.4.
+> **FinSight AI v1.5.0** is **100% complete and locked** as of **July 1, 2026** by **Arsalan Amir Ali**.  
+> **Production** (Vercel + Render + Supabase + Groq + Voyage) is the primary product.  
+> **Local** is optional for development, testing, and experiments.
 
 ---
 
-*Last updated: June 30, 2026 — FinSight AI v1.4.0 — complete · locked*
+*Last updated: July 1, 2026 — FinSight AI v1.5.0 — complete · locked*

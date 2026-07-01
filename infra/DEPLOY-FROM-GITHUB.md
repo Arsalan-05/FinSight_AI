@@ -18,7 +18,7 @@ Users visit **one app URL** (Railway frontend). GitHub Pages is optional marketi
 1. **GitHub** — this repo (already have)
 2. **Supabase** — Google auth + hosted Postgres ([supabase.com](https://supabase.com))
 3. **Railway** — backend + frontend ([railway.app](https://railway.app))
-4. **Anthropic API key** — production LLM (Ollama does not run on Railway)
+4. **Anthropic API key** — optional paid alternative to Groq
 
 ---
 
