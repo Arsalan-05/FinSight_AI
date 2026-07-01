@@ -79,7 +79,7 @@ def search_status(
 
 @router.post("/reindex", response_model=ReindexResponse)
 def reindex_search_index(
-    batch_size: int = Query(default=24, ge=1, le=64),
+    batch_size: int = Query(default=8, ge=1, le=32),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReindexResponse:

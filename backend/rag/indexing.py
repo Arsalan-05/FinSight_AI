@@ -6,11 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from db.models import Transaction, TransactionEmbedding
-from rag.embedder import build_content, embed_texts, embeddings_runtime_available
+from rag.embedder import build_content, embed_texts, embeddings_runtime_available, voyage_error_message
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_BATCH_SIZE = 24
+_DEFAULT_BATCH_SIZE = 8
 
 
 def count_indexed_transactions(db: Session, account_ids: list[str]) -> int:
@@ -61,7 +61,7 @@ def index_transaction_batch(
     try:
         vectors = embed_texts(contents, input_type="document")
     except Exception as exc:
-        raise RuntimeError(f"Voyage embedding failed: {exc}") from exc
+        raise RuntimeError(voyage_error_message(exc)) from exc
 
     if len(vectors) != len(transactions):
         raise RuntimeError("Embedding provider returned an unexpected number of vectors")

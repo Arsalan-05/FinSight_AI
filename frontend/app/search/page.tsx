@@ -155,6 +155,8 @@ export default function SearchPage() {
           setReindexProgress(`${res.indexed_count} / ${res.transaction_count}`);
         }
         if (res.complete || res.indexed === 0) break;
+        // Voyage free tier without billing card: ~3 requests/minute
+        await new Promise((resolve) => setTimeout(resolve, 22_000));
       }
       if (last?.complete) {
         setNeedsReindex(false);
@@ -380,7 +382,7 @@ export default function SearchPage() {
           >
             {reindexing
               ? reindexProgress
-                ? `Indexing ${reindexProgress}…`
+                ? `Indexing ${reindexProgress} (Voyage limits — ~20s/batch)…`
                 : "Indexing…"
               : "Rebuild search index"}
           </button>
