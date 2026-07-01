@@ -12,11 +12,14 @@ import {
 
 import { api } from "@/lib/api";
 import {
+  buildOptimisticSessionEntries,
   getPendingSessionIds,
   getSessionState,
+  mergeSessionSummaries,
   sendChatMessage,
   stopChatStream,
   subscribe,
+  subscribeComplete,
   type SessionChatState,
 } from "@/lib/chat-stream-manager";
 import type { ChatSessionSummary } from "@/lib/types";
@@ -60,17 +63,20 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     async (force = false) => {
       const fresh = force || Date.now() - sessionsFetchedAt >= SESSIONS_TTL_MS;
       if (!fresh && sessions.length > 0) {
-        return sessions;
+        return mergeSessionSummaries(sessions, buildOptimisticSessionEntries());
       }
 
       setSessionsLoading(true);
       try {
         const rows = await api.listChatSessions();
-        setSessions(rows);
+        const merged = mergeSessionSummaries(rows, buildOptimisticSessionEntries());
+        setSessions(merged);
         setSessionsFetchedAt(Date.now());
-        return rows;
+        return merged;
       } catch {
-        return sessions;
+        const merged = mergeSessionSummaries(sessions, buildOptimisticSessionEntries());
+        setSessions(merged);
+        return merged;
       } finally {
         setSessionsLoading(false);
       }
@@ -78,21 +84,27 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     [sessions, sessionsFetchedAt],
   );
 
+  useEffect(() => {
+    setSessions((prev) => mergeSessionSummaries(prev, buildOptimisticSessionEntries()));
+  }, [version]);
+
+  useEffect(() => {
+    return subscribeComplete(() => {
+      invalidateSessions();
+      void refreshSessions(true);
+    });
+  }, [invalidateSessions, refreshSessions]);
+
   const sendMessage = useCallback(
-    async (
+    (
       message: string,
       options?: {
         sessionId?: string;
         newSession?: boolean;
         priorMessages?: import("@/lib/types").ChatMessage[];
       },
-    ) => {
-      const streamKey = await sendChatMessage(message, options);
-      invalidateSessions();
-      void refreshSessions(true);
-      return streamKey;
-    },
-    [invalidateSessions, refreshSessions],
+    ) => sendChatMessage(message, options),
+    [],
   );
 
   const stopSession = useCallback((sessionId: string) => {

@@ -33,6 +33,17 @@ def _sse(payload: dict[str, object]) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
+def _ensure_session_title(db: Session, session_id: str, message: str, user_id: str | None) -> None:
+    """Set sidebar title from the first user message as soon as the chat starts."""
+    cleaned = message.strip()
+    if not cleaned:
+        return
+    session = load_session(db, session_id, user_id=user_id)
+    if not session.title:
+        session.title = cleaned[:255]
+        db.commit()
+
+
 def _chunk_reply(text: str, *, words_per_chunk: int = 3) -> list[str]:
     """Split reply into small chunks for a typewriter effect in the UI."""
     words = text.split()
@@ -53,6 +64,7 @@ async def _stream_scoped_refusal(
     refusal: str,
 ) -> AsyncIterator[str]:
     """Skip the agent for off-topic questions — instant reply, no Groq tokens."""
+    _ensure_session_title(db, session_id, message, user_id)
     yield _sse({"type": "session", "session_id": session_id})
     session = load_session(db, session_id, user_id=user_id)
     messages = load_messages(session)
@@ -104,6 +116,7 @@ async def _stream_reply(
             logger.exception("Chat agent failed")
             error_holder.append(exc)
 
+    _ensure_session_title(db, session_id, message, user_id)
     yield _sse({"type": "session", "session_id": session_id})
     yield _sse({"type": "status", "phase": "start", "detail": "Connecting to your data"})
 
