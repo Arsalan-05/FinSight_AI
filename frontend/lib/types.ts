@@ -50,6 +50,9 @@ export interface SearchStatusResponse {
 export interface ReindexResponse {
   indexed: number;
   transaction_count: number;
+  indexed_count: number;
+  remaining: number;
+  complete: boolean;
 }
 
 export interface HealthResponse {

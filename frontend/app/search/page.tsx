@@ -123,6 +123,7 @@ export default function SearchPage() {
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [needsReindex, setNeedsReindex] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  const [reindexProgress, setReindexProgress] = useState<string | null>(null);
   const [indexedCount, setIndexedCount] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -141,15 +142,37 @@ export default function SearchPage() {
   const handleReindex = async () => {
     setReindexing(true);
     setError(null);
+    setReindexProgress(null);
     try {
-      const res = await api.reindexSearch();
-      setNeedsReindex(false);
-      setIndexedCount(res.indexed);
-      toast(`Indexed ${res.indexed} transactions for search`, "success");
+      let totalThisRun = 0;
+      let last: Awaited<ReturnType<typeof api.reindexSearch>> | null = null;
+      for (let i = 0; i < 200; i += 1) {
+        const res = await api.reindexSearch();
+        last = res;
+        totalThisRun += res.indexed;
+        setIndexedCount(res.indexed_count);
+        if (res.transaction_count > 0) {
+          setReindexProgress(`${res.indexed_count} / ${res.transaction_count}`);
+        }
+        if (res.complete || res.indexed === 0) break;
+      }
+      if (last?.complete) {
+        setNeedsReindex(false);
+        toast(
+          `Indexed ${last.indexed_count} transaction${last.indexed_count === 1 ? "" : "s"} for search`,
+          "success",
+        );
+      } else if (totalThisRun > 0) {
+        toast(`Indexed ${totalThisRun} so far — tap rebuild again to continue`, "info");
+      } else {
+        setError("Nothing was indexed. Check Voyage API key on Render and try again.");
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Reindex failed");
+      const raw = e instanceof Error ? e.message : "Reindex failed";
+      setError(raw.replace(/^API \d+:\s*/i, ""));
     } finally {
       setReindexing(false);
+      setReindexProgress(null);
     }
   };
 
@@ -355,7 +378,11 @@ export default function SearchPage() {
             disabled={reindexing}
             className="btn-primary shrink-0 rounded-xl px-4 py-2 text-sm"
           >
-            {reindexing ? "Indexing…" : "Rebuild search index"}
+            {reindexing
+              ? reindexProgress
+                ? `Indexing ${reindexProgress}…`
+                : "Indexing…"
+              : "Rebuild search index"}
           </button>
         </div>
       )}
