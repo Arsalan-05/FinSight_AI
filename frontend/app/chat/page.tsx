@@ -29,8 +29,10 @@ import {
   hydrateSessionState,
   loadChatDraft,
   loadSessionId,
+  recoverSessionFromApi,
   resolveStreamId,
   saveSessionId,
+  sessionLooksPending,
   sessionMigrations,
 } from "@/lib/chat-stream-manager";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -94,7 +96,7 @@ function ChatPageContent() {
   const authReady = useAuthReady();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { version, getSessionState, sendMessage: sendStream, stopSession, streamingSessionIds } =
+  const { version, getSessionState, sendMessage: sendStream, stopSession, pendingSessionIds } =
     useChatStream();
   const consumedQueryKey = useRef<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -107,6 +109,7 @@ function ChatPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [chatAvailable, setChatAvailable] = useState(true);
   const [chatUnavailableReason, setChatUnavailableReason] = useState<string | null>(null);
+  const [slowHint, setSlowHint] = useState(false);
   const [viewSessionId, setViewSessionId] = useState(() =>
     typeof window === "undefined" ? "" : loadSessionId(),
   );
@@ -169,7 +172,15 @@ function ChatPageContent() {
 
       setConversationLoading(true);
       try {
-        const detail = await api.getChatSession(id);
+        const detail = await Promise.race([
+          api.getChatSession(id),
+          new Promise<never>((_, reject) => {
+            window.setTimeout(
+              () => reject(new Error("Request timed out — the server may be waking up. Try again.")),
+              25_000,
+            );
+          }),
+        ]);
         const hydrated = hydrateSessionState(
           detail.id,
           detail.messages.map((m) => newMessage(m.role, m.content)),
@@ -177,7 +188,7 @@ function ChatPageContent() {
         saveSessionId(detail.id);
         setMessages(hydrated.messages);
         setLoading(hydrated.loading);
-        setAgentStatus(null);
+        setAgentStatus(hydrated.agentStatus);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Could not load chat";
         setError(msg);
@@ -226,7 +237,17 @@ function ChatPageContent() {
     }).catch(() => {
       setChatAvailable(true);
     });
+    void api.health().catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      setSlowHint(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSlowHint(true), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -244,39 +265,35 @@ function ChatPageContent() {
 
   useEffect(() => {
     if (!authReady || !viewSessionId || viewSessionId.startsWith("new:")) return;
-    const live = getSessionState(viewSessionId);
-    if (live?.loading) return;
-    const draft = loadChatDraft(viewSessionId);
-    if (!draft?.loading) return;
+
+    const draftPending = loadChatDraft(viewSessionId)?.loading;
+    const pending =
+      loading ||
+      draftPending ||
+      pendingSessionIds.includes(viewSessionId) ||
+      sessionLooksPending(messages);
+
+    if (!pending) return;
 
     let cancelled = false;
-    const poll = async () => {
-      try {
-        const detail = await api.getChatSession(viewSessionId);
-        const last = detail.messages[detail.messages.length - 1];
-        if (last?.role === "assistant" && last.content?.trim()) {
-          if (cancelled) return;
-          const hydrated = hydrateSessionState(
-            detail.id,
-            detail.messages.map((m) => newMessage(m.role, m.content)),
-          );
-          setMessages(hydrated.messages);
-          setLoading(false);
-          setAgentStatus(null);
-          clearChatDraft(viewSessionId);
-          void refreshSessions();
-        }
-      } catch {
-        // keep polling
+    const tick = async () => {
+      const recovered = await recoverSessionFromApi(viewSessionId);
+      if (cancelled || !recovered) return;
+      setMessages(recovered.messages);
+      setLoading(recovered.loading);
+      setAgentStatus(recovered.agentStatus);
+      if (!recovered.loading) {
+        setError(null);
+        void refreshSessions();
       }
     };
-    const interval = window.setInterval(() => void poll(), 2500);
-    void poll();
+    const interval = window.setInterval(() => void tick(), 2000);
+    void tick();
     return () => {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [authReady, viewSessionId, version, getSessionState, refreshSessions]);
+  }, [authReady, viewSessionId, loading, messages, pendingSessionIds, refreshSessions]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -498,7 +515,7 @@ function ChatPageContent() {
         <ChatHistorySidebar
           sessions={sessions}
           sessionId={sidebarActiveId}
-          streamingSessionIds={streamingSessionIds}
+          streamingSessionIds={pendingSessionIds}
           loading={!authReady || sessionsLoading}
           renamingId={renamingId}
           renameValue={renameValue}
@@ -639,11 +656,17 @@ function ChatPageContent() {
                 </p>
               )}
               {loading && agentStatus && (
-                <div className="mb-3">
+                <div className="mb-3 space-y-2">
                   <span className="status-chip">
                     <Loader2 size={11} className="animate-spin" />
                     {agentStatus}
                   </span>
+                  {slowHint && (
+                    <p className="text-xs text-[var(--muted)]">
+                      Still working — free-tier servers can take up to a minute on the first
+                      request after idle. Leaving this page is fine; the answer will save when ready.
+                    </p>
+                  )}
                 </div>
               )}
               <div className="chat-composer-inner">

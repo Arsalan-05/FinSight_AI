@@ -11,8 +11,8 @@ import {
 } from "react";
 
 import {
+  getPendingSessionIds,
   getSessionState,
-  getStreamingSessionIds,
   sendChatMessage,
   stopChatStream,
   subscribe,
@@ -22,7 +22,7 @@ import {
 type ChatStreamContextValue = {
   version: number;
   getSessionState: (sessionId: string) => SessionChatState | undefined;
-  streamingSessionIds: string[];
+  pendingSessionIds: string[];
   sendMessage: (
     message: string,
     options?: {
@@ -55,7 +55,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     () => ({
       version,
       getSessionState,
-      streamingSessionIds: getStreamingSessionIds(),
+      pendingSessionIds: getPendingSessionIds(),
       sendMessage,
       stopSession,
     }),

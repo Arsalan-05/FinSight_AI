@@ -157,8 +157,101 @@ export function getStreamingSessionIds(): string[] {
   return [...ids];
 }
 
-export function isSessionLoading(sessionId: string): boolean {
-  return Boolean(states.get(sessionId)?.loading);
+const AGENT_STATUS = [
+  "Reviewing your accounts…",
+  "Querying transaction history…",
+  "Running spending analysis…",
+  "Searching for current rates…",
+  "Synthesizing insights…",
+];
+
+export function sessionLooksPending(
+  messages: Array<{ role: string; content?: string }>,
+): boolean {
+  if (!messages.length) return false;
+  const last = messages[messages.length - 1];
+  if (last.role === "user") return true;
+  if (last.role === "assistant" && !(last.content ?? "").trim()) return true;
+  return false;
+}
+
+export function getPendingSessionIds(): string[] {
+  const ids = new Set<string>(getStreamingSessionIds());
+  if (typeof sessionStorage === "undefined") return [...ids];
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    if (!key?.startsWith(DRAFT_PREFIX)) continue;
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) continue;
+      const draft = JSON.parse(raw) as { loading?: boolean; sessionId?: string };
+      if (draft.loading) {
+        ids.add(draft.sessionId || key.slice(DRAFT_PREFIX.length));
+      }
+    } catch {
+      // ignore corrupt draft
+    }
+  }
+  return [...ids];
+}
+
+export async function recoverSessionFromApi(
+  sessionId: string,
+): Promise<SessionChatState | null> {
+  if (!sessionId || sessionId.startsWith("new:")) return null;
+  try {
+    const detail = await api.getChatSession(sessionId);
+    const messages: ChatMessage[] = detail.messages.map((m) =>
+      newMessage(m.role as ChatMessage["role"], m.content),
+    );
+    const pending = sessionLooksPending(detail.messages);
+    const state: SessionChatState = {
+      sessionId: detail.id,
+      messages,
+      loading: pending,
+      agentStatus: pending ? AGENT_STATUS[0] : null,
+      error: null,
+    };
+    states.set(sessionId, state);
+    if (pending) {
+      saveDraft(state, sessionId);
+    } else {
+      clearChatDraft(sessionId);
+    }
+    notify();
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+async function tryFinishFromApi(
+  sessionId: string,
+  activeKey: string,
+): Promise<boolean> {
+  if (!sessionId || sessionId.startsWith("new:")) return false;
+  try {
+    const detail = await api.getChatSession(sessionId);
+    if (sessionLooksPending(detail.messages)) return false;
+    const last = detail.messages[detail.messages.length - 1];
+    if (last?.role !== "assistant" || !last.content?.trim()) return false;
+
+    const messages: ChatMessage[] = detail.messages.map((m) =>
+      newMessage(m.role as ChatMessage["role"], m.content),
+    );
+
+    setState(activeKey, {
+      sessionId,
+      loading: false,
+      agentStatus: null,
+      error: null,
+      messages,
+    });
+    clearChatDraft(sessionId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function setState(sessionKey: string, patch: Partial<SessionChatState>) {
@@ -185,14 +278,6 @@ function migrateState(fromId: string, toId: string) {
   notify();
   return toId;
 }
-
-const AGENT_STATUS = [
-  "Reviewing your accounts…",
-  "Querying transaction history…",
-  "Running spending analysis…",
-  "Searching for current rates…",
-  "Synthesizing insights…",
-];
 
 export function stopChatStream(sessionId: string) {
   const keys = new Set<string>([sessionId, resolveStreamId(sessionId)]);
@@ -243,7 +328,7 @@ export async function sendChatMessage(
     error: null,
   };
   states.set(streamKey, initial);
-  saveDraft(initial);
+  saveDraft(initial, streamKey);
   notify();
 
   const controller = new AbortController();
@@ -252,6 +337,7 @@ export async function sendChatMessage(
   let activeKey = streamKey;
   let activeSessionId = existingId;
   let statusIdx = 0;
+  let lastEventAt = Date.now();
   const fallbackTimer = setInterval(() => {
     statusIdx = (statusIdx + 1) % AGENT_STATUS.length;
     const st = states.get(activeKey);
@@ -259,6 +345,14 @@ export async function sendChatMessage(
       setState(activeKey, { agentStatus: AGENT_STATUS[statusIdx] });
     }
   }, 2400);
+  const stallTimer = setInterval(() => {
+    const st = states.get(activeKey);
+    if (!st?.loading) return;
+    if (Date.now() - lastEventAt < 35_000) return;
+    if (activeSessionId) {
+      void tryFinishFromApi(activeSessionId, activeKey);
+    }
+  }, 5000);
 
   void (async () => {
     try {
@@ -270,6 +364,7 @@ export async function sendChatMessage(
         existingId || undefined,
         controller.signal,
       )) {
+        lastEventAt = Date.now();
         if (event.type === "session") {
           activeSessionId = event.session_id;
           if (activeKey !== activeSessionId) {
@@ -334,9 +429,18 @@ export async function sendChatMessage(
       }
     } finally {
       clearInterval(fallbackTimer);
+      clearInterval(stallTimer);
       abortControllers.delete(activeKey);
       const st = states.get(activeKey);
-      if (st?.loading) {
+      if (st?.loading && activeSessionId) {
+        const finished = await tryFinishFromApi(activeSessionId, activeKey);
+        if (!finished) {
+          const current = states.get(activeKey);
+          if (current?.loading) {
+            setState(activeKey, { loading: true, agentStatus: AGENT_STATUS[0] });
+          }
+        }
+      } else if (st?.loading) {
         setState(activeKey, { loading: false, agentStatus: null });
       }
       notify();
@@ -356,16 +460,20 @@ export function hydrateSessionState(
   }
   const draft = loadChatDraft(sessionId);
   if (draft && (draft.loading || draft.messages.length > messages.length)) {
-    states.set(sessionId, draft);
-    return draft;
+    states.set(sessionId, { ...draft, sessionId });
+    return states.get(sessionId)!;
   }
+  const pending = sessionLooksPending(
+    messages.map((m) => ({ role: m.role, content: m.content })),
+  );
   const state: SessionChatState = {
     sessionId,
     messages,
-    loading: false,
-    agentStatus: null,
+    loading: pending,
+    agentStatus: pending ? AGENT_STATUS[0] : null,
     error: null,
   };
   states.set(sessionId, state);
+  if (pending) saveDraft(state, sessionId);
   return state;
 }
