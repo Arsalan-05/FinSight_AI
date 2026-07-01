@@ -153,6 +153,13 @@ def _to_ollama_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
     return out
 
 
+def _ollama_chat_options() -> dict[str, object]:
+    return {
+        "temperature": 0.2,
+        "num_predict": settings.ollama_num_predict,
+    }
+
+
 def _call_ollama(
     messages: list[BaseMessage],
     memory_summary: str,
@@ -168,11 +175,8 @@ def _call_ollama(
         + _to_ollama_messages(messages),
         "tools": _ollama_tools(),
         "stream": False,
-        "options": {
-            "temperature": 0.2,
-            "num_predict": 2048,
-        },
-        "keep_alive": "10m",
+        "options": _ollama_chat_options(),
+        "keep_alive": settings.ollama_keep_alive,
     }
     with httpx.Client(timeout=180.0) as client:
         response = client.post(url, json=payload)
@@ -230,6 +234,8 @@ def _summarize_ollama(messages: list[BaseMessage], current_summary: str) -> str:
                 "model": settings.ollama_model,
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
+                "options": {"temperature": 0.1, "num_predict": 400},
+                "keep_alive": settings.ollama_keep_alive,
             },
         )
         response.raise_for_status()
