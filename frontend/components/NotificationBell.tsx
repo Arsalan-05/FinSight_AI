@@ -7,15 +7,22 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
 import { chatUrl } from "@/lib/chat-url";
-import type { AppNotification } from "@/lib/types";
+import type { AppNotification, WeeklyBrief } from "@/lib/types";
 
 export function NotificationBell() {
   const authReady = useAuthReady();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
+  const [liveAlerts, setLiveAlerts] = useState<WeeklyBrief["alerts"]>([]);
 
   const load = useCallback(() => {
-    return api.getNotifications().then(setItems).catch(() => setItems([]));
+    return Promise.all([
+      api.getNotifications().catch(() => [] as AppNotification[]),
+      api.getWeeklyBrief().catch(() => null),
+    ]).then(([notifications, brief]) => {
+      setItems(notifications);
+      setLiveAlerts(brief?.alerts ?? []);
+    });
   }, []);
 
   useEffect(() => {
@@ -24,6 +31,7 @@ export function NotificationBell() {
   }, [authReady, load]);
 
   const unread = items.filter((n) => !n.read).length;
+  const badgeCount = unread + liveAlerts.length;
 
   const markRead = async (id: string) => {
     await api.markNotificationRead(id);
@@ -39,9 +47,9 @@ export function NotificationBell() {
         aria-label="Notifications"
       >
         <Bell size={16} />
-        {unread > 0 && (
+        {badgeCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-            {unread > 9 ? "9+" : unread}
+            {badgeCount > 9 ? "9+" : badgeCount}
           </span>
         )}
       </button>
@@ -63,24 +71,43 @@ export function NotificationBell() {
               )}
             </div>
             <ul className="max-h-72 overflow-y-auto">
-              {items.length === 0 ? (
-                <li className="px-4 py-8 text-center text-xs text-[var(--muted)]">No alerts yet</li>
+              {liveAlerts.length === 0 && items.length === 0 ? (
+                <li className="px-4 py-8 text-center text-xs text-[var(--muted)]">
+                  No alerts yet — set budgets on the Alerts page.
+                </li>
               ) : (
-                items.map((n) => (
-                  <li key={n.id}>
-                    <button
-                      type="button"
-                      onClick={() => void markRead(n.id)}
-                      className={[
-                        "w-full px-4 py-3 text-left transition-colors hover:bg-[var(--surface)]",
-                        !n.read && "bg-[var(--accent-soft)]/30",
-                      ].join(" ")}
-                    >
-                      <p className="text-sm font-medium text-[var(--foreground)]">{n.title}</p>
-                      <p className="mt-0.5 text-xs text-[var(--muted)]">{n.body}</p>
-                    </button>
-                  </li>
-                ))
+                <>
+                  {liveAlerts.map((a) => (
+                    <li key={a.id}>
+                      <Link
+                        href={chatUrl(`Help me understand this spend alert: ${a.title}. ${a.body}`)}
+                        onClick={() => setOpen(false)}
+                        className="block w-full border-l-2 border-amber-500/50 bg-amber-500/5 px-4 py-3 text-left transition-colors hover:bg-[var(--surface)]"
+                      >
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-amber-500">
+                          Live signal
+                        </p>
+                        <p className="text-sm font-medium text-[var(--foreground)]">{a.title}</p>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">{a.body}</p>
+                      </Link>
+                    </li>
+                  ))}
+                  {items.map((n) => (
+                    <li key={n.id}>
+                      <button
+                        type="button"
+                        onClick={() => void markRead(n.id)}
+                        className={[
+                          "w-full px-4 py-3 text-left transition-colors hover:bg-[var(--surface)]",
+                          !n.read && "bg-[var(--accent-soft)]/30",
+                        ].join(" ")}
+                      >
+                        <p className="text-sm font-medium text-[var(--foreground)]">{n.title}</p>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">{n.body}</p>
+                      </button>
+                    </li>
+                  ))}
+                </>
               )}
             </ul>
             <div className="border-t border-[var(--border)] px-4 py-2 flex items-center justify-between">
