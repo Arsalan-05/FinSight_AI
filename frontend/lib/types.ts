@@ -40,6 +40,18 @@ export interface SearchResponse {
   embedding_enabled: boolean;
 }
 
+export interface SearchStatusResponse {
+  embedding_enabled: boolean;
+  transaction_count: number;
+  indexed_count: number;
+  needs_reindex: boolean;
+}
+
+export interface ReindexResponse {
+  indexed: number;
+  transaction_count: number;
+}
+
 export interface HealthResponse {
   status: string;
   environment: string;
