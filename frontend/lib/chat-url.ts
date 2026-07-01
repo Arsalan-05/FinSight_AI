@@ -1,9 +1,16 @@
 /** Build advisor chat links with an optional pre-filled prompt. */
-export function chatUrl(prompt: string, options?: { send?: boolean }): string {
+export function chatUrl(
+  prompt: string,
+  options?: { send?: boolean; newChat?: boolean },
+): string {
   const params = new URLSearchParams();
   params.set("q", prompt);
   if (options?.send !== false) {
     params.set("send", "1");
+  }
+  // Deep links from other pages should start a fresh conversation.
+  if (options?.newChat !== false) {
+    params.set("new", "1");
   }
   return `/chat?${params.toString()}`;
 }

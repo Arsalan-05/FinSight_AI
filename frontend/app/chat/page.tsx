@@ -98,7 +98,7 @@ function ChatPageContent() {
   const authReady = useAuthReady();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const consumedQuery = useRef(false);
+  const consumedQueryKey = useRef<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(isSupabaseConfigured);
@@ -169,6 +169,11 @@ function ChatPageContent() {
 
   useEffect(() => {
     if (!authReady) return;
+    if (searchParams.get("q")?.trim()) {
+      void api.listChatSessions().then(setSessions).catch(() => setSessions([]));
+      setHistoryLoading(false);
+      return;
+    }
     let active = true;
     Promise.all([
       api.listChatSessions().catch(() => [] as ChatSessionSummary[]),
@@ -197,16 +202,18 @@ function ChatPageContent() {
     return () => {
       active = false;
     };
-  }, [authReady]);
+  }, [authReady, searchParams]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading, agentStatus]);
 
   const sendMessage = useCallback(
-    async (text?: string) => {
+    async (text?: string, options?: { newSession?: boolean }) => {
       const message = (text ?? input).trim();
       if (!message || loading) return;
+
+      const streamSessionId = options?.newSession ? "" : sessionId;
 
       setInput("");
       setError(null);
@@ -231,9 +238,13 @@ function ChatPageContent() {
       try {
         let reply = "";
         let citations: TransactionCitation[] = [];
-        let activeSession = sessionId;
+        let activeSession = streamSessionId;
 
-        for await (const event of api.chatStream(message, sessionId || undefined, controller.signal)) {
+        for await (const event of api.chatStream(
+          message,
+          streamSessionId || undefined,
+          controller.signal,
+        )) {
           if (event.type === "status") {
             setAgentStatus(event.detail || event.phase);
           } else if (event.type === "token") {
@@ -278,18 +289,34 @@ function ChatPageContent() {
   );
 
   useEffect(() => {
-    if (!authReady || historyLoading || consumedQuery.current) return;
+    if (!authReady || historyLoading) return;
 
     const q = searchParams.get("q")?.trim();
-    if (!q) return;
+    if (!q) {
+      consumedQueryKey.current = null;
+      return;
+    }
 
-    consumedQuery.current = true;
+    const consumeKey = searchParams.toString();
+    if (consumedQueryKey.current === consumeKey) return;
+    consumedQueryKey.current = consumeKey;
+
     const autoSend = searchParams.get("send") !== "0";
+    const startNewChat = searchParams.get("new") !== "0";
+
+    if (startNewChat) {
+      if (loading) abortRef.current?.abort();
+      setMessages([]);
+      setError(null);
+      setSessionId("");
+      localStorage.removeItem(SESSION_KEY);
+    }
+
     router.replace("/chat", { scroll: false });
 
     const timer = window.setTimeout(() => {
       if (autoSend) {
-        void sendMessage(q);
+        void sendMessage(q, { newSession: startNewChat });
       } else {
         setInput(q);
         inputRef.current?.focus();
@@ -297,7 +324,7 @@ function ChatPageContent() {
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [authReady, historyLoading, searchParams, router, sendMessage]);
+  }, [authReady, historyLoading, loading, searchParams, router, sendMessage]);
 
   const handleStop = () => {
     abortRef.current?.abort();
