@@ -136,8 +136,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <NotificationBell />
-              <ThemeToggle />
               {isSupabaseConfigured() && (
                 <button
                   type="button"
@@ -155,6 +153,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className={`min-h-screen md:pl-64 ${pathname.startsWith("/chat") ? "md:px-4" : ""}`}>
+        <div className="fixed right-4 top-4 z-[70] flex items-center gap-2 md:hidden">
+          <NotificationBell />
+        </div>
+        <div className="fixed right-4 top-4 z-[70] hidden items-center gap-2 md:flex">
+          <NotificationBell />
+          <ThemeToggle />
+        </div>
         <main
           className={[
             "min-h-screen pb-10 pt-[4.5rem] md:pt-8",
