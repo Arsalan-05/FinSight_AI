@@ -14,7 +14,7 @@
 | **Frontend** | `https://fin-sight-ai-sepia.vercel.app` | `http://localhost:3000` |
 | **Backend** | `https://finsight-api-byrl.onrender.com` | `http://127.0.0.1:8000` |
 | **Database** | Supabase (always) | Supabase (hotspot) or Docker fallback |
-| **Chat** | Groq `llama-3.3-70b-versatile` | Same Groq keys (Ollama only if keys missing) |
+| **Chat** | Groq `llama-3.1-8b-instant` | Same Groq keys (Ollama only if keys missing) |
 | **Search** | Voyage `voyage-4-large` | Same Voyage keys |
 | **Required?** | ✅ This is the product | ❌ Only when developing |
 
@@ -267,7 +267,7 @@ Google OAuth → Supabase JWT → POST /auth/sync → link users.auth_id
 | Database | PostgreSQL 16 + pgvector | ACID + vectors in one store |
 | Migrations | Alembic | Versioned schema changes |
 | Agent | LangGraph | Explicit ReAct state machine, testable |
-| LLM (default) | Groq `llama-3.3-70b-versatile` | Free cloud chat — production + local |
+| LLM (default) | Groq `llama-3.1-8b-instant` | Free cloud chat — production + local |
 | LLM (fallback) | Ollama `qwen2.5:7b` | Offline dev when `GROQ_API_KEY` unset |
 | LLM (optional paid) | Anthropic Claude | Alternative cloud provider |
 | Embeddings (default) | Voyage `voyage-4-large` (1024-dim) | Semantic search — production + local |
@@ -618,7 +618,7 @@ Reasoning loop: **Understand → Plan → Gather (personal + web) → Synthesize
 
 | Provider | Config | Models | When |
 |----------|--------|--------|------|
-| **Groq (default)** | `LLM_PROVIDER=groq` | `llama-3.3-70b-versatile` | Production + local (free) |
+| **Groq (default)** | `LLM_PROVIDER=groq` | `llama-3.1-8b-instant` | Production + local (free) |
 | Ollama (fallback) | `LLM_PROVIDER=ollama` | `qwen2.5:7b` | Keys missing / offline dev |
 | Anthropic (paid) | `LLM_PROVIDER=anthropic` | `claude-sonnet-4-6` | Optional upgrade |
 
@@ -972,7 +972,7 @@ All engineering-MVP scope is shipped and **deployed to production**. Local devel
 | Render API | ✅ `https://finsight-api-byrl.onrender.com` |
 | Supabase DB + auth | ✅ `schema_ready: true` |
 | Google OAuth | ✅ |
-| Groq advisor (chat) | ✅ `llama-3.3-70b-versatile` |
+| Groq advisor (chat) | ✅ `llama-3.1-8b-instant` |
 | Voyage search (RAG) | ✅ `voyage-4-large` |
 | Invite-only beta | ✅ `BETA_ALLOWED_EMAILS` |
 | Shared chat history | ✅ Supabase |

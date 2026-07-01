@@ -25,7 +25,7 @@ Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **
 
 | Feature | Provider | Runs on |
 |---------|----------|---------|
-| Chat / advisor | **Groq** `llama-3.3-70b-versatile` | Groq cloud |
+| Chat / advisor | **Groq** `llama-3.1-8b-instant` | Groq cloud |
 | Memory summaries | **Groq** | Groq cloud |
 | Profile learning | **Groq** | Groq cloud |
 | Semantic search | **Voyage** `voyage-4-large` | Voyage cloud |
