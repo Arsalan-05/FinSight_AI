@@ -24,18 +24,15 @@ import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
 import {
-  clearChatDraft,
   clearSessionId,
+  ensureSessionRecovery,
   hydrateSessionState,
-  loadChatDraft,
   loadSessionId,
-  recoverSessionFromApi,
+  resolveLocalSessionView,
   resolveStreamId,
   saveSessionId,
-  sessionLooksPending,
   sessionMigrations,
 } from "@/lib/chat-stream-manager";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { ChatMessage, ChatSessionSummary, FinancialGoal, TransactionCitation } from "@/lib/types";
 
 const PROMPT_GROUPS = [
@@ -96,12 +93,18 @@ function ChatPageContent() {
   const authReady = useAuthReady();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { version, getSessionState, sendMessage: sendStream, stopSession, pendingSessionIds } =
-    useChatStream();
+  const {
+    version,
+    sessions,
+    sessionsLoading,
+    getSessionState,
+    sendMessage: sendStream,
+    stopSession,
+    pendingSessionIds,
+    refreshSessions,
+  } = useChatStream();
   const consumedQueryKey = useRef<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(isSupabaseConfigured);
   const [conversationLoading, setConversationLoading] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -123,54 +126,46 @@ function ChatPageContent() {
     ? resolveStreamId(viewSessionId)
     : viewSessionId;
 
-  const refreshSessions = useCallback(async () => {
-    if (!authReady) return;
-    try {
-      const rows = await api.listChatSessions();
-      setSessions(rows);
-    } catch {
-      // optional without auth
+  const applyLocalView = useCallback((id: string) => {
+    setError(null);
+    setViewSessionId(id);
+
+    if (!id) {
+      setMessages([]);
+      setLoading(false);
+      setAgentStatus(null);
+      return;
     }
-  }, [authReady]);
 
-  const applyView = useCallback(
-    async (id: string, opts?: { fetchFromApi?: boolean }) => {
-      setError(null);
-      setViewSessionId(id);
+    const local = resolveLocalSessionView(id);
+    if (local) {
+      setMessages(local.messages);
+      setLoading(local.loading);
+      setAgentStatus(local.agentStatus);
+      if (local.error) setError(local.error);
+      if (local.loading) ensureSessionRecovery(id);
+      return;
+    }
 
-      if (!id) {
-        setMessages([]);
-        setLoading(false);
-        setAgentStatus(null);
-        return;
-      }
+    setMessages([]);
+    setLoading(false);
+    setAgentStatus(null);
+  }, []);
+
+  const refreshConversation = useCallback(
+    async (id: string, opts?: { silent?: boolean }) => {
+      if (!authReady || !id || id.startsWith("new:")) return;
 
       const live = getSessionState(id);
-      if (live) {
-        setMessages(live.messages);
-        setLoading(live.loading);
-        setAgentStatus(live.agentStatus);
-        if (live.error) setError(live.error);
+      if (live?.loading) {
+        ensureSessionRecovery(id);
         return;
       }
 
-      const resolved = id.startsWith("new:") ? id : resolveStreamId(id);
-      const draft = loadChatDraft(resolved);
-      if (draft) {
-        hydrateSessionState(resolved, draft.messages);
-        setMessages(draft.messages);
-        setLoading(draft.loading);
-        return;
+      if (!opts?.silent) {
+        setConversationLoading(messages.length === 0);
       }
 
-      if (!opts?.fetchFromApi || !authReady || id.startsWith("new:")) {
-        setMessages([]);
-        setLoading(false);
-        setAgentStatus(null);
-        return;
-      }
-
-      setConversationLoading(true);
       try {
         const detail = await Promise.race([
           api.getChatSession(id),
@@ -189,15 +184,29 @@ function ChatPageContent() {
         setMessages(hydrated.messages);
         setLoading(hydrated.loading);
         setAgentStatus(hydrated.agentStatus);
+        if (hydrated.error) setError(hydrated.error);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "Could not load chat";
-        setError(msg);
-        toast(msg, "error");
+        const local = resolveLocalSessionView(id);
+        if (!local) {
+          const msg = e instanceof Error ? e.message : "Could not load chat";
+          setError(msg);
+          toast(msg, "error");
+        }
       } finally {
         setConversationLoading(false);
       }
     },
-    [authReady, toast, getSessionState],
+    [authReady, getSessionState, messages.length, toast],
+  );
+
+  const applyView = useCallback(
+    async (id: string, opts?: { refresh?: boolean }) => {
+      applyLocalView(id);
+      if (opts?.refresh) {
+        await refreshConversation(id, { silent: Boolean(resolveLocalSessionView(id)) });
+      }
+    },
+    [applyLocalView, refreshConversation],
   );
 
   useEffect(() => {
@@ -220,12 +229,13 @@ function ChatPageContent() {
     setAgentStatus(live.agentStatus);
     if (live.error) setError(live.error);
     else setError(null);
+    if (live.loading) ensureSessionRecovery(viewSessionId);
   }, [version, viewSessionId, getSessionState]);
 
   useEffect(() => {
     if (!authReady) return;
     void refreshSessions();
-  }, [authReady, version, refreshSessions]);
+  }, [authReady, refreshSessions]);
 
   useEffect(() => {
     void api.capabilities().then((c) => {
@@ -258,75 +268,23 @@ function ChatPageContent() {
     (id: string) => {
       if (!authReady) return;
       saveSessionId(id);
-      void applyView(id, { fetchFromApi: true });
+      void applyView(id, { refresh: true });
     },
     [authReady, applyView],
   );
 
   useEffect(() => {
-    if (!authReady || !viewSessionId || viewSessionId.startsWith("new:")) return;
-
-    const draftPending = loadChatDraft(viewSessionId)?.loading;
-    const pending =
-      loading ||
-      draftPending ||
-      pendingSessionIds.includes(viewSessionId) ||
-      sessionLooksPending(messages);
-
-    if (!pending) return;
-
-    let cancelled = false;
-    const tick = async () => {
-      const recovered = await recoverSessionFromApi(viewSessionId);
-      if (cancelled || !recovered) return;
-      setMessages(recovered.messages);
-      setLoading(recovered.loading);
-      setAgentStatus(recovered.agentStatus);
-      if (!recovered.loading) {
-        setError(null);
-        void refreshSessions();
-      }
-    };
-    const interval = window.setInterval(() => void tick(), 2000);
-    void tick();
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [authReady, viewSessionId, loading, messages, pendingSessionIds, refreshSessions]);
-
-  useEffect(() => {
     if (!authReady) return;
 
-    let active = true;
-    setSessionsLoading(true);
-    void api
-      .listChatSessions()
-      .then((rows) => {
-        if (active) setSessions(rows);
-      })
-      .catch(() => {
-        if (active) setSessions([]);
-      })
-      .finally(() => {
-        if (active) setSessionsLoading(false);
-      });
-
-    if (searchParams.get("q")?.trim()) {
-      return () => {
-        active = false;
-      };
-    }
+    if (searchParams.get("q")?.trim()) return;
 
     const saved = loadSessionId();
-    if (saved && !saved.startsWith("new:")) {
-      void applyView(saved, { fetchFromApi: true });
-    }
+    if (!saved || saved.startsWith("new:")) return;
 
-    return () => {
-      active = false;
-    };
-  }, [authReady, searchParams, applyView]);
+    const local = resolveLocalSessionView(saved);
+    applyLocalView(saved);
+    void refreshConversation(saved, { silent: Boolean(local) });
+  }, [authReady, searchParams, applyLocalView, refreshConversation]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -380,7 +338,7 @@ function ChatPageContent() {
         setAgentStatus(live.agentStatus);
       }
 
-      void refreshSessions();
+      void refreshSessions(true);
       inputRef.current?.focus();
     },
     [input, viewSessionId, messages, sendStream, getSessionState, refreshSessions],
@@ -437,8 +395,6 @@ function ChatPageContent() {
   };
 
   const handleDeleteSession = async (id: string) => {
-    const previous = sessions;
-    setSessions((prev) => prev.filter((s) => s.id !== id));
     if (viewSessionId === id || sidebarActiveId === id) {
       clearSessionId();
       void applyView("");
@@ -446,23 +402,17 @@ function ChatPageContent() {
     try {
       await api.deleteChatSession(id);
       toast("Conversation deleted");
+      void refreshSessions(true);
     } catch {
-      setSessions(previous);
-      if (viewSessionId === id) void applyView(id, { fetchFromApi: true });
+      if (viewSessionId === id) void applyView(id, { refresh: true });
       toast("Could not delete conversation", "error");
     }
   };
 
   const handleTogglePin = async (s: ChatSessionSummary) => {
     try {
-      const updated = await api.updateChatSession(s.id, { pinned: !s.pinned });
-      setSessions((prev) => {
-        const next = prev.map((x) => (x.id === s.id ? updated : x));
-        return [...next].sort((a, b) => {
-          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-          return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
-        });
-      });
+      await api.updateChatSession(s.id, { pinned: !s.pinned });
+      void refreshSessions(true);
     } catch {
       toast("Could not update conversation", "error");
     }
@@ -478,8 +428,8 @@ function ChatPageContent() {
     setRenamingId(null);
     if (!title) return;
     try {
-      const updated = await api.updateChatSession(id, { title });
-      setSessions((prev) => prev.map((x) => (x.id === id ? updated : x)));
+      await api.updateChatSession(id, { title });
+      void refreshSessions(true);
     } catch {
       toast("Could not rename conversation", "error");
     }
@@ -516,7 +466,7 @@ function ChatPageContent() {
           sessions={sessions}
           sessionId={sidebarActiveId}
           streamingSessionIds={pendingSessionIds}
-          loading={!authReady || sessionsLoading}
+          loading={!authReady || (sessionsLoading && sessions.length === 0)}
           renamingId={renamingId}
           renameValue={renameValue}
           onNewChat={handleNewChat}
