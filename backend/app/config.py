@@ -16,14 +16,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Cloud LLM — Groq free tier (Render); Anthropic optional paid
+    # Unified advisor: Groq free tier (local + Render) — same model everywhere
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
     anthropic_api_key: str = ""
     voyage_api_key: str = ""
 
-    # Free local defaults — no API keys required
-    llm_provider: str = "ollama"  # ollama | groq | anthropic
+    # groq = default (needs GROQ_API_KEY); ollama = offline fallback for embeddings + no-key dev
+    llm_provider: str = "groq"  # groq | ollama | anthropic
     embedding_provider: str = "ollama"  # ollama | voyage
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:7b"  # strong tool-calling; override via OLLAMA_MODEL
@@ -135,17 +135,17 @@ class Settings(BaseSettings):
 
     @property
     def effective_llm_provider(self) -> str:
-        """Local: Ollama. Production: Groq (free) or Anthropic (paid) when keys are set."""
+        """Groq when key is set (same model local + Render). Ollama fallback for offline dev."""
         provider = self.llm_provider.lower()
         if provider == "anthropic":
             return "anthropic"
-        if provider == "groq":
+        if provider == "ollama":
+            return "ollama"
+        # groq (default)
+        if self.groq_api_key:
             return "groq"
         if self.environment == "production":
-            if self.groq_api_key:
-                return "groq"
-            if self.anthropic_api_key:
-                return "anthropic"
+            return "groq"
         return "ollama"
 
     @property

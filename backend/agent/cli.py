@@ -4,9 +4,9 @@ Usage:
     uv run python -m agent.cli "How much did I spend on dining?"
     uv run python -m agent.cli --session my-session "What about last month?"
 
-Requires Ollama (free) by default:
-    ollama pull qwen2.5:7b
-    ollama pull nomic-embed-text
+Requires Groq (free, same as Render) or Ollama fallback:
+    GROQ_API_KEY=...  # console.groq.com
+    ollama pull nomic-embed-text  # embeddings
 """
 
 from __future__ import annotations
@@ -24,16 +24,15 @@ from rag.embedder import ollama_embeddings_available
 
 
 def _check_setup() -> None:
-    if settings.llm_provider == "groq" and not settings.groq_api_key:
-        print("Error: GROQ_API_KEY is required when LLM_PROVIDER=groq.", file=sys.stderr)
+    provider = settings.effective_llm_provider
+    if provider == "groq" and not settings.groq_api_key:
+        print("Error: GROQ_API_KEY is required for chat.", file=sys.stderr)
         print("Free key: https://console.groq.com", file=sys.stderr)
         sys.exit(1)
-
-    if settings.llm_provider == "anthropic" and not settings.anthropic_api_key:
+    if provider == "anthropic" and not settings.anthropic_api_key:
         print("Error: ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic.", file=sys.stderr)
         sys.exit(1)
-
-    if settings.llm_provider == "ollama" and not ollama_llm_available():
+    if provider == "ollama" and not ollama_llm_available():
         print(
             f"Error: Ollama is not running or {settings.ollama_model} is not installed.",
             file=sys.stderr,
