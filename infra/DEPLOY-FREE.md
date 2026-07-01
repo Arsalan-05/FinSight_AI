@@ -153,6 +153,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 
 Only **Render** needs `GROQ_API_KEY`, `GROQ_MODEL`, and `VOYAGE_API_KEY`. Vercel only needs `NEXT_PUBLIC_*` vars.
 
+After `git push origin main`: **Vercel** redeploys the frontend automatically. **Render** → open your web service → **Manual Deploy** → Deploy latest commit (unless auto-deploy is on).
+
 ---
 
 ## Troubleshooting

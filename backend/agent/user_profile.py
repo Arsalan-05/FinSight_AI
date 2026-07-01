@@ -215,10 +215,9 @@ def update_learned_profile(
     )
 
     try:
-        from agent.llm import call_llm
+        from agent.llm import call_llm_plain
 
-        response = call_llm([HumanMessage(content=prompt)], "")
-        raw = str(response.content or "")
+        raw = call_llm_plain(prompt, max_tokens=500)
         start = raw.find("{")
         end = raw.rfind("}") + 1
         if start >= 0 and end > start:

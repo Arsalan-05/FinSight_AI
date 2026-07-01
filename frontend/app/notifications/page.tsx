@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { BudgetsPanel } from "@/components/BudgetsPanel";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -294,27 +295,11 @@ function PrefToggle({
 }) {
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-[var(--foreground)]">{label}</p>
         <p className="mt-0.5 text-xs text-[var(--muted)]">{desc}</p>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={[
-          "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-          checked ? "bg-[var(--accent)]" : "bg-[var(--border)]",
-        ].join(" ")}
-      >
-        <span
-          className={[
-            "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-            checked ? "translate-x-5" : "translate-x-0.5",
-          ].join(" ")}
-        />
-      </button>
+      <ToggleSwitch checked={checked} onChange={onChange} label={label} />
     </label>
   );
 }

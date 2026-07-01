@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import AppShell from "@/components/shell/AppShell";
+import { ChatStreamProvider } from "@/contexts/ChatStreamContext";
 
 const PUBLIC_PREFIXES = ["/login", "/auth/", "/privacy"];
 
@@ -14,5 +15,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     return <>{children}</>;
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <ChatStreamProvider>
+      <AppShell>{children}</AppShell>
+    </ChatStreamProvider>
+  );
 }

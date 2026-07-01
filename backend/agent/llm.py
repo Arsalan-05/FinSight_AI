@@ -337,7 +337,14 @@ def _trim_groq_context(
     if len(messages) <= limit:
         trimmed = list(messages)
     else:
-        trimmed = list(messages[-limit:])
+        human_indices = [i for i, m in enumerate(messages) if isinstance(m, HumanMessage)]
+        if len(human_indices) >= 2:
+            start = human_indices[-2]
+            trimmed = messages[start:]
+            if len(trimmed) > limit:
+                trimmed = trimmed[-limit:]
+        else:
+            trimmed = list(messages[-limit:])
     out: list[BaseMessage] = []
     for msg in trimmed:
         if isinstance(msg, ToolMessage):
@@ -666,6 +673,62 @@ def summarize_memory(
             return current_summary
         return _summarize_groq(messages, current_summary, key)
     return _summarize_ollama(messages, current_summary)
+
+
+def call_llm_plain(prompt: str, *, max_tokens: int = 400) -> str:
+    """Single-turn LLM call without tools — for memory/profile JSON updates."""
+    provider = settings.effective_llm_provider
+    if provider == "anthropic":
+        key = settings.anthropic_api_key
+        if not key:
+            raise ValueError("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic")
+        client = anthropic.Anthropic(api_key=key)
+        response = client.messages.create(
+            model=ANTHROPIC_MODEL,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        first = response.content[0]
+        if first.type == "text":
+            return first.text.strip()
+        return ""
+    if provider == "groq":
+        key = settings.groq_api_key
+        if not key:
+            raise ValueError("GROQ_API_KEY is required when LLM_PROVIDER=groq")
+        with httpx.Client(timeout=60.0) as client:
+            response = client.post(
+                GROQ_CHAT_URL,
+                headers={
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.groq_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": max_tokens,
+                },
+            )
+            response.raise_for_status()
+            choices = response.json().get("choices") or []
+            if not choices:
+                return ""
+            return str(choices[0].get("message", {}).get("content", "")).strip()
+    url = f"{settings.ollama_base_url.rstrip('/')}/api/chat"
+    with httpx.Client(timeout=120.0) as client:
+        response = client.post(
+            url,
+            json={
+                "model": settings.ollama_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "options": {"temperature": 0.1, "num_predict": max_tokens},
+                "keep_alive": settings.ollama_keep_alive,
+            },
+        )
+        response.raise_for_status()
+        return str(response.json().get("message", {}).get("content", "")).strip()
 
 
 def ollama_llm_available() -> bool:

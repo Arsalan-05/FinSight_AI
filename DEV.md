@@ -52,9 +52,12 @@ Set `GROQ_API_KEY`, `GROQ_MODEL`, and `VOYAGE_API_KEY` in `.env` (local) and **R
 
 ```bash
 git push origin main   # Vercel auto-deploys frontend
-# Render: manual deploy (or enable auto-deploy) for backend API changes
+# Render: Dashboard → finsight-api → Manual Deploy (or enable auto-deploy)
 curl https://finsight-api-byrl.onrender.com/capabilities
 ```
+
+**v1.5.1 backend paths:** `backend/agent/scope.py`, `backend/agent/llm.py` (`call_llm_plain`), `backend/agent/prompts.py`  
+**v1.5.1 frontend paths:** `frontend/lib/chat-stream-manager.ts`, `frontend/contexts/ChatStreamContext.tsx`
 
 **What deploys where:**
 

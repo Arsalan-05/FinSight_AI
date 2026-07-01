@@ -2,7 +2,7 @@
 
 Personal finance intelligence — transaction ingest, pgvector search, and a stateful advisor grounded in your data. Canadian bank CSV import, optional Plaid sync, budgets, and spending insights.
 
-**Status:** v1.5.0 — **100% complete · locked · July 1, 2026**  
+**Status:** v1.5.1 — **100% complete · locked · July 1, 2026**  
 **Owner:** Arsalan Amir Ali (100%)
 
 ---
@@ -27,13 +27,15 @@ Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **
 |---------|----------|---------|
 | Chat / advisor | **Groq** `llama-3.1-8b-instant` | Groq cloud |
 | Memory summaries | **Groq** | Groq cloud |
-| Profile learning | **Groq** | Groq cloud |
+| Profile learning | **Groq** (`call_llm_plain` — no tools) | Groq cloud |
 | Semantic search | **Voyage** `voyage-4-large` | Voyage cloud |
 | Dollar amounts | SQL tools | Your database |
 
 Set `GROQ_API_KEY`, `GROQ_MODEL=llama-3.1-8b-instant`, and `VOYAGE_API_KEY` in `.env` (Mac) and Render. Sign up free at [console.groq.com](https://console.groq.com) and [dash.voyageai.com](https://dash.voyageai.com).
 
 Deploy guide: **[infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)** ($0 stack)
+
+**v1.5.1 highlights:** Finance-only advisor scope · background/concurrent chat · unified alert toggles · follow-up context · reliable learned profile updates.
 
 ---
 
