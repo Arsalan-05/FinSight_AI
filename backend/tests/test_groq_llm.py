@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 
-from agent.llm import _parse_openai_style_message, _to_groq_messages
+from agent.llm import (
+    _parse_groq_failed_tool_generation,
+    _parse_openai_style_message,
+    _to_groq_messages,
+)
 
 
 def test_parse_openai_style_message_with_tool_calls() -> None:
@@ -57,3 +61,16 @@ def test_to_groq_messages_serializes_tool_arguments_as_json_string() -> None:
     args = assistant["tool_calls"][0]["function"]["arguments"]
     assert isinstance(args, str)
     assert json.loads(args)["group_by"] == "category"
+
+
+def test_parse_groq_failed_tool_generation_xml_markup() -> None:
+    failed = '<function=search_web{"query": "credit card vs debit card"}></function>'
+    calls = _parse_groq_failed_tool_generation(failed)
+    assert len(calls) == 1
+    assert calls[0]["name"] == "search_web"
+    assert calls[0]["args"]["query"] == "credit card vs debit card"
+    assert calls[0]["id"]
+
+
+def test_parse_groq_failed_tool_generation_empty_on_garbage() -> None:
+    assert _parse_groq_failed_tool_generation("not a tool call") == []
