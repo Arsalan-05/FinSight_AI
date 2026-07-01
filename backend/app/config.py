@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # Unified advisor: Groq free tier (local + Render) — same model everywhere
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "llama-3.1-8b-instant"
     anthropic_api_key: str = ""
     voyage_api_key: str = ""
     # Best free Voyage tier: 200M tokens/account — https://docs.voyageai.com/docs/pricing

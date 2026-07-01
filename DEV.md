@@ -41,7 +41,7 @@ docker compose up --build
 
 | Layer | Default | Fallback |
 |-------|---------|----------|
-| Chat | Groq `llama-3.3-70b-versatile` | Ollama `qwen2.5:7b` if no `GROQ_API_KEY` |
+| Chat | Groq `llama-3.1-8b-instant` | Ollama `qwen2.5:7b` if no `GROQ_API_KEY` |
 | Embeddings | Voyage `voyage-4-large` | Ollama `nomic-embed-text` if no `VOYAGE_API_KEY` |
 
 Set `GROQ_API_KEY` and `VOYAGE_API_KEY` in `.env` (local) and Render (production).
