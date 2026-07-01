@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from typing import Any
 
@@ -205,10 +206,53 @@ def _call_ollama(
     return AIMessage(content=content)
 
 
-    return AIMessage(content=content)
-
-
 # ── Groq (free cloud tier — works from Render) ────────────────────────────────
+
+_MALFORMED_GROQ_FN_RE = re.compile(
+    r"<function=([a-zA-Z0-9_]+)(\{.*\})\s*(?:</function>)?",
+    re.DOTALL,
+)
+
+
+def _parse_groq_failed_tool_generation(text: str) -> list[dict[str, Any]]:
+    """Salvage tool calls when Groq rejects llama's XML-style function markup."""
+    tool_calls: list[dict[str, Any]] = []
+    for match in _MALFORMED_GROQ_FN_RE.finditer(text.strip()):
+        name = match.group(1)
+        try:
+            args = json.loads(match.group(2))
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(args, dict):
+            args = {}
+        tool_calls.append(
+            {
+                "id": str(uuid.uuid4()),
+                "name": name,
+                "args": args,
+            }
+        )
+    return tool_calls
+
+
+def _groq_system_hint() -> str:
+    return (
+        "\n\n## Tool calling (Groq)\n"
+        "- Use the function-calling API only — never XML or <function=...> tags.\n"
+        "- For general finance education (credit vs debit, budgeting basics), answer "
+        "directly when the user is not asking about their own transactions.\n"
+        "- Use search_web only for time-sensitive facts (2026 tax limits, current rates)."
+    )
+
+
+def _groq_tool_use_failed(error_body: dict[str, Any]) -> bool:
+    err = error_body.get("error") or {}
+    return err.get("code") == "tool_use_failed"
+
+
+def _groq_failed_generation(error_body: dict[str, Any]) -> str:
+    err = error_body.get("error") or {}
+    return str(err.get("failed_generation") or "")
 
 
 def _parse_openai_style_message(msg: dict[str, Any]) -> AIMessage:
@@ -273,34 +317,68 @@ def _call_groq(
     *,
     user_intelligence: str = "",
 ) -> AIMessage:
-    payload = {
-        "model": settings.groq_model,
-        "messages": [
-            {"role": "system", "content": _system_text(memory_summary, user_intelligence)}
-        ]
-        + _to_groq_messages(messages),
-        "tools": _ollama_tools(),
-        "tool_choice": "auto",
-        "temperature": 0.2,
-        "max_tokens": settings.ollama_num_predict,
+    system = _system_text(memory_summary, user_intelligence) + _groq_system_hint()
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
     }
+
+    def _payload(*, use_tools: bool, system_text: str) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "model": settings.groq_model,
+            "messages": [{"role": "system", "content": system_text}]
+            + _to_groq_messages(messages),
+            "temperature": 0.2,
+            "max_tokens": settings.ollama_num_predict,
+        }
+        if use_tools:
+            payload["tools"] = _ollama_tools()
+            payload["tool_choice"] = "auto"
+        else:
+            payload["tool_choice"] = "none"
+        return payload
+
     with httpx.Client(timeout=120.0) as client:
         response = client.post(
             GROQ_CHAT_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
+            headers=headers,
+            json=_payload(use_tools=True, system_text=system),
         )
-        if response.is_error:
+        if not response.is_error:
+            data = response.json()
+            choices = data.get("choices") or []
+            if not choices:
+                raise RuntimeError("Groq returned no choices")
+            return _parse_openai_style_message(choices[0].get("message") or {})
+
+        try:
+            error_body = response.json()
+        except json.JSONDecodeError:
             raise RuntimeError(f"Groq error {response.status_code}: {response.text}") from None
-        data = response.json()
-    choices = data.get("choices") or []
-    if not choices:
-        raise RuntimeError("Groq returned no choices")
-    message = choices[0].get("message") or {}
-    return _parse_openai_style_message(message)
+
+        if _groq_tool_use_failed(error_body):
+            salvaged = _parse_groq_failed_tool_generation(_groq_failed_generation(error_body))
+            if salvaged:
+                return AIMessage(content="", tool_calls=salvaged)
+
+            retry_system = (
+                system
+                + "\n\nAnswer the user's question directly in clear prose. "
+                "Do not call any tools on this turn."
+            )
+            retry = client.post(
+                GROQ_CHAT_URL,
+                headers=headers,
+                json=_payload(use_tools=False, system_text=retry_system),
+            )
+            if retry.is_error:
+                raise RuntimeError(f"Groq error {retry.status_code}: {retry.text}") from None
+            choices = retry.json().get("choices") or []
+            if not choices:
+                raise RuntimeError("Groq returned no choices on retry")
+            return _parse_openai_style_message(choices[0].get("message") or {})
+
+        raise RuntimeError(f"Groq error {response.status_code}: {response.text}") from None
 
 
 def _summarize_groq(messages: list[BaseMessage], current_summary: str, api_key: str) -> str:

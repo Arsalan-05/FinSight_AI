@@ -41,7 +41,8 @@ _is_supabase_url = "supabase.co" in DATABASE_URL or "pooler.supabase.com" in DAT
 if _is_supabase_url and "sslmode=" not in DATABASE_URL:
     _connect_args["sslmode"] = "require"
 _engine_kwargs["connect_args"] = _connect_args
-if settings.environment == "production":
+# Session pooler allows ~15 clients total (shared with Render). Cap pool in all envs.
+if _is_supabase_url:
     _engine_kwargs["pool_size"] = settings.db_pool_size
     _engine_kwargs["max_overflow"] = settings.db_max_overflow
 
