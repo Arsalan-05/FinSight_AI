@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import uuid
 from typing import Any
 
@@ -310,6 +311,60 @@ def _to_groq_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
     return out
 
 
+_GROQ_MAX_CONTEXT_MESSAGES = 14
+_GROQ_MAX_TOOL_CHARS = 2500
+
+
+def _trim_groq_context(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Keep recent turns only — Groq free tier has a 12k tokens/minute cap."""
+    if len(messages) <= _GROQ_MAX_CONTEXT_MESSAGES:
+        trimmed = list(messages)
+    else:
+        trimmed = list(messages[-_GROQ_MAX_CONTEXT_MESSAGES:])
+    out: list[BaseMessage] = []
+    for msg in trimmed:
+        if isinstance(msg, ToolMessage):
+            content = str(msg.content)
+            if len(content) > _GROQ_MAX_TOOL_CHARS:
+                content = content[:_GROQ_MAX_TOOL_CHARS] + "…[truncated]"
+            out.append(ToolMessage(content=content, tool_call_id=msg.tool_call_id, name=msg.name))
+        else:
+            out.append(msg)
+    return out
+
+
+def _groq_rate_limit_wait(error_body: dict[str, Any]) -> float | None:
+    err = error_body.get("error") or {}
+    if err.get("code") != "rate_limit_exceeded":
+        return None
+    message = str(err.get("message") or "")
+    match = re.search(r"try again in ([\d.]+)s", message, re.I)
+    if match:
+        return min(float(match.group(1)) + 0.5, 30.0)
+    return 6.0
+
+
+def _groq_post(
+    client: httpx.Client,
+    *,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+) -> httpx.Response:
+    for attempt in range(3):
+        response = client.post(GROQ_CHAT_URL, headers=headers, json=payload)
+        if response.status_code != 429:
+            return response
+        try:
+            error_body = response.json()
+        except json.JSONDecodeError:
+            return response
+        wait = _groq_rate_limit_wait(error_body)
+        if wait is None or attempt == 2:
+            return response
+        time.sleep(wait)
+    return response
+
+
 def _call_groq(
     messages: list[BaseMessage],
     memory_summary: str,
@@ -323,13 +378,15 @@ def _call_groq(
         "Content-Type": "application/json",
     }
 
+    context_messages = _trim_groq_context(messages)
+
     def _payload(*, use_tools: bool, system_text: str) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": settings.groq_model,
             "messages": [{"role": "system", "content": system_text}]
-            + _to_groq_messages(messages),
+            + _to_groq_messages(context_messages),
             "temperature": 0.2,
-            "max_tokens": settings.ollama_num_predict,
+            "max_tokens": min(settings.ollama_num_predict, 1024),
         }
         if use_tools:
             payload["tools"] = _ollama_tools()
@@ -339,10 +396,10 @@ def _call_groq(
         return payload
 
     with httpx.Client(timeout=120.0) as client:
-        response = client.post(
-            GROQ_CHAT_URL,
+        response = _groq_post(
+            client,
             headers=headers,
-            json=_payload(use_tools=True, system_text=system),
+            payload=_payload(use_tools=True, system_text=system),
         )
         if not response.is_error:
             data = response.json()
@@ -366,10 +423,10 @@ def _call_groq(
                 + "\n\nAnswer the user's question directly in clear prose. "
                 "Do not call any tools on this turn."
             )
-            retry = client.post(
-                GROQ_CHAT_URL,
+            retry = _groq_post(
+                client,
                 headers=headers,
-                json=_payload(use_tools=False, system_text=retry_system),
+                payload=_payload(use_tools=False, system_text=retry_system),
             )
             if retry.is_error:
                 raise RuntimeError(f"Groq error {retry.status_code}: {retry.text}") from None

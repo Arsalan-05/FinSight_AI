@@ -42,10 +42,15 @@ export default function AccountDetailPage() {
   useEffect(() => {
     if (!authReady || !id) return;
     let active = true;
-    const range = getDateRange(1);
+    const range = getDateRange(12);
     Promise.all([
       api.getAccount(id),
-      api.getTransactions({ account_id: id, date_from: range.from, date_to: range.to, limit: 500 }),
+      api.getTransactions({
+        account_id: id,
+        date_from: range.from,
+        date_to: range.to,
+        limit: 500,
+      }),
     ])
       .then(([acc, list]) => {
         if (!active) return;
@@ -140,8 +145,8 @@ export default function AccountDetailPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard icon={<ArrowDownLeft size={15} />} label="30-day spend" value={formatCurrency(spend)} sub="Debits" accent="rose" />
-        <KpiCard icon={<ArrowUpRight size={15} />} label="30-day income" value={formatCurrency(income)} sub="Credits" accent="emerald" />
+        <KpiCard icon={<ArrowDownLeft size={15} />} label="12-mo spend" value={formatCurrency(spend)} sub="Debits" accent="rose" />
+        <KpiCard icon={<ArrowUpRight size={15} />} label="12-mo income" value={formatCurrency(income)} sub="Credits" accent="emerald" />
         <KpiCard
           icon={<Wallet size={15} />}
           label="Net flow"
@@ -150,14 +155,14 @@ export default function AccountDetailPage() {
           accent={netFlow >= 0 ? "emerald" : "rose"}
           neg={netFlow < 0}
         />
-        <KpiCard icon={<CreditCard size={15} />} label="Transactions" value={String(txs.length)} sub="Last 30 days" accent="teal" />
+        <KpiCard icon={<CreditCard size={15} />} label="Transactions" value={String(txs.length)} sub="Last 12 months" accent="teal" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="panel rounded-2xl p-6">
           <h2 className="section-title mb-4">Spending by category</h2>
           {topCategories.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">No spending in the last 30 days.</p>
+            <p className="text-sm text-[var(--muted)]">No spending in the last 12 months.</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {topCategories.map(([cat, total]) => (
