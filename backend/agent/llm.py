@@ -13,6 +13,7 @@ from agent.tools import TOOL_DEFINITIONS
 from app.config import settings
 
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
+GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
 def _system_text(memory_summary: str, user_intelligence: str = "") -> str:
@@ -204,6 +205,95 @@ def _call_ollama(
     return AIMessage(content=content)
 
 
+    return AIMessage(content=content)
+
+
+# ── Groq (free cloud tier — works from Render) ────────────────────────────────
+
+
+def _parse_openai_style_message(msg: dict[str, Any]) -> AIMessage:
+    content = msg.get("content") or ""
+    tool_calls: list[dict[str, Any]] = []
+    for tc in msg.get("tool_calls") or []:
+        fn = tc.get("function", {})
+        raw_args = fn.get("arguments", "{}")
+        args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+        tool_calls.append(
+            {
+                "id": tc.get("id") or str(uuid.uuid4()),
+                "name": fn.get("name", ""),
+                "args": args if isinstance(args, dict) else {},
+            }
+        )
+    if tool_calls:
+        return AIMessage(content=content, tool_calls=tool_calls)
+    return AIMessage(content=content)
+
+
+def _call_groq(
+    messages: list[BaseMessage],
+    memory_summary: str,
+    api_key: str,
+    *,
+    user_intelligence: str = "",
+) -> AIMessage:
+    payload = {
+        "model": settings.groq_model,
+        "messages": [
+            {"role": "system", "content": _system_text(memory_summary, user_intelligence)}
+        ]
+        + _to_ollama_messages(messages),
+        "tools": _ollama_tools(),
+        "tool_choice": "auto",
+        "temperature": 0.2,
+        "max_tokens": settings.ollama_num_predict,
+    }
+    with httpx.Client(timeout=120.0) as client:
+        response = client.post(
+            GROQ_CHAT_URL,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+        )
+        if response.is_error:
+            raise RuntimeError(f"Groq error {response.status_code}: {response.text}") from None
+        data = response.json()
+    choices = data.get("choices") or []
+    if not choices:
+        raise RuntimeError("Groq returned no choices")
+    message = choices[0].get("message") or {}
+    return _parse_openai_style_message(message)
+
+
+def _summarize_groq(messages: list[BaseMessage], current_summary: str, api_key: str) -> str:
+    recent = _recent_exchange(messages)
+    if not recent:
+        return current_summary
+    prompt = _memory_prompt(current_summary, recent)
+    with httpx.Client(timeout=60.0) as client:
+        response = client.post(
+            GROQ_CHAT_URL,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": settings.groq_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.1,
+                "max_tokens": 400,
+            },
+        )
+        response.raise_for_status()
+        choices = response.json().get("choices") or []
+        if not choices:
+            return current_summary
+        content = choices[0].get("message", {}).get("content", current_summary)
+        return str(content).strip()
+
+
 def _summarize_anthropic(messages: list[BaseMessage], current_summary: str, api_key: str) -> str:
     recent = _recent_exchange(messages)
     if not recent:
@@ -268,19 +358,29 @@ def _memory_prompt(current_summary: str, recent: list[str]) -> str:
 
 def llm_runtime_available() -> bool:
     """True when the configured provider can answer chat requests."""
-    if settings.effective_llm_provider == "anthropic":
+    provider = settings.effective_llm_provider
+    if provider == "anthropic":
         return bool(settings.anthropic_api_key)
+    if provider == "groq":
+        return bool(settings.groq_api_key)
     return ollama_llm_available()
 
 
 def chat_unavailable_message() -> str:
-    if settings.effective_llm_provider == "anthropic":
+    provider = settings.effective_llm_provider
+    if provider == "groq":
+        return (
+            "Advisor is unavailable — add a free GROQ_API_KEY on Render "
+            "(console.groq.com → API Keys) and redeploy."
+        )
+    if provider == "anthropic":
         return (
             "Advisor is unavailable — add ANTHROPIC_API_KEY on Render "
             "(Settings → Environment) and redeploy."
         )
     return (
-        "Advisor needs Ollama running locally, or set ANTHROPIC_API_KEY for cloud chat."
+        "Advisor needs Ollama running locally (ollama pull qwen2.5:7b), "
+        "or set GROQ_API_KEY / ANTHROPIC_API_KEY for cloud chat."
     )
 
 
@@ -292,13 +392,19 @@ def call_llm(
     user_intelligence: str = "",
 ) -> AIMessage:
     """Call the configured LLM provider (Ollama by default)."""
-    if settings.effective_llm_provider == "anthropic":
+    provider = settings.effective_llm_provider
+    if provider == "anthropic":
         key = api_key or settings.anthropic_api_key
         if not key:
             raise ValueError("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic")
         return _call_anthropic(
             messages, memory_summary, key, user_intelligence=user_intelligence
         )
+    if provider == "groq":
+        key = api_key or settings.groq_api_key
+        if not key:
+            raise ValueError("GROQ_API_KEY is required when LLM_PROVIDER=groq")
+        return _call_groq(messages, memory_summary, key, user_intelligence=user_intelligence)
     return _call_ollama(messages, memory_summary, user_intelligence=user_intelligence)
 
 
@@ -310,11 +416,17 @@ def summarize_memory(
     """Update the rolling memory summary after a conversation turn."""
     if len(messages) < 2:
         return current_summary
-    if settings.effective_llm_provider == "anthropic":
+    provider = settings.effective_llm_provider
+    if provider == "anthropic":
         key = api_key or settings.anthropic_api_key
         if not key:
             return current_summary
         return _summarize_anthropic(messages, current_summary, key)
+    if provider == "groq":
+        key = api_key or settings.groq_api_key
+        if not key:
+            return current_summary
+        return _summarize_groq(messages, current_summary, key)
     return _summarize_ollama(messages, current_summary)
 
 

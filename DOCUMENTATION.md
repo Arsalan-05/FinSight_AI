@@ -597,7 +597,8 @@ Reasoning loop: **Understand → Plan → Gather (personal + web) → Synthesize
 | Provider | Config | Models |
 |----------|--------|--------|
 | Ollama (default) | `LLM_PROVIDER=ollama` | `qwen2.5:7b`, `nomic-embed-text` |
-| Anthropic | `LLM_PROVIDER=anthropic` | `claude-sonnet-4-6` |
+| Groq (free cloud) | `LLM_PROVIDER=groq` | `llama-3.3-70b-versatile` |
+| Anthropic (paid) | `LLM_PROVIDER=anthropic` | `claude-sonnet-4-6` |
 
 ```bash
 ollama pull qwen2.5:7b
