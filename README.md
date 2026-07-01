@@ -15,9 +15,11 @@ Personal finance intelligence — transaction ingest, pgvector search, and a sta
 | **API (Render)** | `https://finsight-api-byrl.onrender.com` |
 | **Database + Auth** | Supabase (`zibzsxwceivnziplciuq`) |
 
-Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **shared chat history** across local and deployed when both use Supabase.
+Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **shared chat history** on Supabase.
 
-> **AI stack (free):** **Groq** for chat on Mac + Render. **Voyage** `voyage-4-large` for semantic search on Mac + Render (200M free tokens).
+> **Use production for daily use.** Local is only for coding, testing, and debugging.
+
+> **AI stack (free):** **Groq** (Llama 3.3 70B) for chat · **Voyage** `voyage-4-large` for semantic search. Ollama is optional offline fallback only.
 
 ## Free AI stack (Groq + Voyage)
 
@@ -35,18 +37,21 @@ Deploy guide: **[infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)** ($0 stack)
 
 ---
 
-## Quick start (local)
+## Quick start (local — optional, for development only)
+
+Only run this when **editing code** or **running tests**. For normal use, open the production URL above.
 
 ```bash
 cp .env.example .env
 cp frontend/.env.local.example frontend/.env.local
-# Add GROQ_API_KEY (console.groq.com) + VOYAGE_API_KEY (dash.voyageai.com) + Supabase keys
+# Add GROQ_API_KEY + VOYAGE_API_KEY + Supabase keys
 
 docker compose up -d db
 cd backend && uv sync && uv run alembic upgrade head
 
-# Terminal 1 — backend (use 127.0.0.1 to avoid IPv6 localhost issues)
-cd backend && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+# Terminal 1 — backend
+cd backend && set -a && source ../.env && set +a
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 # Terminal 2 — frontend
 cd frontend && npm install && npm run dev
@@ -63,17 +68,17 @@ Open **http://localhost:3000** → sign in with Google.
 ## Architecture at a glance
 
 ```
-Local dev:   localhost:3000 → 127.0.0.1:8000 → Supabase (or Docker fallback) + Groq + Voyage
-Production:  Vercel         → Render API      → Supabase + Groq + Voyage
+Production (primary):  Vercel → Render API → Supabase + Groq + Voyage
+Local (workshop):      localhost:3000 → 127.0.0.1:8000 → same stack when coding
 ```
 
-| Feature | Local | Deployed |
-|---------|-------|----------|
+| Feature | Production | Local (optional) |
+|---------|------------|------------------|
 | Login (Google) | ✅ | ✅ |
-| Dashboard / data | ✅ | ✅ |
-| Chat history (Supabase) | ✅ (hotspot / reachable pooler) | ✅ |
-| AI advisor replies | ✅ Groq | ✅ Groq |
-| Semantic search | ✅ Voyage | ✅ Voyage |
+| Dashboard / data | ✅ | ✅ (hotspot for Supabase) |
+| AI advisor | ✅ Groq | ✅ Groq (same keys) |
+| Semantic search | ✅ Voyage | ✅ Voyage (same keys) |
+| Purpose | **Daily use · demos** | **Code · test · debug** |
 
 ---
 

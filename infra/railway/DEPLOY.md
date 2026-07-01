@@ -31,7 +31,7 @@ Deploy as **two Railway services** from this monorepo (private repo is fine).
 
 5. Generate domain → note API URL (e.g. `https://finsight-api.up.railway.app`).
 
-**Ollama on Railway:** not supported — use Anthropic for LLM in production.
+**Production LLM:** Groq (free) via `GROQ_API_KEY`. Ollama does not run on Railway/Render.
 
 ## 2. Frontend
 
@@ -80,7 +80,7 @@ Weekly digest emails require SMTP vars and users enabling **Weekly email digest*
 
 | | Local | Production |
 |---|--------|------------|
-| LLM | Ollama | Anthropic |
+| LLM | Groq (cloud) | Groq or Ollama fallback |
 | DB | Docker or Supabase | Supabase pooler |
 | CORS | localhost auto | `CORS_ORIGINS` env |
 | Logs | text | JSON (`ENVIRONMENT=production`) |
