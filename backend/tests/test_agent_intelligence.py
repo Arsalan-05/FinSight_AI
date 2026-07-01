@@ -72,14 +72,11 @@ class TestUserProfile:
         assert "Groceries" in text
         assert "cost-conscious" in text
 
-    @patch("agent.llm.call_llm")
+    @patch("agent.llm.call_llm_plain", return_value=(
+        '{"learned_summary":"Wants to cut dining.",'
+        '"preferences":["budget meals"],"risk_flags":["dining"]}'
+    ))
     def test_update_learned_profile(self, mock_llm: object) -> None:
-        mock_llm.return_value = AIMessage(  # type: ignore[attr-defined]
-            content=(
-                '{"learned_summary":"Wants to cut dining.",'
-                '"preferences":["budget meals"],"risk_flags":["dining"]}'
-            )
-        )
         updated = update_learned_profile(
             [HumanMessage(content="How do I spend less on food?")],
             {"learned_summary": "", "preferences": [], "risk_flags": []},

@@ -1,6 +1,6 @@
 # FinSight AI — Project Documentation
 
-> **FinSight AI v1.5.0** — **100% complete · locked · July 1, 2026.**  
+> **FinSight AI v1.5.1** — **100% complete · locked · July 1, 2026.**  
 > **Production** is live on Vercel + Render + Supabase (Groq + Voyage).  
 > **Local** is optional — for coding, testing, experiments, and debugging only.
 
@@ -537,9 +537,13 @@ Auth: `Authorization: Bearer <supabase_access_token>` on all routes except `/hea
 | PATCH | `/chat/sessions/{id}` | `{"title":"...","pinned":true}` | Rename or pin/unpin a conversation |
 | DELETE | `/chat/sessions/{id}` | — | Delete a saved conversation (204, removes from DB) |
 
-**SSE events:** `status` (live tool progress), `token`, `done`, `error`
+**SSE events:** `session` (assigns `session_id` first), `status` (live tool progress), `token`, `done`, `error`
+
+**Finance-only scope:** Off-topic asks (celebrities, trivia, homework) are rejected in `backend/agent/scope.py` before Groq runs — saves tokens and keeps the advisor on personal finance.
 
 **Deep links (frontend):** `/chat?q=<prompt>&send=1&new=1` — pre-fills and auto-sends in a **new** conversation (used by “Ask advisor” links across the app). Omit `new=1` only if you want to continue the current session.
+
+**Background chat (frontend):** `frontend/lib/chat-stream-manager.ts` runs SSE streams outside the chat page. Streams continue when you navigate away; multiple sessions can generate in parallel; per-session drafts in `sessionStorage` (`finsight_chat_draft_<sessionId>`).
 
 ```bash
 curl -N -X POST http://localhost:8000/chat/ \
@@ -604,9 +608,10 @@ User message → Agent node (LLM + tool schemas)
 The agent does **not** retrain model weights. Instead it:
 
 1. **Data profile** — SQL analysis of the user's transactions (top categories, merchants, monthly burn/income) injected every turn.
-2. **Learned profile** — `users.agent_profile_json` updated after conversations (preferences, risk areas, summary).
-3. **Session memory** — `memory_summary` compresses long chats.
+2. **Learned profile** — `users.agent_profile_json` updated after conversations (preferences, risk areas, summary) via `call_llm_plain` (no tools — reliable JSON merge).
+3. **Session memory** — `memory_summary` compresses long chats (every other user turn).
 4. **Web search** — `search_web` for facts outside the database (CRA limits, product rates, market news).
+5. **Follow-up context** — system prompt + Groq trim keep the last two user turns so short replies (“what about April?”) refer to the prior topic.
 
 Reasoning loop: **Understand → Plan → Gather (personal + web) → Synthesize → Recommend**.
 
@@ -699,8 +704,8 @@ Live USD/CAD, EUR/CAD, GBP/CAD from Bank of Canada API.
 | `/subscriptions` | Recurring charges, monthly total, Ask Advisor links |
 | `/search` | Semantic search with presets; rebuild-index banner when embeddings missing |
 | `/notifications` | Live spend signals, budget limits, saved alerts, alert preferences |
-| `/chat` | SSE streaming chat with citations, live status, history sidebar |
-| `/settings` | Banks, alert prefs, export, account deletion |
+| `/chat` | SSE streaming chat, citations, history sidebar, background streams, concurrent sessions |
+| `/settings` | Banks, alert prefs (unified toggles), export, advisor memory, account deletion |
 | `/privacy` | Public privacy policy (no auth shell) |
 | `/login` | Google OAuth + email magic link |
 
@@ -709,6 +714,8 @@ Live USD/CAD, EUR/CAD, GBP/CAD from Bank of Canada API.
 - **`lib/api.ts`** — typed client, waits for Supabase JWT before protected calls
 - **`hooks/useAuthReady.ts`** — waits for Supabase JWT, runs `/auth/sync`, then allows data fetching
 - **`lib/chat-url.ts`** — builds `/chat?q=…&new=1` links so “Ask advisor” starts a fresh session
+- **`lib/chat-stream-manager.ts`** + **`contexts/ChatStreamContext.tsx`** — background SSE, per-session drafts, concurrent chats
+- **`components/ui/ToggleSwitch.tsx`** — shared alert preference toggles (Settings + Alerts)
 - **Premium UI** — glass surfaces, mesh gradients, dark fintech theme
 - **OnboardingBanner** — guides new users to upload CSV or create accounts
 
@@ -942,6 +949,9 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 | **Embeddings / search empty** | Voyage migration cleared vectors | Search page → **Rebuild search index**, or re-upload CSV |
 | **Embeddings skipped (offline)** | No Voyage key, Ollama embed missing | `ollama pull nomic-embed-text` or set `VOYAGE_API_KEY` |
 | **Alembic % error in password** | ConfigParser interpolation | URL-encode `@` as `%40`; use `uv run python -m db.migrate` |
+| **Chat left mid-response** | Stream tied to page (pre-v1.5.1) | Redeploy v1.5.1 — background stream manager + per-session draft |
+| **Advisor answers trivia** | No scope guard (pre-v1.5.1) | Redeploy — `finance_scope_refusal` blocks off-topic before Groq |
+| **Follow-up repeats same answer** | Context trim | Redeploy v1.5.1 — last 2 user turns kept + follow-up prompt rule |
 | **CORS error** | Wrong origin | Render `CORS_ORIGINS` must include Vercel URL |
 
 ---
@@ -961,6 +971,8 @@ Deferred beyond the current release:
 **Shipped in v1.4:** Plaid webhooks + background sync, budgets + in-app alerts, `DELETE /auth/me` + JSON export, goal progress, category rules, notifications inbox, GitHub Pages landing.
 
 **Post v1.5.0 updates:** Voyage reindex batching, Groq rate-limit retries, full Alerts page, notification bell live signals, new chat per advisor deep link, default model `llama-3.1-8b-instant`.
+
+**v1.5.1 (July 1, 2026):** Finance-only scope guard (`backend/agent/scope.py`), background/concurrent chat streams (`chat-stream-manager`), unified alert toggles, follow-up context + Groq trim, reliable profile learning via `call_llm_plain`, notification bell fixed positioning, typewriter SSE streaming.
 
 ---
 
@@ -995,7 +1007,7 @@ docker compose up --build
 
 ## 19. Project Status
 
-**FinSight AI v1.5.0 — 100% complete · locked · July 1, 2026.**
+**FinSight AI v1.5.1 — 100% complete · locked · July 1, 2026.**
 
 All engineering-MVP scope is shipped and **deployed to production**. Local development is **optional** — for coding, testing, and debugging only.
 
@@ -1036,7 +1048,7 @@ Verify: `curl https://finsight-api-byrl.onrender.com/capabilities` → `chat_ava
 | **RAG** | Transaction embeddings (1024-dim), semantic search, HNSW index |
 | **Agent** | ReAct loop — SQL + retrieval + web search + learned profile |
 | **Retention** | Alerts page (live signals + budgets), notifications inbox, weekly brief |
-| **Chat** | Saved history, pin/rename/delete, citations, fresh session per “Ask advisor” deep link |
+| **Chat** | Saved history, pin/rename/delete, citations, background streams, finance-only scope, fresh session per “Ask advisor” link |
 | **Frontend** | Dashboard, analytics, transactions, subscriptions, search, alerts, chat, settings |
 | **Deploy** | Vercel (auto on push) + Render (manual or auto) + Supabase ($0) |
 | **Local dev** | Optional — Groq/Voyage same as prod, Docker DB fallback, `127.0.0.1` API fix |
@@ -1122,10 +1134,10 @@ User transaction data, chat history, and account information belong to each end 
 
 ### Completion declaration
 
-> **FinSight AI v1.5.0** is **100% complete and locked** as of **July 1, 2026** by **Arsalan Amir Ali**.  
+> **FinSight AI v1.5.1** is **100% complete and locked** as of **July 1, 2026** by **Arsalan Amir Ali**.  
 > **Production** (Vercel + Render + Supabase + Groq + Voyage) is the primary product.  
 > **Local** is optional for development, testing, and experiments.
 
 ---
 
-*Last updated: June 29, 2026 — FinSight AI v1.5.0 docs (Groq 8B, Alerts page, search reindex, chat deep links)*
+*Last updated: July 1, 2026 — FinSight AI v1.5.1 (finance scope, background chat, alert toggles, follow-up context, profile learning)*

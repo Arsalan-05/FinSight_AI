@@ -528,13 +528,13 @@ function PrefRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
-      <div className="min-w-0">
+    <label className="flex cursor-pointer items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-[var(--foreground)]">{label}</p>
         <p className="mt-0.5 text-xs text-[var(--muted)]">{desc}</p>
       </div>
       <ToggleSwitch checked={checked} onChange={onChange} label={label} />
-    </div>
+    </label>
   );
 }
 

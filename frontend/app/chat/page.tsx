@@ -19,15 +19,21 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChatHistorySidebar } from "@/components/chat/ChatHistorySidebar";
 import { FormatAgentText } from "@/components/chat/formatAgentText";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useChatStream } from "@/contexts/ChatStreamContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
+import {
+  clearChatDraft,
+  clearSessionId,
+  hydrateSessionState,
+  loadChatDraft,
+  loadSessionId,
+  saveSessionId,
+  sessionMigrations,
+} from "@/lib/chat-stream-manager";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { ChatMessage, ChatSessionSummary, FinancialGoal, TransactionCitation } from "@/lib/types";
-
-const SESSION_KEY = "finsight_chat_session";
-const DRAFT_KEY = "finsight_chat_draft";
-const DRAFT_MAX_AGE_MS = 30 * 60 * 1000;
 
 const PROMPT_GROUPS = [
   {
@@ -64,59 +70,6 @@ const AGENT_STATUS = [
   "Synthesizing insights…",
 ];
 
-function loadSessionId(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return localStorage.getItem(SESSION_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function saveSessionId(id: string) {
-  localStorage.setItem(SESSION_KEY, id);
-}
-
-type ChatDraft = {
-  sessionId: string;
-  messages: ChatMessage[];
-  at: number;
-};
-
-function saveChatDraft(sessionId: string, messages: ChatMessage[]) {
-  if (!sessionId || messages.length === 0) return;
-  try {
-    const payload: ChatDraft = { sessionId, messages, at: Date.now() };
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
-  } catch {
-    // ignore quota errors
-  }
-}
-
-function loadChatDraft(): ChatDraft | null {
-  try {
-    const raw = sessionStorage.getItem(DRAFT_KEY);
-    if (!raw) return null;
-    const draft = JSON.parse(raw) as ChatDraft;
-    if (!draft.sessionId || !Array.isArray(draft.messages)) return null;
-    if (Date.now() - draft.at > DRAFT_MAX_AGE_MS) {
-      sessionStorage.removeItem(DRAFT_KEY);
-      return null;
-    }
-    return draft;
-  } catch {
-    return null;
-  }
-}
-
-function clearChatDraft() {
-  try {
-    sessionStorage.removeItem(DRAFT_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 function newMessage(role: ChatMessage["role"], content: string): ChatMessage {
   return { id: crypto.randomUUID(), role, content };
 }
@@ -140,8 +93,9 @@ function ChatPageContent() {
   const authReady = useAuthReady();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { version, getSessionState, sendMessage: sendStream, stopSession, streamingSessionIds } =
+    useChatStream();
   const consumedQueryKey = useRef<string | null>(null);
-  const mountedRef = useRef(true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(isSupabaseConfigured);
@@ -159,8 +113,33 @@ function ChatPageContent() {
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const statusIdx = useRef(0);
+
+  const syncFromManager = useCallback(
+    (id: string) => {
+      if (!id) return;
+      const live = getSessionState(id);
+      if (!live) return;
+      setMessages(live.messages);
+      setLoading(live.loading);
+      setAgentStatus(live.agentStatus);
+      if (live.error) setError(live.error);
+    },
+    [getSessionState],
+  );
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (sessionId.startsWith("new:")) {
+      const migrated = sessionMigrations.get(sessionId);
+      if (migrated) {
+        setSessionId(migrated);
+        saveSessionId(migrated);
+        syncFromManager(migrated);
+        return;
+      }
+    }
+    syncFromManager(sessionId);
+  }, [version, sessionId, syncFromManager]);
 
   useEffect(() => {
     void api.capabilities().then((c) => {
@@ -195,11 +174,33 @@ function ChatPageContent() {
       setHistoryLoading(true);
       setError(null);
       try {
+        const live = getSessionState(id);
+        if (live?.loading) {
+          setSessionId(id);
+          saveSessionId(id);
+          setMessages(live.messages);
+          setLoading(true);
+          setAgentStatus(live.agentStatus);
+          return;
+        }
+        const draft = loadChatDraft(id);
+        if (draft?.loading) {
+          setSessionId(id);
+          saveSessionId(id);
+          hydrateSessionState(id, draft.messages);
+          setMessages(draft.messages);
+          setLoading(true);
+          return;
+        }
         const detail = await api.getChatSession(id);
+        const hydrated = hydrateSessionState(
+          detail.id,
+          detail.messages.map((m) => newMessage(m.role, m.content)),
+        );
         setSessionId(detail.id);
         saveSessionId(detail.id);
-        clearChatDraft();
-        setMessages(detail.messages.map((m) => newMessage(m.role, m.content)));
+        setMessages(hydrated.messages);
+        setLoading(hydrated.loading);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Could not load chat";
         setError(msg);
@@ -208,15 +209,44 @@ function ChatPageContent() {
         setHistoryLoading(false);
       }
     },
-    [authReady, toast],
+    [authReady, toast, getSessionState],
   );
 
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
+    if (!authReady || !sessionId || sessionId.startsWith("new:")) return;
+    const live = getSessionState(sessionId);
+    if (live?.loading) return;
+    const draft = loadChatDraft(sessionId);
+    if (!draft?.loading) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const detail = await api.getChatSession(sessionId);
+        const last = detail.messages[detail.messages.length - 1];
+        if (last?.role === "assistant" && last.content?.trim()) {
+          if (cancelled) return;
+          const hydrated = hydrateSessionState(
+            detail.id,
+            detail.messages.map((m) => newMessage(m.role, m.content)),
+          );
+          setMessages(hydrated.messages);
+          setLoading(false);
+          setAgentStatus(null);
+          clearChatDraft(sessionId);
+          void refreshSessions();
+        }
+      } catch {
+        // keep polling
+      }
     };
-  }, []);
+    const interval = window.setInterval(() => void poll(), 2500);
+    void poll();
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [authReady, sessionId, version, getSessionState, refreshSessions]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -226,12 +256,13 @@ function ChatPageContent() {
       return;
     }
     let active = true;
-    const draft = loadChatDraft();
     const saved = loadSessionId();
-    if (draft && (!saved || draft.sessionId === saved)) {
+    const draft = saved ? loadChatDraft(saved) : null;
+    if (draft && draft.loading) {
       setSessionId(draft.sessionId);
-      saveSessionId(draft.sessionId);
+      hydrateSessionState(draft.sessionId, draft.messages);
       setMessages(draft.messages);
+      setLoading(true);
       setHistoryLoading(false);
       void api.listChatSessions().then((rows) => {
         if (active) setSessions(rows);
@@ -248,7 +279,7 @@ function ChatPageContent() {
         try {
           return await api.getChatSession(saved);
         } catch {
-          localStorage.removeItem(SESSION_KEY);
+          clearSessionId();
           return null;
         }
       })(),
@@ -276,111 +307,39 @@ function ChatPageContent() {
   const sendMessage = useCallback(
     async (text?: string, options?: { newSession?: boolean }) => {
       const message = (text ?? input).trim();
-      if (!message || loading) return;
+      if (!message) return;
 
-      const streamSessionId = options?.newSession ? "" : sessionId;
+      const isNew = Boolean(options?.newSession);
+      const activeId = isNew ? "" : sessionId;
+      if (!isNew && activeId && getSessionState(activeId)?.loading) return;
 
       setInput("");
       setError(null);
       setLoading(true);
       setAgentStatus(AGENT_STATUS[0]);
 
-      const userMsg = newMessage("user", message);
-      const assistantId = crypto.randomUUID();
-      setMessages((prev) => [
-        ...prev,
-        userMsg,
-        { id: assistantId, role: "assistant", content: "", citations: [] },
-      ]);
+      const priorMessages = isNew
+        ? []
+        : messages.filter((m) => m.content.trim() || m.role === "user");
 
-      const controller = new AbortController();
-      abortRef.current = controller;
-      const fallbackTimer = setInterval(() => {
-        statusIdx.current = (statusIdx.current + 1) % AGENT_STATUS.length;
-        setAgentStatus((prev) => prev ?? AGENT_STATUS[statusIdx.current]);
-      }, 2400);
+      const streamKey = await sendStream(message, {
+        sessionId: activeId || undefined,
+        newSession: isNew,
+        priorMessages,
+      });
 
-      try {
-        let reply = "";
-        let citations: TransactionCitation[] = [];
-        let activeSession = streamSessionId;
-
-        for await (const event of api.chatStream(
-          message,
-          streamSessionId || undefined,
-          controller.signal,
-        )) {
-          if (event.type === "session") {
-            activeSession = event.session_id;
-            if (mountedRef.current) {
-              setSessionId(event.session_id);
-              saveSessionId(event.session_id);
-              setMessages((prev) => {
-                saveChatDraft(event.session_id, prev);
-                return prev;
-              });
-              void refreshSessions();
-            }
-          } else if (event.type === "status") {
-            if (mountedRef.current) setAgentStatus(event.detail || event.phase);
-          } else if (event.type === "token") {
-            reply += event.content;
-            if (mountedRef.current) {
-              setMessages((prev) => {
-                const next = prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: reply } : m,
-                );
-                if (activeSession) saveChatDraft(activeSession, next);
-                return next;
-              });
-            }
-          } else if (event.type === "done") {
-            reply = event.content;
-            citations = event.citations ?? [];
-            activeSession = event.session_id;
-            if (mountedRef.current) {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: reply, citations } : m,
-                ),
-              );
-            }
-          } else if (event.type === "error") {
-            throw new Error(event.message);
-          }
-        }
-
-        if (activeSession) {
-          if (mountedRef.current) {
-            setSessionId(activeSession);
-            saveSessionId(activeSession);
-            void refreshSessions();
-          }
-          clearChatDraft();
-        }
-      } catch (e) {
-        if (controller.signal.aborted) return;
-        const msg = e instanceof Error ? e.message : "Chat failed";
-        if (mountedRef.current) {
-          setError(msg);
-          toast(msg, "error");
-          setMessages((prev) => {
-            const assistant = prev.find((m) => m.id === assistantId);
-            if (assistant?.content?.trim()) return prev;
-            return prev.filter((m) => m.id !== assistantId);
-          });
-        }
-      } finally {
-        if (mountedRef.current) {
-          clearInterval(fallbackTimer);
-          setLoading(false);
-          setAgentStatus(null);
-          abortRef.current = null;
-          inputRef.current?.focus();
-        }
+      if (streamKey.startsWith("new:")) {
+        setSessionId(streamKey);
+      } else if (streamKey) {
+        setSessionId(streamKey);
+        saveSessionId(streamKey);
       }
+
+      syncFromManager(streamKey);
+      void refreshSessions();
+      inputRef.current?.focus();
     },
-    [input, loading, sessionId, toast, refreshSessions],
+    [input, sessionId, messages, sendStream, getSessionState, syncFromManager, refreshSessions],
   );
 
   useEffect(() => {
@@ -400,11 +359,11 @@ function ChatPageContent() {
     const startNewChat = searchParams.get("new") !== "0";
 
     if (startNewChat) {
-      if (loading) abortRef.current?.abort();
+      if (sessionId) stopSession(sessionId);
       setMessages([]);
       setError(null);
       setSessionId("");
-      localStorage.removeItem(SESSION_KEY);
+      clearSessionId();
     }
 
     router.replace("/chat", { scroll: false });
@@ -422,18 +381,17 @@ function ChatPageContent() {
   }, [authReady, historyLoading, loading, searchParams, router, sendMessage]);
 
   const handleStop = () => {
-    abortRef.current?.abort();
+    if (sessionId) stopSession(sessionId);
     setLoading(false);
     setAgentStatus(null);
   };
 
   const handleNewChat = () => {
-    if (loading) handleStop();
+    if (sessionId) stopSession(sessionId);
     setMessages([]);
     setError(null);
     setSessionId("");
-    localStorage.removeItem(SESSION_KEY);
-    clearChatDraft();
+    clearSessionId();
     inputRef.current?.focus();
   };
 
@@ -443,7 +401,7 @@ function ChatPageContent() {
     if (sessionId === id) {
       setMessages([]);
       setSessionId("");
-      localStorage.removeItem(SESSION_KEY);
+      clearSessionId();
     }
     try {
       await api.deleteChatSession(id);
@@ -517,6 +475,7 @@ function ChatPageContent() {
         <ChatHistorySidebar
           sessions={sessions}
           sessionId={sessionId}
+          streamingSessionIds={streamingSessionIds}
           loading={!authReady || historyLoading}
           renamingId={renamingId}
           renameValue={renameValue}

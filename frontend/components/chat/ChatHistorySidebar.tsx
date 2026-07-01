@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Loader2,
   MessageSquare,
   MessageSquarePlus,
   MoreHorizontal,
@@ -31,6 +32,7 @@ function formatSessionDate(iso: string | null): string {
 export function ChatHistorySidebar({
   sessions,
   sessionId,
+  streamingSessionIds = [],
   loading,
   renamingId,
   renameValue,
@@ -45,6 +47,7 @@ export function ChatHistorySidebar({
 }: {
   sessions: ChatSessionSummary[];
   sessionId: string;
+  streamingSessionIds?: string[];
   loading: boolean;
   renamingId: string | null;
   renameValue: string;
@@ -132,6 +135,7 @@ export function ChatHistorySidebar({
                       key={s.id}
                       session={s}
                       active={sessionId === s.id}
+                      streaming={streamingSessionIds.includes(s.id)}
                       renaming={renamingId === s.id}
                       renameValue={renameValue}
                       menuOpen={menuId === s.id}
@@ -163,6 +167,7 @@ export function ChatHistorySidebar({
                       key={s.id}
                       session={s}
                       active={sessionId === s.id}
+                      streaming={streamingSessionIds.includes(s.id)}
                       renaming={renamingId === s.id}
                       renameValue={renameValue}
                       menuOpen={menuId === s.id}
@@ -209,6 +214,7 @@ function SessionGroup({ label, children }: { label: string; children: React.Reac
 function SessionCard({
   session,
   active,
+  streaming = false,
   renaming,
   renameValue,
   menuOpen,
@@ -223,6 +229,7 @@ function SessionCard({
 }: {
   session: ChatSessionSummary;
   active: boolean;
+  streaming?: boolean;
   renaming: boolean;
   renameValue: string;
   menuOpen: boolean;
@@ -269,6 +276,9 @@ function SessionCard({
                     {session.title}
                   </p>
                   <div className="mt-1 flex items-center gap-1.5 text-[10px] text-[var(--muted)]">
+                    {streaming && (
+                      <Loader2 size={10} className="shrink-0 animate-spin text-[var(--accent)]" />
+                    )}
                     <span className="shrink-0">{formatSessionDate(session.updated_at)}</span>
                     {session.message_count > 0 && (
                       <>

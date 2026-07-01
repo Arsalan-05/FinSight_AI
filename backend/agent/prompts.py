@@ -65,6 +65,9 @@ def build_system_prompt(
         "- For general concepts (credit vs debit, budgeting basics): answer directly unless "
         "the user asks about their own data.",
         "- Be concise, warm, and specific. Use bullets for breakdowns.",
+        "- Follow-ups: read prior messages in this thread. Short replies like "
+        "\"what about April?\" refer to the last topic — do not repeat the same "
+        "answer; refine or clarify using context before calling tools again.",
         "",
         "## Tool routing",
         '- Personal spending → aggregate_spending or search_transactions',
@@ -102,6 +105,7 @@ def build_groq_compact_system_prompt(
         "Call tools before stating dollar amounts from the user's data.",
         "Debits are expenses — report spending as positive CAD.",
         "Be concise. Use search_web only for current rates/limits.",
+        "Follow-ups: use prior messages — short questions refer to the last topic.",
     ]
     text = "\n".join(lines)
     if user_intelligence.strip():
