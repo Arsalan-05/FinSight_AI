@@ -230,6 +230,42 @@ def _parse_openai_style_message(msg: dict[str, Any]) -> AIMessage:
     return AIMessage(content=content)
 
 
+def _to_groq_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
+    """OpenAI-compatible chat format — Groq requires tool arguments as JSON strings."""
+    out: list[dict[str, Any]] = []
+    for msg in messages:
+        if isinstance(msg, HumanMessage):
+            out.append({"role": "user", "content": str(msg.content)})
+        elif isinstance(msg, AIMessage):
+            entry: dict[str, Any] = {"role": "assistant", "content": str(msg.content or "")}
+            if msg.tool_calls:
+                entry["tool_calls"] = [
+                    {
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {
+                            "name": tc["name"],
+                            "arguments": (
+                                tc["args"]
+                                if isinstance(tc["args"], str)
+                                else json.dumps(tc["args"] if isinstance(tc["args"], dict) else {})
+                            ),
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ]
+            out.append(entry)
+        elif isinstance(msg, ToolMessage):
+            out.append(
+                {
+                    "role": "tool",
+                    "content": str(msg.content),
+                    "tool_call_id": msg.tool_call_id,
+                }
+            )
+    return out
+
+
 def _call_groq(
     messages: list[BaseMessage],
     memory_summary: str,
@@ -242,7 +278,7 @@ def _call_groq(
         "messages": [
             {"role": "system", "content": _system_text(memory_summary, user_intelligence)}
         ]
-        + _to_ollama_messages(messages),
+        + _to_groq_messages(messages),
         "tools": _ollama_tools(),
         "tool_choice": "auto",
         "temperature": 0.2,
