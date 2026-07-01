@@ -9,7 +9,7 @@ from db.models import Transaction
 from rag.embedder import build_content
 from rag.retriever import retrieve
 
-_FAKE_VECTOR = [0.1] * 768
+_FAKE_VECTOR = [0.1] * 1024
 
 
 def _tx(**overrides: object) -> Transaction:
@@ -130,7 +130,7 @@ class TestRetrieve:
 
     def test_passes_query_vector_to_db(self) -> None:
         """The vector returned by embed_texts must flow into the DB query chain."""
-        expected_vector = [0.42] * 768
+        expected_vector = [0.42] * 1024
         mock_db = _mock_db([])
 
         with patch("rag.retriever.embed_texts", return_value=[expected_vector]):

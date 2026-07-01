@@ -11,7 +11,7 @@ One live app URL on **Vercel**. Backend on **Render free tier**. Database + auth
 
 **Your app URL:** `https://<project>.vercel.app` (one link for everything)
 
-> **Chat on free cloud:** Ollama cannot run on Render. Use a **free Groq API key** (`GROQ_API_KEY` + `LLM_PROVIDER=groq`) for live advisor chat. Local dev uses Ollama `qwen2.5:7b`.
+> **Free cloud AI:** **Groq** for chat (`GROQ_API_KEY`) and **Voyage** for search (`VOYAGE_API_KEY`, `voyage-4-large`, 200M free tokens). Ollama is optional offline fallback only.
 
 ---
 
@@ -69,7 +69,8 @@ Set **Root Directory** to `frontend` if not auto-detected.
 | `SUPABASE_URL` | `https://xxxx.supabase.co` |
 | `CORS_ORIGINS` | `https://YOUR-PROJECT.vercel.app` (set after Vercel — redeploy once) |
 | `BETA_ALLOWED_EMAILS` | `your@gmail.com` |
-| `GROQ_API_KEY` | **free** — enables cloud chat ([console.groq.com](https://console.groq.com)) |
+| `GROQ_API_KEY` | **free** — chat ([console.groq.com](https://console.groq.com)) |
+| `VOYAGE_API_KEY` | **free** — semantic search ([dash.voyageai.com](https://dash.voyageai.com)) |
 | `ANTHROPIC_API_KEY` | optional paid — alternative cloud chat |
 
 4. Wait for deploy → copy URL, e.g. `https://finsight-api.onrender.com`
@@ -123,9 +124,11 @@ SUPABASE_URL=https://<ref>.supabase.co
 CORS_ORIGINS=https://<project>.vercel.app
 BETA_ALLOWED_EMAILS=you@gmail.com
 LLM_PROVIDER=groq
-EMBEDDING_PROVIDER=ollama
+EMBEDDING_PROVIDER=voyage
 GROQ_API_KEY=           # free at console.groq.com
 GROQ_MODEL=llama-3.3-70b-versatile
+VOYAGE_API_KEY=         # free at dash.voyageai.com (200M tokens on voyage-4-large)
+VOYAGE_MODEL=voyage-4-large
 ANTHROPIC_API_KEY=      # optional paid alternative
 ```
 

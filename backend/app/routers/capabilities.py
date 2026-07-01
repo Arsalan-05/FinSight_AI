@@ -9,6 +9,7 @@ from agent.tools import get_tool_definitions
 from app.config import settings
 from db.base import DATABASE_URL
 from integrations.plaid_client import plaid_configured
+from rag.embedder import embeddings_runtime_available, embeddings_unavailable_message
 
 router = APIRouter(tags=["meta"])
 
@@ -27,15 +28,27 @@ def capabilities() -> dict[str, object]:
             "auth": "Supabase JWT",
             "llm": settings.effective_llm_provider,
             "llm_model": settings.active_chat_model,
-            "embeddings": settings.embedding_provider,
-            "embed_model": settings.ollama_embed_model,
+            "embeddings": settings.effective_embedding_provider,
+            "embed_model": (
+                settings.voyage_model
+                if settings.effective_embedding_provider == "voyage"
+                else settings.ollama_embed_model
+            ),
         },
         "ai": {
             "chat_via_groq": settings.effective_llm_provider == "groq",
             "groq_model": settings.groq_model,
             "groq_configured": settings.groq_configured,
-            "search_via_ollama": settings.embedding_provider == "ollama",
-            "groq_note": "Groq has no embeddings API — semantic search uses local Ollama only",
+            "search_via_voyage": settings.effective_embedding_provider == "voyage",
+            "voyage_model": settings.voyage_model,
+            "voyage_configured": settings.voyage_configured,
+            "embedding_dim": settings.embedding_dim,
+            "search_available": embeddings_runtime_available(),
+            "search_unavailable_reason": (
+                None
+                if embeddings_runtime_available()
+                else embeddings_unavailable_message()
+            ),
         },
         "agent": {
             "tool_count": len(tools),

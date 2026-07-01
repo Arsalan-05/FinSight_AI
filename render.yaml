@@ -19,7 +19,11 @@ services:
       - key: LLM_PROVIDER
         value: groq
       - key: EMBEDDING_PROVIDER
-        value: ollama
+        value: voyage
+      - key: VOYAGE_MODEL
+        value: voyage-4-large
+      - key: VOYAGE_OUTPUT_DIMENSION
+        value: "1024"
       - key: LOG_LEVEL
         value: INFO
       - key: DATABASE_URL
@@ -40,3 +44,5 @@ services:
         sync: false
       - key: GROQ_MODEL
         value: llama-3.3-70b-versatile
+      - key: VOYAGE_API_KEY
+        sync: false

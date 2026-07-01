@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
 
-EMBEDDING_DIM = 768  # Ollama nomic-embed-text (default); Voyage voyage-3 uses 1024
+EMBEDDING_DIM = 1024  # Voyage voyage-4-large (default); Ollama nomic-embed-text uses 768
 
 
 def _uuid() -> str:
