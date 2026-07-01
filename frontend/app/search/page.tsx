@@ -18,7 +18,7 @@ import {
   TrendingUp,
   Utensils,
 } from "lucide-react";
-import { useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/contexts/ToastContext";
@@ -121,7 +121,37 @@ export default function SearchPage() {
     return loadHistory();
   });
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  const [needsReindex, setNeedsReindex] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
+  const [indexedCount, setIndexedCount] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void api.searchStatus().then((status) => {
+      setNeedsReindex(status.needs_reindex);
+      setIndexedCount(status.indexed_count);
+      if (!status.embedding_enabled) {
+        setEmbeddingEnabled(false);
+      }
+    }).catch(() => {
+      // non-blocking
+    });
+  }, []);
+
+  const handleReindex = async () => {
+    setReindexing(true);
+    setError(null);
+    try {
+      const res = await api.reindexSearch();
+      setNeedsReindex(false);
+      setIndexedCount(res.indexed);
+      toast(`Indexed ${res.indexed} transactions for search`, "success");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reindex failed");
+    } finally {
+      setReindexing(false);
+    }
+  };
 
   const buildQuery = (base: string) => {
     const tf = TIME_FILTERS.find((t) => t.id === timeFilter);
@@ -305,7 +335,32 @@ export default function SearchPage() {
         </>
       )}
 
-      {embeddingEnabled === false && (
+      {needsReindex && (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <Sparkles size={16} className="mt-0.5 shrink-0 text-amber-500" />
+            <div>
+              <p className="text-sm font-medium text-[var(--foreground)]">
+                Search index needs a rebuild
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Your transactions are saved, but semantic search was reset during the Voyage upgrade.
+                Rebuild once to make Smart Search work again.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleReindex()}
+            disabled={reindexing}
+            className="btn-primary shrink-0 rounded-xl px-4 py-2 text-sm"
+          >
+            {reindexing ? "Indexing…" : "Rebuild search index"}
+          </button>
+        </div>
+      )}
+
+      {embeddingEnabled === false && !needsReindex && (
         <div className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <Sparkles size={16} className="mt-0.5 shrink-0 text-[var(--accent)]" />
           <div>
@@ -363,11 +418,13 @@ export default function SearchPage() {
         </div>
       )}
 
-      {searched && !loading && results.length === 0 && embeddingEnabled && (
+      {searched && !loading && results.length === 0 && embeddingEnabled && !needsReindex && (
         <div className="panel flex flex-col items-center gap-3 rounded-2xl py-14 text-center">
           <Utensils size={28} className="text-[var(--muted)]" />
           <p className="text-sm text-[var(--muted)]">
-            No matching transactions. Try a preset above or broaden your time range.
+            {indexedCount === 0
+              ? "No indexed transactions yet. Rebuild the search index above, or upload a CSV."
+              : "No matching transactions. Try a preset above or broaden your time range."}
           </p>
         </div>
       )}

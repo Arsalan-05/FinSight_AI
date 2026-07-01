@@ -18,6 +18,8 @@ import type {
   DbHealthResponse,
   InsightsResponse,
   SearchResponse,
+  SearchStatusResponse,
+  ReindexResponse,
   SubscriptionsResponse,
   Transaction,
   TransactionList,
@@ -309,6 +311,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ query, k }),
     }),
+
+  searchStatus: (): Promise<SearchStatusResponse> => request("/search/status"),
+
+  reindexSearch: (): Promise<ReindexResponse> =>
+    request("/search/reindex", { method: "POST" }),
 
   // ── Chat (SSE) ────────────────────────────────────────────────────────────
 
