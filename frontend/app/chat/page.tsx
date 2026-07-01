@@ -26,6 +26,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { ChatMessage, ChatSessionSummary, FinancialGoal, TransactionCitation } from "@/lib/types";
 
 const SESSION_KEY = "finsight_chat_session";
+const DRAFT_KEY = "finsight_chat_draft";
+const DRAFT_MAX_AGE_MS = 30 * 60 * 1000;
 
 const PROMPT_GROUPS = [
   {
@@ -75,6 +77,46 @@ function saveSessionId(id: string) {
   localStorage.setItem(SESSION_KEY, id);
 }
 
+type ChatDraft = {
+  sessionId: string;
+  messages: ChatMessage[];
+  at: number;
+};
+
+function saveChatDraft(sessionId: string, messages: ChatMessage[]) {
+  if (!sessionId || messages.length === 0) return;
+  try {
+    const payload: ChatDraft = { sessionId, messages, at: Date.now() };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function loadChatDraft(): ChatDraft | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as ChatDraft;
+    if (!draft.sessionId || !Array.isArray(draft.messages)) return null;
+    if (Date.now() - draft.at > DRAFT_MAX_AGE_MS) {
+      sessionStorage.removeItem(DRAFT_KEY);
+      return null;
+    }
+    return draft;
+  } catch {
+    return null;
+  }
+}
+
+function clearChatDraft() {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 function newMessage(role: ChatMessage["role"], content: string): ChatMessage {
   return { id: crypto.randomUUID(), role, content };
 }
@@ -99,6 +141,7 @@ function ChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const consumedQueryKey = useRef<string | null>(null);
+  const mountedRef = useRef(true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(isSupabaseConfigured);
@@ -155,6 +198,7 @@ function ChatPageContent() {
         const detail = await api.getChatSession(id);
         setSessionId(detail.id);
         saveSessionId(detail.id);
+        clearChatDraft();
         setMessages(detail.messages.map((m) => newMessage(m.role, m.content)));
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Could not load chat";
@@ -168,6 +212,13 @@ function ChatPageContent() {
   );
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!authReady) return;
     if (searchParams.get("q")?.trim()) {
       void api.listChatSessions().then(setSessions).catch(() => setSessions([]));
@@ -175,6 +226,20 @@ function ChatPageContent() {
       return;
     }
     let active = true;
+    const draft = loadChatDraft();
+    const saved = loadSessionId();
+    if (draft && (!saved || draft.sessionId === saved)) {
+      setSessionId(draft.sessionId);
+      saveSessionId(draft.sessionId);
+      setMessages(draft.messages);
+      setHistoryLoading(false);
+      void api.listChatSessions().then((rows) => {
+        if (active) setSessions(rows);
+      }).catch(() => {});
+      return () => {
+        active = false;
+      };
+    }
     Promise.all([
       api.listChatSessions().catch(() => [] as ChatSessionSummary[]),
       (async () => {
@@ -245,44 +310,74 @@ function ChatPageContent() {
           streamSessionId || undefined,
           controller.signal,
         )) {
-          if (event.type === "status") {
-            setAgentStatus(event.detail || event.phase);
+          if (event.type === "session") {
+            activeSession = event.session_id;
+            if (mountedRef.current) {
+              setSessionId(event.session_id);
+              saveSessionId(event.session_id);
+              setMessages((prev) => {
+                saveChatDraft(event.session_id, prev);
+                return prev;
+              });
+              void refreshSessions();
+            }
+          } else if (event.type === "status") {
+            if (mountedRef.current) setAgentStatus(event.detail || event.phase);
           } else if (event.type === "token") {
             reply += event.content;
-            setMessages((prev) =>
-              prev.map((m) => (m.id === assistantId ? { ...m, content: reply } : m)),
-            );
+            if (mountedRef.current) {
+              setMessages((prev) => {
+                const next = prev.map((m) =>
+                  m.id === assistantId ? { ...m, content: reply } : m,
+                );
+                if (activeSession) saveChatDraft(activeSession, next);
+                return next;
+              });
+            }
           } else if (event.type === "done") {
             reply = event.content;
             citations = event.citations ?? [];
             activeSession = event.session_id;
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, content: reply, citations } : m,
-              ),
-            );
+            if (mountedRef.current) {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, content: reply, citations } : m,
+                ),
+              );
+            }
           } else if (event.type === "error") {
             throw new Error(event.message);
           }
         }
 
         if (activeSession) {
-          setSessionId(activeSession);
-          saveSessionId(activeSession);
-          void refreshSessions();
+          if (mountedRef.current) {
+            setSessionId(activeSession);
+            saveSessionId(activeSession);
+            void refreshSessions();
+          }
+          clearChatDraft();
         }
       } catch (e) {
         if (controller.signal.aborted) return;
         const msg = e instanceof Error ? e.message : "Chat failed";
-        setError(msg);
-        toast(msg, "error");
-        setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+        if (mountedRef.current) {
+          setError(msg);
+          toast(msg, "error");
+          setMessages((prev) => {
+            const assistant = prev.find((m) => m.id === assistantId);
+            if (assistant?.content?.trim()) return prev;
+            return prev.filter((m) => m.id !== assistantId);
+          });
+        }
       } finally {
-        clearInterval(fallbackTimer);
-        setLoading(false);
-        setAgentStatus(null);
-        abortRef.current = null;
-        inputRef.current?.focus();
+        if (mountedRef.current) {
+          clearInterval(fallbackTimer);
+          setLoading(false);
+          setAgentStatus(null);
+          abortRef.current = null;
+          inputRef.current?.focus();
+        }
       }
     },
     [input, loading, sessionId, toast, refreshSessions],
@@ -338,6 +433,7 @@ function ChatPageContent() {
     setError(null);
     setSessionId("");
     localStorage.removeItem(SESSION_KEY);
+    clearChatDraft();
     inputRef.current?.focus();
   };
 
@@ -536,7 +632,7 @@ function ChatPageContent() {
                     key={msg.id}
                     content={msg.content}
                     citations={msg.citations}
-                    streaming={loading && !msg.content}
+                    streaming={loading && msg.id === messages[messages.length - 1]?.id}
                     statusText={loading && !msg.content ? agentStatus : null}
                   />
                 ),
@@ -640,12 +736,15 @@ function AgentBubble({
               {statusText ?? "Analyzing your finances…"}
             </span>
             <p className="text-[11px] text-[var(--muted)] opacity-80">
-              Answers are grounded in your transaction data — not generic estimates.
+              Checking your data — the answer will type in when ready.
             </p>
           </div>
         ) : (
           <>
             <FormatAgentText text={content} />
+            {streaming && (
+              <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[var(--accent)] align-middle" />
+            )}
             {citations && citations.length > 0 && (
               <div className="mt-4 border-t border-[var(--border)] pt-3">
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">

@@ -30,15 +30,15 @@ def _sse(payload: dict[str, object]) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
-def _chunk_reply(text: str, size: int = 48) -> list[str]:
-    """Stream in multi-word chunks for snappier perceived speed."""
+def _chunk_reply(text: str, *, words_per_chunk: int = 3) -> list[str]:
+    """Split reply into small chunks for a typewriter effect in the UI."""
     words = text.split()
     if not words:
         return [""]
     chunks: list[str] = []
-    for i in range(0, len(words), size):
-        part = " ".join(words[i : i + size])
-        chunks.append(part + (" " if i + size < len(words) else ""))
+    for i in range(0, len(words), words_per_chunk):
+        part = " ".join(words[i : i + words_per_chunk])
+        chunks.append(part + (" " if i + words_per_chunk < len(words) else ""))
     return chunks
 
 
@@ -74,6 +74,7 @@ async def _stream_reply(
             logger.exception("Chat agent failed")
             error_holder.append(exc)
 
+    yield _sse({"type": "session", "session_id": session_id})
     yield _sse({"type": "status", "phase": "start", "detail": "Connecting to your data"})
 
     task = asyncio.create_task(asyncio.to_thread(run))
@@ -102,7 +103,7 @@ async def _stream_reply(
     result = result_holder[0]
     for chunk in _chunk_reply(result.reply):
         yield _sse({"type": "token", "content": chunk})
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.022)
 
     yield _sse(
         {

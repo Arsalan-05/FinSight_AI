@@ -168,6 +168,7 @@ export interface ChatSessionDetail {
 }
 
 export type ChatSSEEvent =
+  | { type: "session"; session_id: string }
   | { type: "status"; phase: string; detail: string }
   | { type: "token"; content: string }
   | { type: "done"; session_id: string; content: string; citations?: TransactionCitation[] }

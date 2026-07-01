@@ -38,13 +38,20 @@ export function NotificationBell() {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
+  const toggleOpen = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) void load();
+  };
+
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={toggleOpen}
         className="icon-btn relative"
         aria-label="Notifications"
+        aria-expanded={open}
       >
         <Bell size={16} />
         {badgeCount > 0 && (
@@ -56,8 +63,12 @@ export function NotificationBell() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
-          <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] shadow-xl">
+          <div
+            className="fixed inset-0 z-[80]"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="fixed right-4 top-[4.25rem] z-[90] w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] shadow-xl md:top-5">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
               <p className="text-sm font-semibold text-[var(--foreground)]">Alerts</p>
               {unread > 0 && (
@@ -110,11 +121,19 @@ export function NotificationBell() {
                 </>
               )}
             </ul>
-            <div className="border-t border-[var(--border)] px-4 py-2 flex items-center justify-between">
-              <Link href="/notifications" className="link-accent text-xs" onClick={() => setOpen(false)}>
+            <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-2">
+              <Link
+                href="/notifications"
+                className="link-accent text-xs"
+                onClick={() => setOpen(false)}
+              >
                 View all alerts
               </Link>
-              <Link href={chatUrl("What should I focus on based on my recent alerts and spending?")} className="link-accent text-xs" onClick={() => setOpen(false)}>
+              <Link
+                href={chatUrl("What should I focus on based on my recent alerts and spending?")}
+                className="link-accent text-xs"
+                onClick={() => setOpen(false)}
+              >
                 Ask Advisor →
               </Link>
             </div>

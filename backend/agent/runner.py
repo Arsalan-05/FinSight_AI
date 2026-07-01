@@ -108,6 +108,9 @@ def run_agent(
     messages = load_messages(session)
     messages.append(HumanMessage(content=user_message))
 
+    # Persist the user turn immediately so navigation mid-response does not lose the chat.
+    save_session(db, session_id, messages, session.memory_summary or "", user_id=user_id)
+
     account_ids = None
     goals_text = ""
     user: User | None = None
