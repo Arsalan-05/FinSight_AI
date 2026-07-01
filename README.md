@@ -17,7 +17,7 @@ Personal finance intelligence — transaction ingest, pgvector search, and a sta
 
 Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **shared chat history** across local and deployed when both use Supabase.
 
-> **Advisor AI:** **Free** local Ollama **`qwen2.5:7b`**. Deployed app syncs **chat history**; new AI replies need local dev (Ollama). Optional paid cloud: `ANTHROPIC_API_KEY` on Render.
+> **Advisor AI:** **Free local** Ollama `qwen2.5:7b`. **Free cloud** chat on Render via [Groq](https://console.groq.com) (`GROQ_API_KEY`). Optional paid: Anthropic.
 
 Deploy guide: **[infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)** ($0 stack)
 
@@ -60,7 +60,7 @@ Production:  Vercel         → Render API      → Supabase (no Ollama)
 | Login (Google) | ✅ | ✅ |
 | Dashboard / data | ✅ | ✅ |
 | Chat history (Supabase) | ✅ (hotspot / reachable pooler) | ✅ |
-| AI advisor replies | ✅ Ollama `qwen2.5:7b` (free) | ❌ history only (free) — or Claude if you add a paid API key |
+| AI advisor replies | ✅ Ollama `qwen2.5:7b` (free) | ✅ Groq (free API key) or history-only |
 
 ---
 

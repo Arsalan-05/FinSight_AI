@@ -24,12 +24,20 @@ from rag.embedder import ollama_embeddings_available
 
 
 def _check_setup() -> None:
+    if settings.llm_provider == "groq" and not settings.groq_api_key:
+        print("Error: GROQ_API_KEY is required when LLM_PROVIDER=groq.", file=sys.stderr)
+        print("Free key: https://console.groq.com", file=sys.stderr)
+        sys.exit(1)
+
     if settings.llm_provider == "anthropic" and not settings.anthropic_api_key:
         print("Error: ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic.", file=sys.stderr)
         sys.exit(1)
 
     if settings.llm_provider == "ollama" and not ollama_llm_available():
-        print(f"Error: Ollama is not running or {settings.ollama_model} is not installed.", file=sys.stderr)
+        print(
+            f"Error: Ollama is not running or {settings.ollama_model} is not installed.",
+            file=sys.stderr,
+        )
         print(file=sys.stderr)
         print("Free setup (no API keys):", file=sys.stderr)
         print("  1. Install Ollama: https://ollama.com", file=sys.stderr)
