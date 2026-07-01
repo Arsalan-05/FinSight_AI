@@ -80,7 +80,7 @@ chmod +x infra/supabase/setup-e2e.sh
 ./infra/supabase/setup-e2e.sh
 
 # 3 — Ollama models (one-time)
-ollama pull llama3.2
+ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 
 # 4 — Run services (two terminals)
@@ -246,7 +246,7 @@ Google OAuth → Supabase JWT → POST /auth/sync → link users.auth_id
 | Database | PostgreSQL 16 + pgvector | ACID + vectors in one store |
 | Migrations | Alembic | Versioned schema changes |
 | Agent | LangGraph | Explicit ReAct state machine, testable |
-| LLM (default) | Ollama `llama3.2` | Free local inference |
+| LLM (default) | Ollama `qwen2.5:7b` | Free local inference |
 | LLM (optional) | Anthropic Claude | Production-quality reasoning |
 | Embeddings (default) | Ollama `nomic-embed-text` (768-dim) | Free local embeddings |
 | Embeddings (optional) | Voyage `voyage-3` (1024-dim) | Higher retrieval quality |
@@ -596,11 +596,11 @@ Reasoning loop: **Understand → Plan → Gather (personal + web) → Synthesize
 
 | Provider | Config | Models |
 |----------|--------|--------|
-| Ollama (default) | `LLM_PROVIDER=ollama` | `llama3.2`, `nomic-embed-text` |
+| Ollama (default) | `LLM_PROVIDER=ollama` | `qwen2.5:7b`, `nomic-embed-text` |
 | Anthropic | `LLM_PROVIDER=anthropic` | `claude-sonnet-4-6` |
 
 ```bash
-ollama pull llama3.2
+ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 ```
 
@@ -683,7 +683,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 LLM_PROVIDER=ollama
 EMBEDDING_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
+OLLAMA_MODEL=qwen2.5:7b
 OLLAMA_EMBED_MODEL=nomic-embed-text
 
 # ── Paid providers (optional) ─────────────────────────────────
@@ -737,7 +737,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - [Node.js 20+](https://nodejs.org/)
 - [Ollama](https://ollama.com) with models:
   ```bash
-  ollama pull llama3.2
+  ollama pull qwen2.5:7b
   ollama pull nomic-embed-text
   ```
 

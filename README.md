@@ -17,7 +17,7 @@ Personal finance intelligence — transaction ingest, pgvector search, and a sta
 
 Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **shared chat history** across local and deployed when both use Supabase.
 
-> **Advisor AI:** Ollama runs **locally only**. Deployed app shows chat history; new AI replies require local dev or optional `ANTHROPIC_API_KEY` on Render.
+> **Advisor AI:** Local dev uses Ollama **`qwen2.5:7b`** (free). Deployed app uses **Anthropic Claude** when `ANTHROPIC_API_KEY` is set on Render — Ollama cannot run in the cloud.
 
 Deploy guide: **[infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)** ($0 stack)
 
@@ -42,7 +42,7 @@ cd frontend && npm install && npm run dev
 
 Open **http://localhost:3000** → sign in with Google.
 
-**Prerequisites:** [Ollama](https://ollama.com) (`ollama pull llama3.2` + `nomic-embed-text`), [uv](https://docs.astral.sh/uv/), Node 20+, Docker (local Postgres fallback).
+**Prerequisites:** [Ollama](https://ollama.com) (`ollama pull qwen2.5:7b` + `nomic-embed-text`), [uv](https://docs.astral.sh/uv/), Node 20+, Docker (local Postgres fallback).
 
 **Network tip:** Campus Wi-Fi often blocks Supabase. Use a **hotspot** for shared cloud data + chat history, or rely on local Postgres fallback (`DATABASE_FALLBACK_ENABLED=true`).
 
@@ -60,7 +60,7 @@ Production:  Vercel         → Render API      → Supabase (no Ollama)
 | Login (Google) | ✅ | ✅ |
 | Dashboard / data | ✅ | ✅ |
 | Chat history (Supabase) | ✅ (hotspot / reachable pooler) | ✅ |
-| AI advisor replies | ✅ Ollama | ❌ (history only) |
+| AI advisor replies | ✅ Ollama `qwen2.5:7b` | ✅ Claude (with `ANTHROPIC_API_KEY`) |
 
 ---
 

@@ -5,7 +5,7 @@ Usage:
     uv run python -m agent.cli --session my-session "What about last month?"
 
 Requires Ollama (free) by default:
-    ollama pull llama3.2
+    ollama pull qwen2.5:7b
     ollama pull nomic-embed-text
 """
 
@@ -29,11 +29,11 @@ def _check_setup() -> None:
         sys.exit(1)
 
     if settings.llm_provider == "ollama" and not ollama_llm_available():
-        print("Error: Ollama is not running or llama3.2 is not installed.", file=sys.stderr)
+        print(f"Error: Ollama is not running or {settings.ollama_model} is not installed.", file=sys.stderr)
         print(file=sys.stderr)
         print("Free setup (no API keys):", file=sys.stderr)
         print("  1. Install Ollama: https://ollama.com", file=sys.stderr)
-        print("  2. ollama pull llama3.2", file=sys.stderr)
+        print("  2. ollama pull qwen2.5:7b", file=sys.stderr)
         print("  3. ollama pull nomic-embed-text", file=sys.stderr)
         sys.exit(1)
 

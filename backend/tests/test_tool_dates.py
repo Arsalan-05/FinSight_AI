@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from unittest.mock import patch
 
 from agent.tools import execute_tool
 from agent.tools.dates import resolve_period
@@ -82,19 +83,24 @@ def test_aggregate_retry_on_wrong_year(db_session) -> None:
     )
     db_session.commit()
 
-    # Model passes wrong year → empty, then auto-retry last month
-    result = json.loads(
-        execute_tool(
-            "aggregate_spending",
-            {
-                "category": "Dining",
-                "start_date": "2025-05-01",
-                "end_date": "2025-05-31",
-                "transaction_type": "debit",
-            },
-            db=db_session,
+    # Freeze "today" so last_month retry always targets May 2026
+    with patch("agent.tools.dates.date") as mock_date:
+        mock_date.today.return_value = date(2026, 6, 30)
+        mock_date.fromisoformat = date.fromisoformat
+
+        # Model passes wrong year → empty, then auto-retry last month
+        result = json.loads(
+            execute_tool(
+                "aggregate_spending",
+                {
+                    "category": "Dining",
+                    "start_date": "2025-05-01",
+                    "end_date": "2025-05-31",
+                    "transaction_type": "debit",
+                },
+                db=db_session,
+            )
         )
-    )
     assert result["count"] == 1
     assert "40.00" in result["summary"]
     assert result.get("auto_retried") is True

@@ -24,8 +24,10 @@ class Settings(BaseSettings):
     llm_provider: str = "ollama"  # ollama | anthropic
     embedding_provider: str = "ollama"  # ollama | voyage
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2"
+    ollama_model: str = "qwen2.5:7b"  # strong tool-calling; override via OLLAMA_MODEL
     ollama_embed_model: str = "nomic-embed-text"
+    ollama_num_predict: int = 1536
+    ollama_keep_alive: str = "30m"
 
     database_url: str = "postgresql://finsight:finsight@localhost:5432/finsight"
     pgvector_collection: str = "transaction_embeddings"
@@ -126,7 +128,7 @@ class Settings(BaseSettings):
 
     @property
     def effective_llm_provider(self) -> str:
-        """Use Anthropic on cloud when a key is set; Ollama is local-only."""
+        """Local: Ollama. Production: Anthropic when configured (Ollama cannot run on Render)."""
         if self.llm_provider == "anthropic":
             return "anthropic"
         if self.environment == "production" and self.anthropic_api_key:
