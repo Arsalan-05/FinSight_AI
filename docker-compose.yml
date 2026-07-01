@@ -28,7 +28,9 @@ services:
       DATABASE_FALLBACK_URL: postgresql://finsight:finsight@db:5432/finsight
       SUPABASE_URL: ${SUPABASE_URL:-}
       REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
-      LLM_PROVIDER: ollama
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
       EMBEDDING_PROVIDER: ollama
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
       OLLAMA_BASE_URL: http://host.docker.internal:11434

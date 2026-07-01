@@ -17,7 +17,7 @@ Personal finance intelligence — transaction ingest, pgvector search, and a sta
 
 Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **shared chat history** across local and deployed when both use Supabase.
 
-> **Advisor AI:** **Free local** Ollama `qwen2.5:7b`. **Free cloud** chat on Render via [Groq](https://console.groq.com) (`GROQ_API_KEY`). Optional paid: Anthropic.
+> **Advisor AI:** Same **free Groq** model (`llama-3.3-70b-versatile`) on **Mac and Render** — set `GROQ_API_KEY` in `.env` and on Render. Ollama is fallback for embeddings + offline dev.
 
 Deploy guide: **[infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)** ($0 stack)
 
@@ -28,7 +28,7 @@ Deploy guide: **[infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)** ($0 stack)
 ```bash
 cp .env.example .env
 cp frontend/.env.local.example frontend/.env.local
-# Fill Supabase keys in both files
+# Add GROQ_API_KEY (free: console.groq.com) + Supabase keys
 
 docker compose up -d db
 cd backend && uv sync && uv run alembic upgrade head
@@ -42,7 +42,7 @@ cd frontend && npm install && npm run dev
 
 Open **http://localhost:3000** → sign in with Google.
 
-**Prerequisites:** [Ollama](https://ollama.com) (`ollama pull qwen2.5:7b` + `nomic-embed-text`), [uv](https://docs.astral.sh/uv/), Node 20+, Docker (local Postgres fallback).
+**Prerequisites:** Free [Groq](https://console.groq.com) API key, [Ollama](https://ollama.com) for embeddings (`ollama pull nomic-embed-text`), [uv](https://docs.astral.sh/uv/), Node 20+, Docker (optional Postgres fallback).
 
 **Network tip:** Campus Wi-Fi often blocks Supabase. Use a **hotspot** for shared cloud data + chat history, or rely on local Postgres fallback (`DATABASE_FALLBACK_ENABLED=true`).
 
@@ -60,7 +60,7 @@ Production:  Vercel         → Render API      → Supabase (no Ollama)
 | Login (Google) | ✅ | ✅ |
 | Dashboard / data | ✅ | ✅ |
 | Chat history (Supabase) | ✅ (hotspot / reachable pooler) | ✅ |
-| AI advisor replies | ✅ Ollama `qwen2.5:7b` (free) | ✅ Groq (free API key) or history-only |
+| AI advisor replies | ✅ Groq (same as Render) | ✅ Groq (free API key) |
 
 ---
 
