@@ -9,6 +9,9 @@ import type { ChatMessage, TransactionCitation } from "@/lib/types";
 export const SESSION_KEY = "finsight_chat_session";
 const DRAFT_PREFIX = "finsight_chat_draft_";
 const DRAFT_MAX_AGE_MS = 30 * 60 * 1000;
+const STALL_MS = 12_000;
+const RECOVERY_INTERVAL_MS = 2_000;
+const MAX_RECOVERY_ATTEMPTS = 45;
 
 export type SessionChatState = {
   sessionId: string;
@@ -23,6 +26,7 @@ type Listener = () => void;
 const states = new Map<string, SessionChatState>();
 const abortControllers = new Map<string, AbortController>();
 const listeners = new Set<Listener>();
+const recoveryTimers = new Map<string, number>();
 /** Provisional stream key → server session id after first SSE session event */
 export const sessionMigrations = new Map<string, string>();
 
@@ -122,25 +126,23 @@ export function resolveStreamId(id: string): string {
   return id;
 }
 
-export function getSessionState(sessionId: string): SessionChatState | undefined {
-  const direct = states.get(sessionId);
-  if (direct) return direct;
+function findStateKey(sessionId: string): string | undefined {
+  if (states.has(sessionId)) return sessionId;
 
   const resolved = resolveStreamId(sessionId);
-  if (resolved !== sessionId) {
-    const migrated = states.get(resolved);
-    if (migrated) return migrated;
-  }
-
-  for (const state of states.values()) {
-    if (state.sessionId === sessionId) return state;
-  }
+  if (resolved !== sessionId && states.has(resolved)) return resolved;
 
   for (const [key, state] of states.entries()) {
-    if (sessionMigrations.get(key) === sessionId) return state;
+    if (state.sessionId === sessionId) return key;
+    if (sessionMigrations.get(key) === sessionId) return key;
   }
 
   return undefined;
+}
+
+export function getSessionState(sessionId: string): SessionChatState | undefined {
+  const key = findStateKey(sessionId);
+  return key ? states.get(key) : undefined;
 }
 
 export function getStreamingSessionIds(): string[] {
@@ -175,6 +177,17 @@ export function sessionLooksPending(
   return false;
 }
 
+function sessionIsPending(sessionId: string): boolean {
+  if (!sessionId || sessionId.startsWith("new:")) return false;
+  const live = getSessionState(sessionId);
+  if (live?.loading) return true;
+  if (live && sessionLooksPending(live.messages)) return true;
+  const draft = loadChatDraft(sessionId);
+  if (draft?.loading) return true;
+  if (draft && sessionLooksPending(draft.messages)) return true;
+  return false;
+}
+
 export function getPendingSessionIds(): string[] {
   const ids = new Set<string>(getStreamingSessionIds());
   if (typeof sessionStorage === "undefined") return [...ids];
@@ -195,6 +208,75 @@ export function getPendingSessionIds(): string[] {
   return [...ids];
 }
 
+function upsertSessionState(sessionId: string, state: SessionChatState) {
+  const key = findStateKey(sessionId) ?? sessionId;
+  states.set(key, state);
+  saveDraft(state, key);
+  notify();
+}
+
+function setState(sessionKey: string, patch: Partial<SessionChatState>) {
+  const prev = states.get(sessionKey);
+  if (!prev) return;
+  const next = { ...prev, ...patch };
+  states.set(sessionKey, next);
+  saveDraft(next, sessionKey);
+  notify();
+}
+
+export function stopSessionRecovery(sessionId: string) {
+  const timer = recoveryTimers.get(sessionId);
+  if (timer !== undefined) {
+    window.clearInterval(timer);
+    recoveryTimers.delete(sessionId);
+  }
+}
+
+export function ensureSessionRecovery(sessionId: string) {
+  if (typeof window === "undefined") return;
+  if (!sessionId || sessionId.startsWith("new:")) return;
+  if (!sessionIsPending(sessionId)) {
+    stopSessionRecovery(sessionId);
+    return;
+  }
+  if (recoveryTimers.has(sessionId)) return;
+
+  let attempts = 0;
+
+  const tick = async () => {
+    if (!sessionIsPending(sessionId)) {
+      stopSessionRecovery(sessionId);
+      return;
+    }
+
+    attempts += 1;
+    if (attempts > MAX_RECOVERY_ATTEMPTS) {
+      const key = findStateKey(sessionId);
+      if (key) {
+        setState(key, {
+          loading: false,
+          agentStatus: null,
+          error:
+            "The reply took too long to finish. Try sending your question again — the server may have been waking up.",
+        });
+      }
+      clearChatDraft(sessionId);
+      stopSessionRecovery(sessionId);
+      return;
+    }
+
+    await recoverSessionFromApi(sessionId);
+    const key = findStateKey(sessionId);
+    if (key) {
+      await tryFinishFromApi(sessionId, key);
+    }
+  };
+
+  const timer = window.setInterval(() => void tick(), RECOVERY_INTERVAL_MS);
+  recoveryTimers.set(sessionId, timer);
+  void tick();
+}
+
 export async function recoverSessionFromApi(
   sessionId: string,
 ): Promise<SessionChatState | null> {
@@ -212,13 +294,14 @@ export async function recoverSessionFromApi(
       agentStatus: pending ? AGENT_STATUS[0] : null,
       error: null,
     };
-    states.set(sessionId, state);
+    upsertSessionState(sessionId, state);
     if (pending) {
       saveDraft(state, sessionId);
+      ensureSessionRecovery(sessionId);
     } else {
       clearChatDraft(sessionId);
+      stopSessionRecovery(sessionId);
     }
-    notify();
     return state;
   } catch {
     return null;
@@ -248,19 +331,11 @@ async function tryFinishFromApi(
       messages,
     });
     clearChatDraft(sessionId);
+    stopSessionRecovery(sessionId);
     return true;
   } catch {
     return false;
   }
-}
-
-function setState(sessionKey: string, patch: Partial<SessionChatState>) {
-  const prev = states.get(sessionKey);
-  if (!prev) return;
-  const next = { ...prev, ...patch };
-  states.set(sessionKey, next);
-  saveDraft(next, sessionKey);
-  notify();
 }
 
 function migrateState(fromId: string, toId: string) {
@@ -271,8 +346,11 @@ function migrateState(fromId: string, toId: string) {
   states.set(toId, next);
   if (fromId.startsWith("new:")) {
     sessionMigrations.set(fromId, toId);
-    abortControllers.set(toId, abortControllers.get(fromId)!);
-    abortControllers.delete(fromId);
+    const controller = abortControllers.get(fromId);
+    if (controller) {
+      abortControllers.set(toId, controller);
+      abortControllers.delete(fromId);
+    }
   }
   saveDraft(next, toId);
   notify();
@@ -292,6 +370,7 @@ export function stopChatStream(sessionId: string) {
       setState(key, { loading: false, agentStatus: null });
     }
   }
+  stopSessionRecovery(sessionId);
 }
 
 export async function sendChatMessage(
@@ -313,7 +392,7 @@ export async function sendChatMessage(
   const assistantId = crypto.randomUUID();
   const prior =
     options?.priorMessages ??
-    (existingId ? states.get(existingId)?.messages : undefined) ??
+    (existingId ? getSessionState(existingId)?.messages : undefined) ??
     [];
 
   const initial: SessionChatState = {
@@ -348,11 +427,12 @@ export async function sendChatMessage(
   const stallTimer = setInterval(() => {
     const st = states.get(activeKey);
     if (!st?.loading) return;
-    if (Date.now() - lastEventAt < 35_000) return;
+    if (Date.now() - lastEventAt < STALL_MS) return;
     if (activeSessionId) {
       void tryFinishFromApi(activeSessionId, activeKey);
+      ensureSessionRecovery(activeSessionId);
     }
-  }, 5000);
+  }, 3000);
 
   void (async () => {
     try {
@@ -404,6 +484,7 @@ export async function sendChatMessage(
           }
           saveSessionId(activeSessionId);
           clearChatDraft(activeSessionId);
+          stopSessionRecovery(activeSessionId);
         } else if (event.type === "error") {
           throw new Error(event.message);
         }
@@ -414,15 +495,31 @@ export async function sendChatMessage(
         const st = states.get(activeKey);
         if (st) {
           const assistant = st.messages.find((m) => m.id === assistantId);
-          setState(activeKey, {
-            loading: false,
-            agentStatus: null,
-            error: msg,
-            messages:
-              assistant?.content?.trim()
-                ? st.messages
-                : st.messages.filter((m) => m.id !== assistantId),
-          });
+          if (assistant?.content?.trim()) {
+            setState(activeKey, {
+              loading: false,
+              agentStatus: null,
+              error: msg,
+            });
+          } else if (activeSessionId) {
+            const finished = await tryFinishFromApi(activeSessionId, activeKey);
+            if (!finished) {
+              setState(activeKey, {
+                loading: true,
+                agentStatus: AGENT_STATUS[0],
+                error: null,
+                messages: st.messages.filter((m) => m.id !== assistantId),
+              });
+              ensureSessionRecovery(activeSessionId);
+            }
+          } else {
+            setState(activeKey, {
+              loading: false,
+              agentStatus: null,
+              error: msg,
+              messages: st.messages.filter((m) => m.id !== assistantId),
+            });
+          }
         }
       } else {
         setState(activeKey, { loading: false, agentStatus: null });
@@ -435,13 +532,14 @@ export async function sendChatMessage(
       if (st?.loading && activeSessionId) {
         const finished = await tryFinishFromApi(activeSessionId, activeKey);
         if (!finished) {
-          const current = states.get(activeKey);
-          if (current?.loading) {
-            setState(activeKey, { loading: true, agentStatus: AGENT_STATUS[0] });
-          }
+          ensureSessionRecovery(activeSessionId);
         }
       } else if (st?.loading) {
-        setState(activeKey, { loading: false, agentStatus: null });
+        setState(activeKey, {
+          loading: false,
+          agentStatus: null,
+          error: "Connection ended before a reply was received.",
+        });
       }
       notify();
     }
@@ -454,15 +552,19 @@ export function hydrateSessionState(
   sessionId: string,
   messages: ChatMessage[],
 ): SessionChatState {
-  const live = states.get(sessionId);
+  const live = getSessionState(sessionId);
   if (live?.loading) {
+    ensureSessionRecovery(sessionId);
     return live;
   }
+
   const draft = loadChatDraft(sessionId);
   if (draft && (draft.loading || draft.messages.length > messages.length)) {
-    states.set(sessionId, { ...draft, sessionId });
-    return states.get(sessionId)!;
+    upsertSessionState(sessionId, { ...draft, sessionId });
+    if (draft.loading) ensureSessionRecovery(sessionId);
+    return getSessionState(sessionId)!;
   }
+
   const pending = sessionLooksPending(
     messages.map((m) => ({ role: m.role, content: m.content })),
   );
@@ -473,7 +575,24 @@ export function hydrateSessionState(
     agentStatus: pending ? AGENT_STATUS[0] : null,
     error: null,
   };
-  states.set(sessionId, state);
-  if (pending) saveDraft(state, sessionId);
-  return state;
+  upsertSessionState(sessionId, state);
+  if (pending) {
+    ensureSessionRecovery(sessionId);
+  }
+  return getSessionState(sessionId)!;
+}
+
+/** Instant local restore — memory, draft, or empty. Never blocks on network. */
+export function resolveLocalSessionView(sessionId: string): SessionChatState | null {
+  if (!sessionId) return null;
+
+  const live = getSessionState(sessionId);
+  if (live) return live;
+
+  const draft = loadChatDraft(resolveStreamId(sessionId));
+  if (draft) {
+    return hydrateSessionState(sessionId, draft.messages);
+  }
+
+  return null;
 }

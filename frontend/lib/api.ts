@@ -75,6 +75,24 @@ async function request<T>(
   return JSON.parse(text) as T;
 }
 
+async function requestWithRetry<T>(
+  path: string,
+  init?: RequestInit,
+  attempts = 3,
+): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await request<T>(path, init);
+    } catch (e) {
+      lastError = e;
+      if (i === attempts - 1) break;
+      await new Promise((resolve) => setTimeout(resolve, 800 * (i + 1)));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Request failed");
+}
+
 // ── Health ─────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -290,7 +308,7 @@ export const api = {
   listChatSessions: (): Promise<ChatSessionSummary[]> => request("/chat/sessions"),
 
   getChatSession: (id: string): Promise<ChatSessionDetail> =>
-    request(`/chat/sessions/${id}`),
+    requestWithRetry(`/chat/sessions/${id}`),
 
   deleteChatSession: (id: string): Promise<void> =>
     request(`/chat/sessions/${id}`, { method: "DELETE" }),
