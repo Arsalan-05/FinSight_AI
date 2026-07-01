@@ -78,3 +78,25 @@ def build_system_prompt(
         text += f"\n\n## This conversation\n{memory_summary.strip()}"
 
     return text
+
+
+def build_groq_compact_system_prompt(
+    memory_summary: str = "",
+    *,
+    user_intelligence: str = "",
+) -> str:
+    """Shorter system prompt for Groq 8B — fits the 6K TPM single-request cap."""
+    today = date.today()
+    lines = [
+        "You are FinSight, a personal finance advisor for Canadians.",
+        f"Today: {today.isoformat()}.",
+        "Call tools before stating dollar amounts from the user's data.",
+        "Debits are expenses — report spending as positive CAD.",
+        "Be concise. Use search_web only for current rates/limits.",
+    ]
+    text = "\n".join(lines)
+    if user_intelligence.strip():
+        text += f"\n\nUser context:\n{user_intelligence.strip()}"
+    if memory_summary.strip():
+        text += f"\n\nConversation:\n{memory_summary.strip()}"
+    return text

@@ -10,7 +10,7 @@ import anthropic
 import httpx
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
-from agent.prompts import build_system_prompt
+from agent.prompts import build_groq_compact_system_prompt, build_system_prompt
 from agent.tools import TOOL_DEFINITIONS
 from app.config import settings
 
@@ -311,26 +311,49 @@ def _to_groq_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
     return out
 
 
-_GROQ_MAX_CONTEXT_MESSAGES = 14
-_GROQ_MAX_TOOL_CHARS = 2500
+_GROQ_MAX_CONTEXT_MESSAGES = 8
+_GROQ_MAX_TOOL_CHARS = 1500
+_GROQ_MAX_USER_INTEL_CHARS = 2000
 
 
-def _trim_groq_context(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """Keep recent turns only — Groq free tier has a 12k tokens/minute cap."""
-    if len(messages) <= _GROQ_MAX_CONTEXT_MESSAGES:
+def _groq_request_too_large(error_body: dict[str, Any]) -> bool:
+    err = error_body.get("error") or {}
+    if err.get("code") != "rate_limit_exceeded":
+        return False
+    message = str(err.get("message") or "").lower()
+    return "request too large" in message or "tokens per minute" in message
+
+
+def _trim_groq_context(
+    messages: list[BaseMessage],
+    *,
+    max_messages: int | None = None,
+    max_tool_chars: int | None = None,
+) -> list[BaseMessage]:
+    """Keep recent turns only — Groq 8B free tier allows ~6K tokens per request."""
+    limit = max_messages if max_messages is not None else _GROQ_MAX_CONTEXT_MESSAGES
+    tool_cap = max_tool_chars if max_tool_chars is not None else _GROQ_MAX_TOOL_CHARS
+    if len(messages) <= limit:
         trimmed = list(messages)
     else:
-        trimmed = list(messages[-_GROQ_MAX_CONTEXT_MESSAGES:])
+        trimmed = list(messages[-limit:])
     out: list[BaseMessage] = []
     for msg in trimmed:
         if isinstance(msg, ToolMessage):
             content = str(msg.content)
-            if len(content) > _GROQ_MAX_TOOL_CHARS:
-                content = content[:_GROQ_MAX_TOOL_CHARS] + "…[truncated]"
+            if len(content) > tool_cap:
+                content = content[:tool_cap] + "…[truncated]"
             out.append(ToolMessage(content=content, tool_call_id=msg.tool_call_id, name=msg.name))
         else:
             out.append(msg)
     return out
+
+
+def _cap_groq_user_intelligence(user_intelligence: str, max_chars: int) -> str:
+    text = user_intelligence.strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + "…[truncated]"
 
 
 def _groq_rate_limit_wait(error_body: dict[str, Any]) -> float | None:
@@ -372,70 +395,113 @@ def _call_groq(
     *,
     user_intelligence: str = "",
 ) -> AIMessage:
-    system = _system_text(memory_summary, user_intelligence) + _groq_system_hint()
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
 
-    context_messages = _trim_groq_context(messages)
+    trim_levels: list[dict[str, Any]] = [
+        {
+            "max_messages": _GROQ_MAX_CONTEXT_MESSAGES,
+            "max_tool_chars": _GROQ_MAX_TOOL_CHARS,
+            "max_intel": _GROQ_MAX_USER_INTEL_CHARS,
+            "compact_system": False,
+        },
+        {
+            "max_messages": 4,
+            "max_tool_chars": 800,
+            "max_intel": 600,
+            "compact_system": True,
+        },
+    ]
 
-    def _payload(*, use_tools: bool, system_text: str) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "model": settings.groq_model,
-            "messages": [{"role": "system", "content": system_text}]
-            + _to_groq_messages(context_messages),
-            "temperature": 0.2,
-            "max_tokens": min(settings.ollama_num_predict, 1024),
-        }
-        if use_tools:
-            payload["tools"] = _ollama_tools()
-            payload["tool_choice"] = "auto"
-        else:
-            payload["tool_choice"] = "none"
-        return payload
+    last_error: str | None = None
 
     with httpx.Client(timeout=120.0) as client:
-        response = _groq_post(
-            client,
-            headers=headers,
-            payload=_payload(use_tools=True, system_text=system),
-        )
-        if not response.is_error:
-            data = response.json()
-            choices = data.get("choices") or []
-            if not choices:
-                raise RuntimeError("Groq returned no choices")
-            return _parse_openai_style_message(choices[0].get("message") or {})
-
-        try:
-            error_body = response.json()
-        except json.JSONDecodeError:
-            raise RuntimeError(f"Groq error {response.status_code}: {response.text}") from None
-
-        if _groq_tool_use_failed(error_body):
-            salvaged = _parse_groq_failed_tool_generation(_groq_failed_generation(error_body))
-            if salvaged:
-                return AIMessage(content="", tool_calls=salvaged)
-
-            retry_system = (
-                system
-                + "\n\nAnswer the user's question directly in clear prose. "
-                "Do not call any tools on this turn."
+        for level in trim_levels:
+            intel = _cap_groq_user_intelligence(
+                user_intelligence,
+                int(level["max_intel"]),
             )
-            retry = _groq_post(
+            if level["compact_system"]:
+                system = (
+                    build_groq_compact_system_prompt(
+                        memory_summary,
+                        user_intelligence=intel,
+                    )
+                    + _groq_system_hint()
+                )
+            else:
+                system = _system_text(memory_summary, intel) + _groq_system_hint()
+
+            context_messages = _trim_groq_context(
+                messages,
+                max_messages=int(level["max_messages"]),
+                max_tool_chars=int(level["max_tool_chars"]),
+            )
+
+            def _payload(*, use_tools: bool, system_text: str) -> dict[str, Any]:
+                payload: dict[str, Any] = {
+                    "model": settings.groq_model,
+                    "messages": [{"role": "system", "content": system_text}]
+                    + _to_groq_messages(context_messages),
+                    "temperature": 0.2,
+                    "max_tokens": min(settings.ollama_num_predict, 1024),
+                }
+                if use_tools:
+                    payload["tools"] = _ollama_tools()
+                    payload["tool_choice"] = "auto"
+                else:
+                    payload["tool_choice"] = "none"
+                return payload
+
+            response = _groq_post(
                 client,
                 headers=headers,
-                payload=_payload(use_tools=False, system_text=retry_system),
+                payload=_payload(use_tools=True, system_text=system),
             )
-            if retry.is_error:
-                raise RuntimeError(f"Groq error {retry.status_code}: {retry.text}") from None
-            choices = retry.json().get("choices") or []
-            if not choices:
-                raise RuntimeError("Groq returned no choices on retry")
-            return _parse_openai_style_message(choices[0].get("message") or {})
+            if not response.is_error:
+                data = response.json()
+                choices = data.get("choices") or []
+                if not choices:
+                    raise RuntimeError("Groq returned no choices")
+                return _parse_openai_style_message(choices[0].get("message") or {})
 
-        raise RuntimeError(f"Groq error {response.status_code}: {response.text}") from None
+            try:
+                error_body = response.json()
+            except json.JSONDecodeError:
+                raise RuntimeError(f"Groq error {response.status_code}: {response.text}") from None
+
+            last_error = f"Groq error {response.status_code}: {response.text}"
+
+            if _groq_request_too_large(error_body) and level is not trim_levels[-1]:
+                continue
+
+            if _groq_tool_use_failed(error_body):
+                salvaged = _parse_groq_failed_tool_generation(_groq_failed_generation(error_body))
+                if salvaged:
+                    return AIMessage(content="", tool_calls=salvaged)
+
+                retry_system = (
+                    system
+                    + "\n\nAnswer the user's question directly in clear prose. "
+                    "Do not call any tools on this turn."
+                )
+                retry = _groq_post(
+                    client,
+                    headers=headers,
+                    payload=_payload(use_tools=False, system_text=retry_system),
+                )
+                if retry.is_error:
+                    raise RuntimeError(f"Groq error {retry.status_code}: {retry.text}") from None
+                choices = retry.json().get("choices") or []
+                if not choices:
+                    raise RuntimeError("Groq returned no choices on retry")
+                return _parse_openai_style_message(choices[0].get("message") or {})
+
+            raise RuntimeError(last_error) from None
+
+    raise RuntimeError(last_error or "Groq request failed")
 
 
 def _summarize_groq(messages: list[BaseMessage], current_summary: str, api_key: str) -> str:

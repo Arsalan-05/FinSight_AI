@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from agent.llm import (
+    _groq_request_too_large,
     _parse_groq_failed_tool_generation,
     _parse_openai_style_message,
     _to_groq_messages,
@@ -74,3 +75,16 @@ def test_parse_groq_failed_tool_generation_xml_markup() -> None:
 
 def test_parse_groq_failed_tool_generation_empty_on_garbage() -> None:
     assert _parse_groq_failed_tool_generation("not a tool call") == []
+
+
+def test_groq_request_too_large_detects_tpm_cap() -> None:
+    body = {
+        "error": {
+            "code": "rate_limit_exceeded",
+            "message": (
+                "Request too large for model `llama-3.1-8b-instant` "
+                "on tokens per minute (TPM): Limit 6000, Requested 11745"
+            ),
+        }
+    }
+    assert _groq_request_too_large(body) is True
