@@ -26,7 +26,16 @@ def capabilities() -> dict[str, object]:
             "database": "PostgreSQL + pgvector",
             "auth": "Supabase JWT",
             "llm": settings.effective_llm_provider,
+            "llm_model": settings.active_chat_model,
             "embeddings": settings.embedding_provider,
+            "embed_model": settings.ollama_embed_model,
+        },
+        "ai": {
+            "chat_via_groq": settings.effective_llm_provider == "groq",
+            "groq_model": settings.groq_model,
+            "groq_configured": settings.groq_configured,
+            "search_via_ollama": settings.embedding_provider == "ollama",
+            "groq_note": "Groq has no embeddings API — semantic search uses local Ollama only",
         },
         "agent": {
             "tool_count": len(tools),
