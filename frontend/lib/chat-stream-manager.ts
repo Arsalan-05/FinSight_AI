@@ -4,7 +4,7 @@
  */
 
 import { api } from "@/lib/api";
-import type { ChatMessage, TransactionCitation } from "@/lib/types";
+import type { ChatMessage, ChatSessionSummary, TransactionCitation } from "@/lib/types";
 
 export const SESSION_KEY = "finsight_chat_session";
 const DRAFT_PREFIX = "finsight_chat_draft_";
@@ -22,10 +22,12 @@ export type SessionChatState = {
 };
 
 type Listener = () => void;
+type CompleteListener = (sessionId: string) => void;
 
 const states = new Map<string, SessionChatState>();
 const abortControllers = new Map<string, AbortController>();
 const listeners = new Set<Listener>();
+const completeListeners = new Set<CompleteListener>();
 const recoveryTimers = new Map<string, number>();
 /** Provisional stream key → server session id after first SSE session event */
 export const sessionMigrations = new Map<string, string>();
@@ -40,6 +42,99 @@ function newMessage(role: ChatMessage["role"], content: string): ChatMessage {
 
 function notify() {
   listeners.forEach((cb) => cb());
+}
+
+function notifyComplete(sessionId: string) {
+  completeListeners.forEach((cb) => cb(sessionId));
+}
+
+export function subscribeComplete(listener: CompleteListener): () => void {
+  completeListeners.add(listener);
+  return () => completeListeners.delete(listener);
+}
+
+function assistantContentLength(messages: ChatMessage[]): number {
+  const last = [...messages].reverse().find((m) => m.role === "assistant");
+  return last?.content?.trim().length ?? 0;
+}
+
+function shouldPreferLiveState(live: SessionChatState, apiMessages: ChatMessage[]): boolean {
+  if (live.loading) return true;
+  if (live.messages.length > apiMessages.length) return true;
+  return assistantContentLength(live.messages) > assistantContentLength(apiMessages);
+}
+
+function isActivelyStreaming(sessionId: string): boolean {
+  if (!sessionId || sessionId.startsWith("new:")) return false;
+  const live = getSessionState(sessionId);
+  if (live?.loading) return true;
+  if (loadChatDraft(sessionId)?.loading) return true;
+  return getStreamingSessionIds().includes(sessionId);
+}
+
+function pendingFromApiMessages(
+  sessionId: string,
+  messages: Array<{ role: string; content?: string }>,
+): boolean {
+  if (!sessionLooksPending(messages)) return false;
+  return isActivelyStreaming(sessionId);
+}
+
+export function buildOptimisticSessionEntries(): ChatSessionSummary[] {
+  const byId = new Map<string, ChatSessionSummary>();
+
+  for (const [key, state] of states.entries()) {
+    const id = state.sessionId || (key.startsWith("new:") ? "" : key);
+    if (!id || id.startsWith("new:")) continue;
+
+    const firstUser = state.messages.find((m) => m.role === "user" && m.content.trim());
+    const title = firstUser?.content.trim().slice(0, 80) || "New conversation";
+    const messageCount = state.messages.filter((m) => m.content.trim()).length;
+
+    byId.set(id, {
+      id,
+      title,
+      pinned: false,
+      updated_at: new Date().toISOString(),
+      message_count: messageCount,
+    });
+  }
+
+  return [...byId.values()];
+}
+
+export function mergeSessionSummaries(
+  remote: ChatSessionSummary[],
+  local: ChatSessionSummary[],
+): ChatSessionSummary[] {
+  const merged = new Map<string, ChatSessionSummary>();
+
+  for (const row of remote) {
+    merged.set(row.id, row);
+  }
+
+  for (const row of local) {
+    const existing = merged.get(row.id);
+    if (!existing) {
+      merged.set(row.id, row);
+      continue;
+    }
+    const title =
+      existing.title === "New conversation" && row.title !== "New conversation"
+        ? row.title
+        : existing.title;
+    merged.set(row.id, {
+      ...existing,
+      title,
+      message_count: Math.max(existing.message_count, row.message_count),
+      updated_at: existing.updated_at ?? row.updated_at,
+    });
+  }
+
+  return [...merged.values()].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
+  });
 }
 
 function saveDraft(state: SessionChatState, storageKey?: string) {
@@ -281,18 +376,29 @@ export async function recoverSessionFromApi(
   sessionId: string,
 ): Promise<SessionChatState | null> {
   if (!sessionId || sessionId.startsWith("new:")) return null;
+
+  const live = getSessionState(sessionId);
   try {
     const detail = await api.getChatSession(sessionId);
     const messages: ChatMessage[] = detail.messages.map((m) =>
       newMessage(m.role as ChatMessage["role"], m.content),
     );
-    const pending = sessionLooksPending(detail.messages);
+
+    if (live && shouldPreferLiveState(live, messages)) {
+      return live;
+    }
+
+    const pending = pendingFromApiMessages(sessionId, detail.messages);
     const state: SessionChatState = {
       sessionId: detail.id,
       messages,
       loading: pending,
       agentStatus: pending ? AGENT_STATUS[0] : null,
-      error: null,
+      error: pending
+        ? null
+        : sessionLooksPending(detail.messages)
+          ? "The last reply didn't finish. Send your message again to continue."
+          : null,
     };
     upsertSessionState(sessionId, state);
     if (pending) {
@@ -304,7 +410,7 @@ export async function recoverSessionFromApi(
     }
     return state;
   } catch {
-    return null;
+    return live ?? null;
   }
 }
 
@@ -332,6 +438,7 @@ async function tryFinishFromApi(
     });
     clearChatDraft(sessionId);
     stopSessionRecovery(sessionId);
+    notifyComplete(sessionId);
     return true;
   } catch {
     return false;
@@ -485,6 +592,7 @@ export async function sendChatMessage(
           saveSessionId(activeSessionId);
           clearChatDraft(activeSessionId);
           stopSessionRecovery(activeSessionId);
+          notifyComplete(activeSessionId);
         } else if (event.type === "error") {
           throw new Error(event.message);
         }
@@ -557,15 +665,25 @@ export function hydrateSessionState(
     ensureSessionRecovery(sessionId);
     return live;
   }
+  if (live && shouldPreferLiveState(live, messages)) {
+    return live;
+  }
 
   const draft = loadChatDraft(sessionId);
   if (draft && (draft.loading || draft.messages.length > messages.length)) {
+    if (live && shouldPreferLiveState(live, messages)) {
+      return live;
+    }
     upsertSessionState(sessionId, { ...draft, sessionId });
     if (draft.loading) ensureSessionRecovery(sessionId);
     return getSessionState(sessionId)!;
   }
 
-  const pending = sessionLooksPending(
+  const pending = pendingFromApiMessages(
+    sessionId,
+    messages.map((m) => ({ role: m.role, content: m.content })),
+  );
+  const stalePending = !pending && sessionLooksPending(
     messages.map((m) => ({ role: m.role, content: m.content })),
   );
   const state: SessionChatState = {
@@ -573,7 +691,9 @@ export function hydrateSessionState(
     messages,
     loading: pending,
     agentStatus: pending ? AGENT_STATUS[0] : null,
-    error: null,
+    error: stalePending
+      ? "The last reply didn't finish. Send your message again to continue."
+      : null,
   };
   upsertSessionState(sessionId, state);
   if (pending) {

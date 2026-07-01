@@ -17,12 +17,14 @@ import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { ChatHistorySidebar } from "@/components/chat/ChatHistorySidebar";
+import { FollowUpChips } from "@/components/chat/FollowUpChips";
 import { FormatAgentText } from "@/components/chat/formatAgentText";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useChatStream } from "@/contexts/ChatStreamContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { api } from "@/lib/api";
+import { extractFollowUpSuggestions } from "@/lib/chat-suggestions";
 import {
   clearSessionId,
   ensureSessionRecovery,
@@ -250,14 +252,25 @@ function ChatPageContent() {
     void api.health().catch(() => {});
   }, []);
 
+  const managerState = viewSessionId ? getSessionState(viewSessionId) : undefined;
+  const displayMessages = managerState?.messages ?? messages;
+  const displayLoading = managerState?.loading ?? loading;
+  const displayAgentStatus = managerState?.agentStatus ?? agentStatus;
+  const displayError = managerState?.error ?? error;
+  const lastAssistant = [...displayMessages].reverse().find((m) => m.role === "assistant");
+  const followUpSuggestions =
+    !displayLoading && lastAssistant?.content
+      ? extractFollowUpSuggestions(lastAssistant.content)
+      : [];
+
   useEffect(() => {
-    if (!loading) {
+    if (!displayLoading) {
       setSlowHint(false);
       return;
     }
     const timer = window.setTimeout(() => setSlowHint(true), 12_000);
     return () => window.clearTimeout(timer);
-  }, [loading]);
+  }, [displayLoading]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -288,7 +301,7 @@ function ChatPageContent() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading, agentStatus]);
+  }, [messages, displayLoading, displayAgentStatus]);
 
   const sendMessage = useCallback(
     async (text?: string, options?: { newSession?: boolean }) => {
@@ -338,10 +351,9 @@ function ChatPageContent() {
         setAgentStatus(live.agentStatus);
       }
 
-      void refreshSessions(true);
       inputRef.current?.focus();
     },
-    [input, viewSessionId, messages, sendStream, getSessionState, refreshSessions],
+    [input, viewSessionId, messages, sendStream, getSessionState],
   );
 
   useEffect(() => {
@@ -498,7 +510,7 @@ function ChatPageContent() {
             </div>
 
             <div className="chat-messages">
-              {messages.length === 0 && !loading && !conversationLoading && (
+              {displayMessages.length === 0 && !displayLoading && !conversationLoading && (
                 <div className="flex flex-1 flex-col items-center justify-center gap-8 py-6">
                   <div className="text-center">
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent-soft)] glow-accent">
@@ -566,14 +578,14 @@ function ChatPageContent() {
                 </div>
               )}
 
-              {conversationLoading && messages.length === 0 && (
+              {conversationLoading && displayMessages.length === 0 && (
                 <div className="flex flex-1 items-center justify-center gap-2 text-sm text-[var(--muted)]">
                   <Loader2 size={16} className="animate-spin text-[var(--accent)]" />
                   Loading conversation…
                 </div>
               )}
 
-              {messages.map((msg) =>
+              {displayMessages.map((msg) =>
                 msg.role === "user" ? (
                   <UserBubble key={msg.id} text={msg.content} />
                 ) : (
@@ -581,19 +593,27 @@ function ChatPageContent() {
                     key={msg.id}
                     content={msg.content}
                     citations={msg.citations}
-                    streaming={loading && msg.id === messages[messages.length - 1]?.id}
-                    statusText={loading && !msg.content ? agentStatus : null}
+                    streaming={displayLoading && msg.id === displayMessages[displayMessages.length - 1]?.id}
+                    statusText={displayLoading && !msg.content ? displayAgentStatus : null}
                   />
                 ),
               )}
 
-              {loading && messages[messages.length - 1]?.role !== "assistant" && (
-                <AgentBubble content="" streaming statusText={agentStatus} />
+              {displayLoading && displayMessages[displayMessages.length - 1]?.role !== "assistant" && (
+                <AgentBubble content="" streaming statusText={displayAgentStatus} />
               )}
 
-              {error && (
+              {followUpSuggestions.length > 0 && (
+                <FollowUpChips
+                  suggestions={followUpSuggestions}
+                  onSelect={(text) => void sendMessage(text)}
+                  disabled={displayLoading || !chatAvailable}
+                />
+              )}
+
+              {displayError && (
                 <p className="rounded-xl border border-rose-500/25 bg-rose-500/5 px-4 py-3 text-sm text-rose-400">
-                  {error}
+                  {displayError}
                 </p>
               )}
               <div ref={bottomRef} />
@@ -605,11 +625,11 @@ function ChatPageContent() {
                   {chatUnavailableReason}
                 </p>
               )}
-              {loading && agentStatus && (
+              {displayLoading && displayAgentStatus && (
                 <div className="mb-3 space-y-2">
                   <span className="status-chip">
                     <Loader2 size={11} className="animate-spin" />
-                    {agentStatus}
+                    {displayAgentStatus}
                   </span>
                   {slowHint && (
                     <p className="text-xs text-[var(--muted)]">
@@ -627,10 +647,10 @@ function ChatPageContent() {
                   onKeyDown={handleKeyDown}
                   placeholder="Ask about spending, savings, subscriptions, TFSA, or market rates…"
                   rows={1}
-                  disabled={loading || !chatAvailable}
+                  disabled={displayLoading || !chatAvailable}
                   className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none disabled:opacity-50"
                 />
-                {loading ? (
+                {displayLoading ? (
                   <button
                     type="button"
                     onClick={handleStop}
