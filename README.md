@@ -17,7 +17,19 @@ Personal finance intelligence — transaction ingest, pgvector search, and a sta
 
 Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **shared chat history** across local and deployed when both use Supabase.
 
-> **Advisor AI:** Same **free Groq** model (`llama-3.3-70b-versatile`) on **Mac and Render** — set `GROQ_API_KEY` in `.env` and on Render. Ollama is fallback for embeddings + offline dev.
+> **Advisor AI:** **Groq** (free) for all chat on Mac + Render. **Ollama** (free, local) for search embeddings only — Groq cannot do search vectors.
+
+## Groq everywhere possible (free)
+
+| Feature | Provider | Runs on |
+|---------|----------|---------|
+| Chat / advisor | **Groq** `llama-3.3-70b-versatile` | Groq cloud |
+| Memory summaries | **Groq** | Groq cloud |
+| Profile learning | **Groq** | Groq cloud |
+| Semantic search | **Ollama** `nomic-embed-text` | Your Mac only |
+| Dollar amounts | SQL tools | Your database |
+
+Set `GROQ_API_KEY` in `.env` (Mac) and Render. Run `ollama pull nomic-embed-text` once on your Mac for search.
 
 Deploy guide: **[infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)** ($0 stack)
 

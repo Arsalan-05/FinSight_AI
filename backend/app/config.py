@@ -125,6 +125,19 @@ class Settings(BaseSettings):
         return True
 
     @property
+    def groq_configured(self) -> bool:
+        return bool(self.groq_api_key)
+
+    @property
+    def active_chat_model(self) -> str:
+        provider = self.effective_llm_provider
+        if provider == "groq":
+            return self.groq_model
+        if provider == "anthropic":
+            return "claude-sonnet-4-6"
+        return self.ollama_model
+
+    @property
     def llm_configured(self) -> bool:
         provider = self.effective_llm_provider
         if provider == "anthropic":

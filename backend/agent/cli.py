@@ -37,15 +37,11 @@ def _check_setup() -> None:
             f"Error: Ollama is not running or {settings.ollama_model} is not installed.",
             file=sys.stderr,
         )
-        print(file=sys.stderr)
-        print("Free setup (no API keys):", file=sys.stderr)
-        print("  1. Install Ollama: https://ollama.com", file=sys.stderr)
-        print("  2. ollama pull qwen2.5:7b", file=sys.stderr)
-        print("  3. ollama pull nomic-embed-text", file=sys.stderr)
+        print("Prefer Groq (free): set GROQ_API_KEY and LLM_PROVIDER=groq", file=sys.stderr)
         sys.exit(1)
 
     if settings.embedding_provider == "ollama" and not ollama_embeddings_available():
-        print("Warning: nomic-embed-text not found — semantic search may fail.", file=sys.stderr)
+        print("Warning: nomic-embed-text not found — semantic search disabled.", file=sys.stderr)
         print("Run: ollama pull nomic-embed-text", file=sys.stderr)
 
 

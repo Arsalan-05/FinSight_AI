@@ -379,8 +379,8 @@ def chat_unavailable_message() -> str:
             "(Settings → Environment) and redeploy."
         )
     return (
-        "Advisor needs Ollama running locally (ollama pull qwen2.5:7b), "
-        "or set GROQ_API_KEY / ANTHROPIC_API_KEY for cloud chat."
+        "Advisor needs a free GROQ_API_KEY (console.groq.com) on Mac and Render. "
+        "Ollama is only for local search embeddings."
     )
 
 
