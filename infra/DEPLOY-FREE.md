@@ -11,7 +11,7 @@ One live app URL on **Vercel**. Backend on **Render free tier**. Database + auth
 
 **Your app URL:** `https://<project>.vercel.app` (one link for everything)
 
-> **Chat on free cloud:** Ollama does not run on Render. Set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` on Render for live chat (Claude Sonnet). Local dev uses free Ollama `qwen2.5:7b`.
+> **Chat on free cloud:** Ollama does not run on Render. Dashboard, login, transactions, and **chat history** are free. For new AI replies use **local Ollama** (`qwen2.5:7b`). Optional paid: `ANTHROPIC_API_KEY` on Render.
 
 ---
 
@@ -69,7 +69,7 @@ Set **Root Directory** to `frontend` if not auto-detected.
 | `SUPABASE_URL` | `https://xxxx.supabase.co` |
 | `CORS_ORIGINS` | `https://YOUR-PROJECT.vercel.app` (set after Vercel — redeploy once) |
 | `BETA_ALLOWED_EMAILS` | `your@gmail.com` |
-| `ANTHROPIC_API_KEY` | **required for cloud chat** (Claude Sonnet) |
+| `ANTHROPIC_API_KEY` | optional paid — for cloud chat only |
 
 4. Wait for deploy → copy URL, e.g. `https://finsight-api.onrender.com`
 5. Test: `curl https://finsight-api.onrender.com/health`
@@ -121,9 +121,9 @@ DATABASE_URL=<supabase pooler>
 SUPABASE_URL=https://<ref>.supabase.co
 CORS_ORIGINS=https://<project>.vercel.app
 BETA_ALLOWED_EMAILS=you@gmail.com
-LLM_PROVIDER=anthropic
+LLM_PROVIDER=ollama
 EMBEDDING_PROVIDER=ollama
-ANTHROPIC_API_KEY=        # required for cloud chat (Claude Sonnet)
+ANTHROPIC_API_KEY=        # optional paid — enables cloud chat (not free)
 ```
 
 ### Vercel (`frontend`)
