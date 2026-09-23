@@ -2,11 +2,11 @@
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
-# NEXT_PUBLIC_* vars must be set on this service before the first successful build.
-# Railway injects PORT; Dockerfile binds HOSTNAME=0.0.0.0.
+# Set NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+# on this service BEFORE the first successful build (they are baked in at build time).
 
 [deploy]
 healthcheckPath = "/"
-healthcheckTimeout = 120
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
