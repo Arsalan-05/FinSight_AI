@@ -167,7 +167,7 @@ export default function SearchPage() {
       } else if (totalThisRun > 0) {
         toast(`Indexed ${totalThisRun} so far — tap rebuild again to continue`, "info");
       } else {
-        setError("Nothing was indexed. Check Voyage API key on Render and try again.");
+        setError("Nothing was indexed. Check Voyage API key on Railway and try again.");
       }
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Reindex failed";

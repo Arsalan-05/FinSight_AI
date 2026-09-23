@@ -115,7 +115,7 @@ def embeddings_unavailable_message() -> str:
     if provider == "voyage":
         return (
             "Semantic search needs a free VOYAGE_API_KEY (dash.voyageai.com) "
-            "on Mac and Render — 200M free tokens with voyage-4-large."
+            "on Mac and Railway — 200M free tokens with voyage-4-large."
         )
     return (
         "Semantic search needs Ollama with nomic-embed-text, or set VOYAGE_API_KEY "

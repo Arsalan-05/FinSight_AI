@@ -207,7 +207,7 @@ def _call_ollama(
     return AIMessage(content=content)
 
 
-# ── Groq (free cloud tier — works from Render) ────────────────────────────────
+# ── Groq (free cloud tier — works from Railway) ───────────────────────────────
 
 _MALFORMED_GROQ_FN_RE = re.compile(
     r"<function=([a-zA-Z0-9_]+)(\{.*\})\s*(?:</function>)?",
@@ -615,16 +615,16 @@ def chat_unavailable_message() -> str:
     provider = settings.effective_llm_provider
     if provider == "groq":
         return (
-            "Advisor is unavailable — add a free GROQ_API_KEY on Render "
+            "Advisor is unavailable — add a free GROQ_API_KEY on Railway "
             "(console.groq.com → API Keys) and redeploy."
         )
     if provider == "anthropic":
         return (
-            "Advisor is unavailable — add ANTHROPIC_API_KEY on Render "
-            "(Settings → Environment) and redeploy."
+            "Advisor is unavailable — add ANTHROPIC_API_KEY on Railway "
+            "(Variables) and redeploy."
         )
     return (
-        "Advisor needs a free GROQ_API_KEY (console.groq.com) on Mac and Render. "
+        "Advisor needs a free GROQ_API_KEY (console.groq.com) on Mac and Railway. "
         "Semantic search uses Voyage voyage-4-large (dash.voyageai.com)."
     )
 

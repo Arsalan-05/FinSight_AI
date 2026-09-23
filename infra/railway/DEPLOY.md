@@ -1,89 +1,116 @@
 # Railway deployment — FinSight AI
 
-Deploy as **two Railway services** from this monorepo (private repo is fine).
+**Production is Railway-only:** two services from this monorepo + Supabase for DB/auth.
 
-## 1. Backend (API)
+```
+User → Railway frontend (Next.js) → Railway API (FastAPI) → Supabase + Groq + Voyage
+```
 
-1. [Railway](https://railway.app) → New Project → Deploy from GitHub → select this repo.
+## 1. Backend (`finsight-api`)
+
+1. [Railway](https://railway.app) → **New Project** → **Deploy from GitHub** → select `FinSight_AI`.
 2. Service settings → **Root Directory**: `backend`
-3. Railway reads `backend/railway.toml` and `backend/Dockerfile`.
-4. Set variables:
+3. Railway reads [`backend/railway.toml`](../../backend/railway.toml) and [`backend/Dockerfile`](../../backend/Dockerfile).
+4. **Networking → Generate domain** → copy API URL (e.g. `https://finsight-api-xxxx.up.railway.app`).
+5. Set variables (Variables tab):
 
 | Variable | Value |
 |----------|--------|
 | `ENVIRONMENT` | `production` |
-| `DATABASE_URL` | Supabase **pooler** URL (`?pgbouncer=true` for transaction mode) |
+| `DATABASE_URL` | Supabase **session pooler** URL (port **5432**, `?sslmode=require`) |
 | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `REQUIRE_AUTH` | `true` |
-| `LLM_PROVIDER` | `groq` (recommended — free tier) |
-| `GROQ_API_KEY` | free at [console.groq.com](https://console.groq.com) |
+| `DATABASE_FALLBACK_ENABLED` | `false` |
+| `LLM_PROVIDER` | `groq` |
+| `GROQ_API_KEY` | from [console.groq.com](https://console.groq.com) |
 | `GROQ_MODEL` | `llama-3.1-8b-instant` |
-| `ANTHROPIC_API_KEY` | optional paid alternative |
 | `EMBEDDING_PROVIDER` | `voyage` |
-| `VOYAGE_API_KEY` | if using Voyage |
-| `CORS_ORIGINS` | `https://<your-frontend>.up.railway.app` |
+| `VOYAGE_API_KEY` | from [dash.voyageai.com](https://dash.voyageai.com) |
+| `VOYAGE_MODEL` | `voyage-4-large` |
+| `CORS_ORIGINS` | `https://<your-frontend>.up.railway.app` (set after step 2) |
 | `CHAT_RATE_LIMIT_PER_MINUTE` | `30` |
-| `FINNHUB_API_KEY` | optional — live stock quotes |
-| `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | optional — live bank link |
-| `PLAID_TOKEN_ENCRYPTION_KEY` | Fernet key for Plaid access tokens at rest |
-| `PLAID_WEBHOOK_SECRET` | verify Plaid webhook payloads |
 | `BETA_ALLOWED_EMAILS` | comma-separated invite list (empty = open) |
-| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` | weekly email digest |
+| `FINNHUB_API_KEY` | optional |
+| `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | optional |
+| `PLAID_TOKEN_ENCRYPTION_KEY` | optional Fernet key |
+| `PLAID_WEBHOOK_SECRET` | optional |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` | optional weekly digest |
 | `LOG_LEVEL` | `INFO` |
 
-5. Generate domain → note API URL (e.g. `https://finsight-api.up.railway.app`).
+6. Redeploy after adding vars. Migrations run on container start (`db.migrate`).
 
-**Production LLM:** Groq (free) via `GROQ_API_KEY`. Ollama does not run on Railway/Render.
+**Verify:**
 
-## 2. Frontend
+```bash
+curl https://<api>.up.railway.app/health
+curl https://<api>.up.railway.app/health/ready
+curl https://<api>.up.railway.app/capabilities
+```
 
-1. Add service → same repo → **Root Directory**: `frontend`
-2. Build args / variables:
+## 2. Frontend (`finsight-web`)
+
+1. Same Railway project → **Add service** → same GitHub repo.
+2. **Root Directory**: `frontend`
+3. Railway reads [`frontend/railway.toml`](../../frontend/railway.toml) and [`frontend/Dockerfile`](../../frontend/Dockerfile).
+4. Set variables **before the first successful build** (baked into Next.js at build time):
 
 | Variable | Value |
 |----------|--------|
-| `NEXT_PUBLIC_API_URL` | backend Railway URL |
+| `NEXT_PUBLIC_API_URL` | backend URL from step 1 (no trailing slash) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 
-3. Generate domain → add this URL to backend `CORS_ORIGINS`.
+5. **Networking → Generate domain** → this is your **app URL**.
+6. Go back to backend → set `CORS_ORIGINS` to the frontend URL → **Redeploy** backend.
+
+If you change any `NEXT_PUBLIC_*` value later, trigger a **new frontend rebuild** (Redeploy).
 
 ## 3. Database
 
 - Use **Supabase hosted Postgres** (not Railway Postgres) for pgvector + auth alignment.
-- Run migrations: `cd backend && uv run alembic upgrade head` against production `DATABASE_URL`.
-- Optional RLS: `psql $DATABASE_URL -f infra/supabase/03_rls_policies.sql`
+- Migrations auto-run on API deploy; or locally: `cd backend && uv run alembic upgrade head` against production `DATABASE_URL`.
 
 ## 4. Supabase Auth redirect URLs
 
-In Supabase Dashboard → Authentication → URL Configuration:
+Dashboard → **Authentication → URL Configuration**:
 
-- Site URL: `https://<frontend>.up.railway.app`
-- Redirect URLs: `https://<frontend>.up.railway.app/**`, `http://localhost:3000/**`
+- **Site URL:** `https://<frontend>.up.railway.app`
+- **Redirect URLs:**
+  - `https://<frontend>.up.railway.app/**`
+  - `http://localhost:3000/**` (local dev)
+  - `http://127.0.0.1:3000/**` (local dev)
 
-## 5. Verify
+Remove old Vercel URLs after cutover.
 
-```bash
-curl https://<api>/health
-curl https://<api>/health/ready
+## 5. GitHub Pages landing (optional)
+
+Edit [`docs/config.js`](../../docs/config.js):
+
+```js
+window.FINSIGHT_APP_URL = "https://<frontend>.up.railway.app";
 ```
 
-Open frontend → sign in → dashboard loads.
+## 6. End-to-end checklist
 
-## 6. Invite-only beta
+- [ ] `curl` health + ready + capabilities succeed
+- [ ] Open frontend → Google sign-in works
+- [ ] Dashboard loads accounts / transactions
+- [ ] Chat returns a finance answer
+- [ ] Search / reindex works (Voyage key on API)
+- [ ] After 24h stable: delete Vercel project + Render API service
 
-Set `BETA_ALLOWED_EMAILS=you@example.com,friend@example.com` on the backend. Only listed emails can sign in; others receive HTTP 403.
+## 7. Invite-only beta
 
-Configure Plaid webhook URL in the Plaid dashboard: `https://<api>/integrations/plaid/webhook`
+Set `BETA_ALLOWED_EMAILS=you@example.com` on the backend. Unlisted emails get HTTP 403.
 
-Weekly digest emails require SMTP vars and users enabling **Weekly email digest** in Settings.
+Plaid webhook (if used): `https://<api>/integrations/plaid/webhook`
 
 ## Local vs production
 
-| | Local | Production |
-|---|--------|------------|
-| LLM | Groq (cloud) | Groq or Ollama fallback |
+| | Local | Production (Railway) |
+|---|--------|----------------------|
+| LLM | Groq | Groq |
 | DB | Docker or Supabase | Supabase pooler |
 | CORS | localhost auto | `CORS_ORIGINS` env |
-| Logs | text | JSON (`ENVIRONMENT=production`) |
-| Market quotes | Yahoo (no key) | Finnhub + Yahoo fallback |
+| Frontend | `npm run dev` | Docker / Railway |
+| Cold starts | none | none (paid Railway — no free-tier sleep) |

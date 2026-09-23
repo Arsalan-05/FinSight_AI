@@ -60,7 +60,7 @@ async function request<T>(
     const text = await res.text().catch(() => res.statusText);
     if (text.includes("Service Suspended") || text.trimStart().startsWith("<!DOCTYPE")) {
       throw new Error(
-        "API unavailable — the backend may be offline. Resume the Render service and try again.",
+        "API unavailable — the backend may be offline. Check the Railway API service and try again.",
       );
     }
     throw new Error(`API ${res.status}: ${text}`);

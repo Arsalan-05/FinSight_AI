@@ -4,7 +4,7 @@ Usage:
     uv run python -m agent.cli "How much did I spend on dining?"
     uv run python -m agent.cli --session my-session "What about last month?"
 
-Requires Groq (free, same as Render) + Voyage (free search, same as Render):
+Requires Groq (free, same as Railway) + Voyage (free search, same as Railway):
     GROQ_API_KEY=...   # console.groq.com
     VOYAGE_API_KEY=... # dash.voyageai.com (200M free tokens)
 """

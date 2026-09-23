@@ -2,6 +2,9 @@
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
+# NEXT_PUBLIC_* vars must be set on this service before the first successful build.
+# Railway injects PORT; Dockerfile binds HOSTNAME=0.0.0.0.
+
 [deploy]
 healthcheckPath = "/"
 healthcheckTimeout = 120
