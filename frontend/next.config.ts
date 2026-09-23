@@ -6,7 +6,10 @@ import { loadEnvConfig } from "@next/env";
 loadEnvConfig(path.join(__dirname, ".."));
 
 const nextConfig: NextConfig = {
+  // Keep standalone for Docker; Railway Nixpacks uses `next start`.
   output: "standalone",
+  // Ensure traced files resolve correctly when building in CI/monorepo layouts.
+  outputFileTracingRoot: path.join(__dirname),
   devIndicators: false,
   async redirects() {
     return [
