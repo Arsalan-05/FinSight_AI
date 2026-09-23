@@ -17,7 +17,6 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Full Next.js runtime (more reliable on Railway than standalone server.js)
 FROM node:22-alpine AS runner
 
 WORKDIR /app
@@ -25,14 +24,19 @@ RUN apk add --no-cache libc6-compat
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Required for Railway public networking (do not bind localhost only)
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-COPY --from=builder /app/package.json /app/package-lock.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+USER nextjs
 EXPOSE 3000
 
-# Must listen on 0.0.0.0 and Railway's $PORT (must match Networking → Port)
-CMD ["sh", "-c", "echo \"FinSight web starting on 0.0.0.0:${PORT:-3000}\" && exec npx next start -H 0.0.0.0 -p ${PORT:-3000}"]
+# Next 16: with output:"standalone", must use node server.js — NOT "next start"
+CMD ["sh", "-c", "echo \"FinSight web on ${HOSTNAME}:${PORT}\" && exec node server.js"]
