@@ -1,7 +1,11 @@
+# Check this service carefully:
+# Settings → Source → Root Directory MUST be: frontend
+# Settings → Networking → Port MUST be: 3000
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 5
+restartPolicyMaxRetries = 10

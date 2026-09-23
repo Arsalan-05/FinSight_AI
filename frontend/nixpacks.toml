@@ -1,0 +1,6 @@
+# Forces Railway to use Docker for this service when Root Directory = frontend
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[start]
+cmd = "npx next start -H 0.0.0.0 -p 3000"

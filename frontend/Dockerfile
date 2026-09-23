@@ -24,15 +24,15 @@ RUN apk add --no-cache libc6-compat
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/next.config.mjs ./
 
-# Must match Railway Networking → Port (you have 3000 configured)
 EXPOSE 3000
 
-# Hardcode 3000 to match public domain port mapping (avoids PORT mismatch 502s)
-CMD ["sh", "-c", "echo 'FinSight starting on 0.0.0.0:3000' && exec npx next start -H 0.0.0.0 -p 3000"]
+CMD ["npx", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
