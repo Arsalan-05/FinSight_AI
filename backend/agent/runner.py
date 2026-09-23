@@ -168,6 +168,6 @@ def run_agent(
         citations = _extract_citations(final_messages)
         return AgentResult(reply=reply, citations=citations)
     except Exception:
-        # Persist the user turn even when the LLM fails (e.g. Ollama offline on Render).
+        # Persist the user turn even when the LLM fails (e.g. Ollama offline on Railway).
         save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
         raise

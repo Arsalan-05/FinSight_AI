@@ -1,7 +1,7 @@
 # FinSight AI — Project Documentation
 
-> **FinSight AI v1.5.1** — **100% complete · locked · July 1, 2026.**  
-> **Production** is live on Vercel + Render + Supabase (Groq + Voyage).  
+> **FinSight AI v1.5.1** — **100% complete · Railway production · July 1, 2026.**  
+> **Production** is Railway (frontend + API) + Supabase (Groq + Voyage).  
 > **Local** is optional — for coding, testing, experiments, and debugging only.
 
 ---
@@ -11,8 +11,8 @@
 | | **Production (primary)** | **Local (workshop)** |
 |--|--------------------------|----------------------|
 | **Use when** | Daily use, demos, portfolio, real data | Editing code, fixing bugs, running tests |
-| **Frontend** | `https://fin-sight-ai-sepia.vercel.app` | `http://localhost:3000` |
-| **Backend** | `https://finsight-api-byrl.onrender.com` | `http://127.0.0.1:8000` |
+| **Frontend** | `https://<frontend>.up.railway.app` | `http://localhost:3000` |
+| **Backend** | `https://<api>.up.railway.app` | `http://127.0.0.1:8000` |
 | **Database** | Supabase (always) | Supabase (hotspot) or Docker fallback |
 | **Chat** | Groq `llama-3.1-8b-instant` | Same Groq keys (Ollama only if keys missing) |
 | **Search** | Voyage `voyage-4-large` | Same Voyage keys |
@@ -22,30 +22,30 @@ You do **not** need local running to use FinSight. Start local only when you cha
 
 ---
 
-## Production deployment (live)
+## Production deployment (Railway)
 
 | Component | URL |
 |-----------|-----|
-| **Frontend** | `https://fin-sight-ai-sepia.vercel.app` |
-| **Backend API** | `https://finsight-api-byrl.onrender.com` |
-| **Health check** | `curl https://finsight-api-byrl.onrender.com/health/db` → `connected: true`, `schema_ready: true` |
+| **Frontend** | `https://<frontend>.up.railway.app` (set after Railway deploy) |
+| **Backend API** | `https://<api>.up.railway.app` |
+| **Health check** | `curl https://<api>.up.railway.app/health/db` → `connected: true`, `schema_ready: true` |
 | **Database + Auth** | Supabase project `zibzsxwceivnziplciuq` |
 
 ### Required env (production)
 
-**Vercel:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+**Railway frontend:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (set **before** first build)
 
-**Render:** `DATABASE_URL` (session pooler port **5432**), `SUPABASE_URL`, `CORS_ORIGINS`, `BETA_ALLOWED_EMAILS`, `GROQ_API_KEY`, `GROQ_MODEL=llama-3.1-8b-instant`, `VOYAGE_API_KEY`, `LLM_PROVIDER=groq`, `EMBEDDING_PROVIDER=voyage`, `DATABASE_FALLBACK_ENABLED=false`
+**Railway API:** `DATABASE_URL` (session pooler port **5432**), `SUPABASE_URL`, `CORS_ORIGINS`, `BETA_ALLOWED_EMAILS`, `GROQ_API_KEY`, `GROQ_MODEL=llama-3.1-8b-instant`, `VOYAGE_API_KEY`, `LLM_PROVIDER=groq`, `EMBEDDING_PROVIDER=voyage`, `DATABASE_FALLBACK_ENABLED=false`
 
 **Supabase Auth redirect URLs** (must include wildcards):
 
 ```
-https://fin-sight-ai-sepia.vercel.app/**
+https://<frontend>.up.railway.app/**
 http://localhost:3000/**
 http://127.0.0.1:3000/**
 ```
 
-Full guide: [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md)
+Full guide: [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md)
 
 ---
 
@@ -935,25 +935,25 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 | **API 503 auth not configured** | `REQUIRE_AUTH=true` but no `SUPABASE_URL` | Set `SUPABASE_URL` in `.env`, restart backend |
 | **Empty dashboard after login** | New user, no data yet | Should auto-provision; if not, run `scripts/seed.py` or upload CSV |
 | **DB connection timeout** | Campus Wi-Fi blocks port 5432 | Use **hotspot**; session pooler `aws-*-us-east-2.pooler.supabase.com:5432` |
-| **DNS error on `db.*.supabase.co`** | Direct host blocked from cloud/local | Use session pooler URL; Render auto-rewrites direct URLs |
+| **DNS error on `db.*.supabase.co`** | Direct host blocked from cloud/local | Use session pooler URL on Railway `DATABASE_URL` |
 | **Google login fails** | Provider not enabled | Supabase → Auth → Providers → Google |
-| **Login redirects to Vercel** | Redirect URL missing wildcard | Add `http://localhost:3000/**` not just `http://localhost:3000` |
-| **Chat no response** | Missing `GROQ_API_KEY` or Render cold start | Set keys on Render; wait ~30–50s on first request |
+| **Login redirect fails** | Redirect URL missing wildcard | Add `https://<frontend>.up.railway.app/**` and `http://localhost:3000/**` |
+| **Chat no response** | Missing `GROQ_API_KEY` on Railway API | Set keys on Railway API service → Redeploy |
 | **Groq HTTP 429** | Free-tier TPM/RPM exceeded | Wait ~10s (auto-retry); use `llama-3.1-8b-instant`; optional Groq Developer + spend cap |
 | **Groq tool_use_failed** | Model emitted invalid tool XML | Fixed in v1.5.0 — redeploy latest `main` |
 | **Voyage embedding failed (billing)** | No card on Voyage account | Add card at dashboard.voyageai.com (200M tokens still free); rebuild search index |
 | **Search reindex slow** | Voyage 3 RPM without card | Normal — batched reindex with delays; add Voyage billing card for faster limits |
-| **Supabase pool exhausted** | Too many DB connections (local + Render) | Kill duplicate backends; use `DB_POOL_SIZE=2` locally |
+| **Supabase pool exhausted** | Too many DB connections (local + Railway) | Kill duplicate backends; use `DB_POOL_SIZE=2` locally |
 | **Chat history missing** | Different DB (local fallback vs Supabase) | Hotspot + shared Supabase; or use production only |
 | **Agent stuck loading** | DB hung on Supabase timeout | Restart backend; check `127.0.0.1:8000/health/db` |
 | **Embeddings / search empty** | Voyage migration cleared vectors | Search page → **Rebuild search index**, or re-upload CSV |
 | **Embeddings skipped (offline)** | No Voyage key, Ollama embed missing | `ollama pull nomic-embed-text` or set `VOYAGE_API_KEY` |
 | **Alembic % error in password** | ConfigParser interpolation | URL-encode `@` as `%40`; use `uv run python -m db.migrate` |
 | **Chat stuck loading after refresh** | SSE state lost; draft not saved | v1.5.1+ polls API every 2s until reply saved; sidebar spinner from sessionStorage drafts |
-| **First chat slow (~60s)** | Render free tier cold start | Normal — health ping on chat load; message after 12s explains wait |
+| **First chat slow** | Groq / tools / cold DB | Railway has no free-tier sleep; check Groq 429 or API logs |
 | **Advisor answers trivia** | No scope guard (pre-v1.5.1) | Redeploy — `finance_scope_refusal` blocks off-topic before Groq |
 | **Follow-up repeats same answer** | Context trim | Redeploy v1.5.1 — last 2 user turns kept + follow-up prompt rule |
-| **CORS error** | Wrong origin | Render `CORS_ORIGINS` must include Vercel URL |
+| **CORS error** | Wrong origin | Railway API `CORS_ORIGINS` must include frontend URL |
 
 ---
 
@@ -1008,16 +1008,16 @@ docker compose up --build
 
 ## 19. Project Status
 
-**FinSight AI v1.5.1 — 100% complete · locked · July 1, 2026.**
+**FinSight AI v1.5.1 — 100% complete · Railway production · July 1, 2026.**
 
-All engineering-MVP scope is shipped and **deployed to production**. Local development is **optional** — for coding, testing, and debugging only.
+All engineering-MVP scope is shipped. Production host is **Railway** (frontend + API) with **Supabase** for DB/auth. Local development is **optional**.
 
 ### Production (primary — use this)
 
 | Check | Status |
 |-------|--------|
-| Vercel frontend | ✅ `https://fin-sight-ai-sepia.vercel.app` |
-| Render API | ✅ `https://finsight-api-byrl.onrender.com` |
+| Railway frontend | ✅ `https://<frontend>.up.railway.app` |
+| Railway API | ✅ `https://<api>.up.railway.app` |
 | Supabase DB + auth | ✅ `schema_ready: true` |
 | Google OAuth | ✅ |
 | Groq advisor (chat) | ✅ `llama-3.1-8b-instant` |
@@ -1025,7 +1025,7 @@ All engineering-MVP scope is shipped and **deployed to production**. Local devel
 | Invite-only beta | ✅ `BETA_ALLOWED_EMAILS` |
 | Shared chat history | ✅ Supabase |
 
-Verify: `curl https://finsight-api-byrl.onrender.com/capabilities` → `chat_available: true`
+Verify: `curl https://<api>.up.railway.app/capabilities` → `chat_available: true`
 
 ### Local development (optional workshop)
 
@@ -1040,7 +1040,7 @@ Verify: `curl https://finsight-api-byrl.onrender.com/capabilities` → `chat_ava
 
 | Layer | Delivered |
 |-------|-----------|
-| **Data** | PostgreSQL + pgvector, Alembic migrations (auto on Render deploy), Canadian bank CSV ingest, per-user scoping |
+| **Data** | PostgreSQL + pgvector, Alembic migrations (auto on Railway API deploy), Canadian bank CSV ingest, per-user scoping |
 | **Auth** | Supabase Google OAuth, JWT verification, invite-only beta, demo provisioning |
 | **AI** | Groq chat + Voyage embeddings (free tier); Ollama offline fallback |
 | **Bank link** | Plaid Link, webhooks, background sync, encrypted tokens |
@@ -1051,23 +1051,23 @@ Verify: `curl https://finsight-api-byrl.onrender.com/capabilities` → `chat_ava
 | **Retention** | Alerts page (live signals + budgets), notifications inbox, weekly brief |
 | **Chat** | Saved history, pin/rename/delete, citations, background streams, finance-only scope, fresh session per “Ask advisor” link |
 | **Frontend** | Dashboard, analytics, transactions, subscriptions, search, alerts, chat, settings |
-| **Deploy** | Vercel (auto on push) + Render (manual or auto) + Supabase ($0) |
+| **Deploy** | Railway frontend + Railway API + Supabase |
 | **Local dev** | Optional — Groq/Voyage same as prod, Docker DB fallback, `127.0.0.1` API fix |
 
 ### Deployment modes
 
 | Mode | How |
 |------|-----|
-| **Production (default)** | Vercel + Render + Supabase — [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) |
-| **Local (coding only)** | `source .env` → backend + frontend → test → `git push` → Vercel auto-deploys frontend |
-| **Local (shared cloud data)** | Hotspot + Supabase pooler + same keys as Render |
+| **Production (default)** | Railway + Supabase — [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md) |
+| **Local (coding only)** | `source .env` → backend + frontend → test → `git push` → Railway redeploys |
+| **Local (shared cloud data)** | Hotspot + Supabase pooler + same keys as Railway API |
 
 ### Verification
 
 ```bash
-# Production health
-curl https://finsight-api-byrl.onrender.com/health/db
-curl https://finsight-api-byrl.onrender.com/capabilities
+# Production health (replace with your Railway API domain)
+curl https://<api>.up.railway.app/health/db
+curl https://<api>.up.railway.app/capabilities
 
 # Local (when developing)
 cd backend && uv run pytest -q          # 106+ passed
@@ -1078,15 +1078,16 @@ cd frontend && npm run lint && npm run type-check && npm run build
 
 | Guide | Stack | Cost |
 |-------|-------|------|
-| [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) | **Vercel + Render + Supabase** (production) | **$0** |
-| [infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md) | Railway + Supabase | ~$5/mo |
-| [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md) | Railway detail | ~$5/mo |
+| [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md) | **Railway + Supabase** (production) | Railway subscription |
+| [infra/RAILWAY-CUTOVER.md](./infra/RAILWAY-CUTOVER.md) | Cutover checklist + env copy | — |
+| [infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md) | GitHub → Railway end-to-end | Railway subscription |
+| [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) | Legacy Vercel+Render notice only | — |
 
 ### Optional future (not required for v1.5)
 
 | Item | Notes |
 |------|-------|
-| Custom domain | Vercel + Render settings |
+| Custom domain | Railway Networking / DNS |
 | Plaid production keys | Live bank linking |
 | Tavily / Finnhub keys | Better web search / market quotes |
 
@@ -1135,10 +1136,10 @@ User transaction data, chat history, and account information belong to each end 
 
 ### Completion declaration
 
-> **FinSight AI v1.5.1** is **100% complete and locked** as of **July 1, 2026** by **Arsalan Amir Ali**.  
-> **Production** (Vercel + Render + Supabase + Groq + Voyage) is the primary product.  
+> **FinSight AI v1.5.1** is **100% complete** as of **July 1, 2026** by **Arsalan Amir Ali**.  
+> **Production** (Railway + Supabase + Groq + Voyage) is the primary product.  
 > **Local** is optional for development, testing, and experiments.
 
 ---
 
-*Last updated: July 1, 2026 — FinSight AI v1.5.1 (finance scope, background chat, alert toggles, follow-up context, profile learning)*
+*Last updated: Railway-only production migration — FinSight AI v1.5.1*

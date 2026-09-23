@@ -16,7 +16,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Unified advisor: Groq free tier (local + Render) — same model everywhere
+    # Unified advisor: Groq free tier (local + Railway) — same model everywhere
     groq_api_key: str = ""
     groq_model: str = "llama-3.1-8b-instant"
     anthropic_api_key: str = ""
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     voyage_model: str = "voyage-4-large"
     voyage_output_dimension: int = 1024
 
-    # groq = default chat; voyage = default search (Mac + Render); ollama = offline embed fallback
+    # groq = default chat; voyage = default search (Mac + Railway); ollama = offline embed fallback
     llm_provider: str = "groq"  # groq | ollama | anthropic
     embedding_provider: str = "voyage"  # voyage | ollama
     ollama_base_url: str = "http://localhost:11434"
@@ -125,7 +125,7 @@ class Settings(BaseSettings):
 
     @property
     def effective_embedding_provider(self) -> str:
-        """Voyage when key is set (same model local + Render). Ollama fallback for offline dev."""
+        """Voyage when key is set (same model local + Railway). Ollama fallback for offline dev."""
         provider = self.embedding_provider.lower()
         if provider == "ollama":
             return "ollama"
@@ -169,7 +169,7 @@ class Settings(BaseSettings):
 
     @property
     def effective_llm_provider(self) -> str:
-        """Groq when key is set (same model local + Render). Ollama fallback for offline dev."""
+        """Groq when key is set (same model local + Railway). Ollama fallback for offline dev."""
         provider = self.llm_provider.lower()
         if provider == "anthropic":
             return "anthropic"

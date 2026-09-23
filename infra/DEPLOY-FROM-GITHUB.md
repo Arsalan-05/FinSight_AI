@@ -1,24 +1,26 @@
-# Deploy FinSight from GitHub (one live URL)
+# Deploy FinSight from GitHub (Railway + Supabase)
 
-FinSight is a **full-stack app** (Next.js + FastAPI + PostgreSQL + agent). **GitHub Pages cannot run it** — Pages only serves static HTML/CSS/JS. There is no database, API, or login on Pages.
+FinSight is a **full-stack app** (Next.js + FastAPI + PostgreSQL + agent). **GitHub Pages cannot run it** — Pages only serves static HTML/CSS/JS.
 
 What you get:
 
 | URL | What it is |
 |-----|------------|
-| `https://arsalan-05.github.io/FinSight_AI/` | **One-page** marketing site (`docs/index.html`) |
-| `https://<your-frontend>.up.railway.app` | **The real app** — login, chat, dashboard, everything |
+| `https://arsalan-05.github.io/FinSight_AI/` | **One-page** marketing site (`docs/index.html`) — optional |
+| `https://<your-frontend>.up.railway.app` | **The real app** — login, chat, dashboard |
 
-Users visit **one app URL** (Railway frontend). GitHub Pages is optional marketing.
+Users visit **one app URL** (Railway frontend).
 
 ---
 
-## What you need (free tiers available)
+## What you need
 
-1. **GitHub** — this repo (already have)
+1. **GitHub** — this repo
 2. **Supabase** — Google auth + hosted Postgres ([supabase.com](https://supabase.com))
-3. **Railway** — backend + frontend ([railway.app](https://railway.app))
-4. **Anthropic API key** — optional paid alternative to Groq
+3. **Railway** — backend + frontend ([railway.app](https://railway.app)) — paid plan recommended (no cold starts)
+4. **Groq** + **Voyage** API keys (free tiers)
+
+Full detail: **[infra/railway/DEPLOY.md](./railway/DEPLOY.md)**
 
 ---
 
@@ -27,38 +29,21 @@ Users visit **one app URL** (Railway frontend). GitHub Pages is optional marketi
 1. Create a project at [supabase.com](https://supabase.com).
 2. **Authentication → Providers** → enable Google.
 3. **Authentication → URL Configuration** — add redirect URLs after you have Railway URLs (Step 4).
-4. **Settings → Database** → copy the **connection pooler** URL for `DATABASE_URL`.
-5. Run migrations against production DB:
-   ```bash
-   cd backend
-   export DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres"
-   uv run alembic upgrade head
+4. **Settings → Database** → copy the **session pooler** URL (port **5432**) for `DATABASE_URL`.
+5. Enable pgvector:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS vector;
    ```
+6. Migrations run automatically on Railway API deploy (or locally against production `DATABASE_URL`).
 
 ---
 
 ## Step 2 — Deploy backend (Railway)
 
 1. [Railway](https://railway.app) → **New Project** → **Deploy from GitHub repo** → select `FinSight_AI`.
-2. Add a service → set **Root Directory** to `backend`.
-3. Add environment variables:
-
-| Variable | Value |
-|----------|--------|
-| `ENVIRONMENT` | `production` |
-| `DATABASE_URL` | Supabase pooler URL |
-| `SUPABASE_URL` | `https://<ref>.supabase.co` |
-| `REQUIRE_AUTH` | `true` |
-| `LLM_PROVIDER` | `groq` |
-| `GROQ_API_KEY` | free at [console.groq.com](https://console.groq.com) |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` |
-| `EMBEDDING_PROVIDER` | `voyage` |
-| `VOYAGE_API_KEY` | from [dash.voyageai.com](https://dash.voyageai.com) |
-| `ANTHROPIC_API_KEY` | optional paid alternative |
-| `CORS_ORIGINS` | `https://<frontend-url>.up.railway.app` (fill after Step 3) |
-| `BETA_ALLOWED_EMAILS` | `your@gmail.com` (invite-only) |
-
-4. **Settings → Networking → Generate domain** → copy URL, e.g. `https://finsight-api.up.railway.app`.
+2. Set **Root Directory** to `backend`.
+3. Add environment variables (see [railway/DEPLOY.md](./railway/DEPLOY.md) §1).
+4. **Settings → Networking → Generate domain** → e.g. `https://finsight-api.up.railway.app`.
 5. Verify: `curl https://finsight-api.up.railway.app/health`
 
 ---
@@ -67,7 +52,7 @@ Users visit **one app URL** (Railway frontend). GitHub Pages is optional marketi
 
 1. Same Railway project → **Add service** → same GitHub repo.
 2. Set **Root Directory** to `frontend`.
-3. Variables:
+3. Variables (**set before first build**):
 
 | Variable | Value |
 |----------|--------|
@@ -76,7 +61,7 @@ Users visit **one app URL** (Railway frontend). GitHub Pages is optional marketi
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 
 4. **Generate domain** → e.g. `https://finsight.up.railway.app` — **this is your one app URL**.
-5. Go back to backend → set `CORS_ORIGINS` to this frontend URL → redeploy backend.
+5. Backend → set `CORS_ORIGINS` to this frontend URL → redeploy API.
 
 ---
 
@@ -87,7 +72,8 @@ In Supabase → **Authentication → URL Configuration**:
 - **Site URL:** `https://finsight.up.railway.app`
 - **Redirect URLs:**
   - `https://finsight.up.railway.app/**`
-  - `http://localhost:3000/**` (keep for local dev)
+  - `http://localhost:3000/**`
+  - `http://127.0.0.1:3000/**`
 
 ---
 
@@ -100,7 +86,6 @@ In Supabase → **Authentication → URL Configuration**:
    ```js
    window.FINSIGHT_APP_URL = "https://finsight.up.railway.app";
    ```
-5. Push again — **Open FinSight** button on the landing page goes to your live app.
 
 ---
 
@@ -108,6 +93,7 @@ In Supabase → **Authentication → URL Configuration**:
 
 ```bash
 curl https://finsight-api.up.railway.app/health/ready
+curl https://finsight-api.up.railway.app/capabilities
 ```
 
 1. Open `https://finsight.up.railway.app`
@@ -119,23 +105,15 @@ curl https://finsight-api.up.railway.app/health/ready
 
 ## One URL summary
 
-| Goal | Solution |
-|------|----------|
-| **One URL for the full app** | Railway frontend domain only |
-| **One GitHub Pages site** | `docs/index.html` (home + features + privacy in one page) |
-| **Deploy triggered from GitHub** | Railway watches `main` — push to deploy |
-| **Cannot do on Pages alone** | API, Postgres, agent, Plaid, auth |
+| Role | Host |
+|------|------|
+| App users open | Railway frontend |
+| API | Railway backend |
+| DB + Auth | Supabase |
+| Optional marketing | GitHub Pages |
 
 ---
 
-## Troubleshooting
+## Retiring Vercel / Render
 
-| Problem | Fix |
-|---------|-----|
-| CORS error | Add frontend URL to backend `CORS_ORIGINS` |
-| Google login fails | Add Railway URL to Supabase redirect URLs |
-| Empty dashboard | Run `alembic upgrade head` on production DB |
-| Chat no response | Set `GROQ_API_KEY`, `GROQ_MODEL=llama-3.1-8b-instant`, redeploy backend |
-| 403 on login | Add your email to `BETA_ALLOWED_EMAILS` |
-
-More detail: [infra/railway/DEPLOY.md](./railway/DEPLOY.md)
+After Railway is verified, delete old Vercel and Render projects so traffic and env keys are not split. See [DEPLOY-FREE.md](./DEPLOY-FREE.md) (legacy notice only).

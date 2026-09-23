@@ -633,8 +633,8 @@ function ChatPageContent() {
                   </span>
                   {slowHint && (
                     <p className="text-xs text-[var(--muted)]">
-                      Still working — free-tier servers can take up to a minute on the first
-                      request after idle. Leaving this page is fine; the answer will save when ready.
+                      Still working — the advisor may be calling tools or waiting on Groq.
+                      Leaving this page is fine; the answer will save when ready.
                     </p>
                   )}
                 </div>
