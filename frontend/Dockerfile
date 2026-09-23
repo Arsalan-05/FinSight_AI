@@ -1,10 +1,8 @@
 FROM node:22-alpine AS builder
 
 WORKDIR /app
-
 RUN apk add --no-cache libc6-compat
 
-# Must be set as Railway service variables before build (baked into Next.js).
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ARG NEXT_PUBLIC_SUPABASE_URL=
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=
@@ -19,27 +17,22 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+# Full Next.js runtime (more reliable on Railway than standalone server.js)
 FROM node:22-alpine AS runner
 
 WORKDIR /app
-
 RUN apk add --no-cache libc6-compat
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
 
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
-
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
+COPY --from=builder /app/next.config.ts ./
 
 EXPOSE 3000
 
-# Railway sets PORT; Next standalone must bind 0.0.0.0 (not localhost).
-CMD ["sh", "-c", "if [ -f ./server.js ]; then exec node server.js; elif [ -f ./frontend/server.js ]; then exec node frontend/server.js; else echo 'ERROR: server.js missing'; ls -la; exit 1; fi"]
+# Must listen on 0.0.0.0 and Railway's $PORT (must match Networking → Port)
+CMD ["sh", "-c", "echo \"FinSight web starting on 0.0.0.0:${PORT:-3000}\" && exec npx next start -H 0.0.0.0 -p ${PORT:-3000}"]
