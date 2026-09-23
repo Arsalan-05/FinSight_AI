@@ -1,11 +1,9 @@
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
-
-# Set NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
-# on this service BEFORE the first successful build (they are baked in at build time).
+builder = "NIXPACKS"
+buildCommand = "npm ci && npm run build"
 
 [deploy]
+startCommand = "npm run start -- --hostname 0.0.0.0 --port $PORT"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
