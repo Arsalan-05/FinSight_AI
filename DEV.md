@@ -4,8 +4,8 @@
 
 | | Production | Local |
 |--|------------|-------|
-| App | `https://<frontend>.up.railway.app` | http://localhost:3000 |
-| API | `https://<api>.up.railway.app` | http://127.0.0.1:8000 |
+| App | https://finsightai-production-43d0.up.railway.app | http://localhost:3000 |
+| API | https://finsight-api-production-2aee.up.railway.app | http://127.0.0.1:8000 |
 | When | Daily use, demos | `git pull` → edit → test → push |
 
 Full reference: [DOCUMENTATION.md](./DOCUMENTATION.md)  
@@ -55,7 +55,7 @@ Set `GROQ_API_KEY`, `GROQ_MODEL`, and `VOYAGE_API_KEY` in `.env` (local) and on 
 git push origin main
 # Railway: both services auto-redeploy from GitHub (if connected)
 # Or: Dashboard → service → Redeploy
-curl https://<api>.up.railway.app/capabilities
+curl https://finsight-api-production-2aee.up.railway.app/capabilities
 ```
 
 **v1.5.1 backend paths:** `backend/agent/scope.py`, `backend/agent/llm.py` (`call_llm_plain`), `backend/agent/prompts.py`  

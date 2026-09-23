@@ -11,8 +11,8 @@
 | | **Production (primary)** | **Local (workshop)** |
 |--|--------------------------|----------------------|
 | **Use when** | Daily use, demos, portfolio, real data | Editing code, fixing bugs, running tests |
-| **Frontend** | `https://<frontend>.up.railway.app` | `http://localhost:3000` |
-| **Backend** | `https://<api>.up.railway.app` | `http://127.0.0.1:8000` |
+| **Frontend** | https://finsightai-production-43d0.up.railway.app | `http://localhost:3000` |
+| **Backend** | https://finsight-api-production-2aee.up.railway.app | `http://127.0.0.1:8000` |
 | **Database** | Supabase (always) | Supabase (hotspot) or Docker fallback |
 | **Chat** | Groq `llama-3.1-8b-instant` | Same Groq keys (Ollama only if keys missing) |
 | **Search** | Voyage `voyage-4-large` | Same Voyage keys |
@@ -26,26 +26,26 @@ You do **not** need local running to use FinSight. Start local only when you cha
 
 | Component | URL |
 |-----------|-----|
-| **Frontend** | `https://<frontend>.up.railway.app` (set after Railway deploy) |
-| **Backend API** | `https://<api>.up.railway.app` |
-| **Health check** | `curl https://<api>.up.railway.app/health/db` → `connected: true`, `schema_ready: true` |
+| **Frontend** | https://finsightai-production-43d0.up.railway.app |
+| **Backend API** | https://finsight-api-production-2aee.up.railway.app |
+| **Health check** | `curl https://finsight-api-production-2aee.up.railway.app/health/db` → `connected: true`, `schema_ready: true` |
 | **Database + Auth** | Supabase project `zibzsxwceivnziplciuq` |
 
 ### Required env (production)
 
-**Railway frontend:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (set **before** first build)
+**Railway frontend:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` (public app URL — not `0.0.0.0`), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (set **before** first build)
 
 **Railway API:** `DATABASE_URL` (session pooler port **5432**), `SUPABASE_URL`, `CORS_ORIGINS`, `BETA_ALLOWED_EMAILS`, `GROQ_API_KEY`, `GROQ_MODEL=llama-3.1-8b-instant`, `VOYAGE_API_KEY`, `LLM_PROVIDER=groq`, `EMBEDDING_PROVIDER=voyage`, `DATABASE_FALLBACK_ENABLED=false`
 
 **Supabase Auth redirect URLs** (must include wildcards):
 
 ```
-https://<frontend>.up.railway.app/**
+https://finsightai-production-43d0.up.railway.app/**
 http://localhost:3000/**
 http://127.0.0.1:3000/**
 ```
 
-Full guide: [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md)
+Full guide: [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md) · checklist: [infra/RAILWAY-CHECKLIST.md](./infra/RAILWAY-CHECKLIST.md)
 
 ---
 
@@ -937,7 +937,7 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 | **DB connection timeout** | Campus Wi-Fi blocks port 5432 | Use **hotspot**; session pooler `aws-*-us-east-2.pooler.supabase.com:5432` |
 | **DNS error on `db.*.supabase.co`** | Direct host blocked from cloud/local | Use session pooler URL on Railway `DATABASE_URL` |
 | **Google login fails** | Provider not enabled | Supabase → Auth → Providers → Google |
-| **Login redirect fails** | Redirect URL missing wildcard | Add `https://<frontend>.up.railway.app/**` and `http://localhost:3000/**` |
+| **Login redirect fails** | Redirect URL missing wildcard | Add `https://finsightai-production-43d0.up.railway.app/**` and `http://localhost:3000/**` |
 | **Chat no response** | Missing `GROQ_API_KEY` on Railway API | Set keys on Railway API service → Redeploy |
 | **Groq HTTP 429** | Free-tier TPM/RPM exceeded | Wait ~10s (auto-retry); use `llama-3.1-8b-instant`; optional Groq Developer + spend cap |
 | **Groq tool_use_failed** | Model emitted invalid tool XML | Fixed in v1.5.0 — redeploy latest `main` |
@@ -954,6 +954,7 @@ On every push to `main`: ruff, mypy, pytest, ESLint, `tsc --noEmit`.
 | **Advisor answers trivia** | No scope guard (pre-v1.5.1) | Redeploy — `finance_scope_refusal` blocks off-topic before Groq |
 | **Follow-up repeats same answer** | Context trim | Redeploy v1.5.1 — last 2 user turns kept + follow-up prompt rule |
 | **CORS error** | Wrong origin | Railway API `CORS_ORIGINS` must include frontend URL |
+| **Login lands on `0.0.0.0:3000`** | Auth callback used container bind address | Set `NEXT_PUBLIC_SITE_URL` to Railway app URL; redeploy frontend |
 
 ---
 
@@ -1016,8 +1017,8 @@ All engineering-MVP scope is shipped. Production host is **Railway** (frontend +
 
 | Check | Status |
 |-------|--------|
-| Railway frontend | ✅ `https://<frontend>.up.railway.app` |
-| Railway API | ✅ `https://<api>.up.railway.app` |
+| Railway frontend | ✅ https://finsightai-production-43d0.up.railway.app |
+| Railway API | ✅ https://finsight-api-production-2aee.up.railway.app |
 | Supabase DB + auth | ✅ `schema_ready: true` |
 | Google OAuth | ✅ |
 | Groq advisor (chat) | ✅ `llama-3.1-8b-instant` |
@@ -1025,7 +1026,7 @@ All engineering-MVP scope is shipped. Production host is **Railway** (frontend +
 | Invite-only beta | ✅ `BETA_ALLOWED_EMAILS` |
 | Shared chat history | ✅ Supabase |
 
-Verify: `curl https://<api>.up.railway.app/capabilities` → `chat_available: true`
+Verify: `curl https://finsight-api-production-2aee.up.railway.app/capabilities` → `chat_available: true`
 
 ### Local development (optional workshop)
 
@@ -1065,9 +1066,9 @@ Verify: `curl https://<api>.up.railway.app/capabilities` → `chat_available: tr
 ### Verification
 
 ```bash
-# Production health (replace with your Railway API domain)
-curl https://<api>.up.railway.app/health/db
-curl https://<api>.up.railway.app/capabilities
+# Production health
+curl https://finsight-api-production-2aee.up.railway.app/health/db
+curl https://finsight-api-production-2aee.up.railway.app/capabilities
 
 # Local (when developing)
 cd backend && uv run pytest -q          # 106+ passed
@@ -1079,9 +1080,8 @@ cd frontend && npm run lint && npm run type-check && npm run build
 | Guide | Stack | Cost |
 |-------|-------|------|
 | [infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md) | **Railway + Supabase** (production) | Railway subscription |
-| [infra/RAILWAY-CUTOVER.md](./infra/RAILWAY-CUTOVER.md) | Cutover checklist + env copy | — |
+| [infra/RAILWAY-CHECKLIST.md](./infra/RAILWAY-CHECKLIST.md) | Live URLs + env checklist | — |
 | [infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md) | GitHub → Railway end-to-end | Railway subscription |
-| [infra/DEPLOY-FREE.md](./infra/DEPLOY-FREE.md) | Legacy Vercel+Render notice only | — |
 
 ### Optional future (not required for v1.5)
 
@@ -1142,4 +1142,4 @@ User transaction data, chat history, and account information belong to each end 
 
 ---
 
-*Last updated: Railway-only production migration — FinSight AI v1.5.1*
+*Last updated: Railway-only production — FinSight AI v1.5.1*
