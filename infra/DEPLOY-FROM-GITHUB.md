@@ -57,6 +57,7 @@ Full detail: **[infra/railway/DEPLOY.md](./railway/DEPLOY.md)**
 | Variable | Value |
 |----------|--------|
 | `NEXT_PUBLIC_API_URL` | backend URL from Step 2 |
+| `NEXT_PUBLIC_SITE_URL` | this frontend’s public Railway URL |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 
@@ -112,8 +113,4 @@ curl https://finsight-api.up.railway.app/capabilities
 | DB + Auth | Supabase |
 | Optional marketing | GitHub Pages |
 
----
-
-## Retiring Vercel / Render
-
-After Railway is verified, delete old Vercel and Render projects so traffic and env keys are not split. See [DEPLOY-FREE.md](./DEPLOY-FREE.md) (legacy notice only).
+Live checklist with current domains: [RAILWAY-CHECKLIST.md](./RAILWAY-CHECKLIST.md)

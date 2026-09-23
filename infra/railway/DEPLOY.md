@@ -6,6 +6,13 @@
 User → Railway frontend (Next.js) → Railway API (FastAPI) → Supabase + Groq + Voyage
 ```
 
+**Live URLs**
+
+| Role | URL |
+|------|-----|
+| App | `https://finsightai-production-43d0.up.railway.app` |
+| API | `https://finsight-api-production-2aee.up.railway.app` |
+
 ## 1. Backend (`finsight-api`)
 
 1. [Railway](https://railway.app) → **New Project** → **Deploy from GitHub** → select `FinSight_AI`.
@@ -57,6 +64,7 @@ curl https://<api>.up.railway.app/capabilities
 | Variable | Value |
 |----------|--------|
 | `NEXT_PUBLIC_API_URL` | backend URL from step 1 (no trailing slash) |
+| `NEXT_PUBLIC_SITE_URL` | this frontend’s public Railway URL (no trailing slash) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 
@@ -80,14 +88,12 @@ Dashboard → **Authentication → URL Configuration**:
   - `http://localhost:3000/**` (local dev)
   - `http://127.0.0.1:3000/**` (local dev)
 
-Remove old Vercel URLs after cutover.
-
 ## 5. GitHub Pages landing (optional)
 
 Edit [`docs/config.js`](../../docs/config.js):
 
 ```js
-window.FINSIGHT_APP_URL = "https://<frontend>.up.railway.app";
+window.FINSIGHT_APP_URL = "https://finsightai-production-43d0.up.railway.app";
 ```
 
 ## 6. End-to-end checklist
@@ -97,7 +103,8 @@ window.FINSIGHT_APP_URL = "https://<frontend>.up.railway.app";
 - [ ] Dashboard loads accounts / transactions
 - [ ] Chat returns a finance answer
 - [ ] Search / reindex works (Voyage key on API)
-- [ ] After 24h stable: delete Vercel project + Render API service
+
+Env copy paste: [RAILWAY-CHECKLIST.md](../RAILWAY-CHECKLIST.md)
 
 ## 7. Invite-only beta
 

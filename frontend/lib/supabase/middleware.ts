@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getRequestOrigin } from "@/lib/auth-redirect";
+
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/privacy"];
 
 export async function updateSession(request: NextRequest) {
@@ -34,18 +36,16 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const origin = getRequestOrigin(request);
 
   if (!user && !isPublic) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
+    const loginUrl = new URL("/login", origin);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   if (user && pathname === "/login") {
-    const home = request.nextUrl.clone();
-    home.pathname = "/";
-    return NextResponse.redirect(home);
+    return NextResponse.redirect(new URL("/", origin));
   }
 
   return response;

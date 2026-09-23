@@ -11,8 +11,8 @@ Personal finance intelligence — transaction ingest, pgvector search, and a sta
 
 | Service | URL / role |
 |---------|------------|
-| **App (Railway)** | `https://<frontend>.up.railway.app` — set after deploy |
-| **API (Railway)** | `https://<api>.up.railway.app` — set after deploy |
+| **App (Railway)** | https://finsightai-production-43d0.up.railway.app |
+| **API (Railway)** | https://finsight-api-production-2aee.up.railway.app |
 | **Database + Auth** | Supabase (`zibzsxwceivnziplciuq`) |
 
 Invite-only beta · Google sign-in · dashboard, transactions, analytics, and **shared chat history** on Supabase.
@@ -96,7 +96,7 @@ Python · FastAPI · LangGraph · PostgreSQL · pgvector · Next.js · Supabase 
 |-----|---------|
 | **[DOCUMENTATION.md](./DOCUMENTATION.md)** | Full technical reference |
 | **[infra/railway/DEPLOY.md](./infra/railway/DEPLOY.md)** | Railway production deploy |
-| **[infra/RAILWAY-CUTOVER.md](./infra/RAILWAY-CUTOVER.md)** | Env checklist + retire Vercel/Render |
+| **[infra/RAILWAY-CHECKLIST.md](./infra/RAILWAY-CHECKLIST.md)** | Live URLs + env checklist |
 | **[infra/DEPLOY-FROM-GITHUB.md](./infra/DEPLOY-FROM-GITHUB.md)** | GitHub → Railway end-to-end |
 | **[DEV.md](./DEV.md)** | Developer notes |
 
