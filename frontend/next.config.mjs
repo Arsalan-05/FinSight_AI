@@ -1,12 +1,15 @@
-import type { NextConfig } from "next";
 import path from "path";
+import { fileURLToPath } from "url";
 import { loadEnvConfig } from "@next/env";
 
-// Monorepo: load repo-root .env when running `npm run dev` from frontend/
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Monorepo: load repo-root .env when running locally from frontend/
 loadEnvConfig(path.join(__dirname, ".."));
 
-const nextConfig: NextConfig = {
-  // Do NOT use output:"standalone" — Next 16 breaks `next start` with it on Railway.
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // No standalone — Railway uses `next start` reliably without it.
   devIndicators: false,
   async redirects() {
     return [
