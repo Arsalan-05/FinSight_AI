@@ -1,7 +1,8 @@
 import path from "path";
 import { fileURLToPath } from "url";
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
 
+const { loadEnvConfig } = nextEnv;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Monorepo: load repo-root .env when running locally from frontend/
