@@ -24,19 +24,15 @@ RUN apk add --no-cache libc6-compat
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# Required for Railway public networking (do not bind localhost only)
-ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
 
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
-
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/next.config.ts ./
 
-USER nextjs
+# Must match Railway Networking → Port (you have 3000 configured)
 EXPOSE 3000
 
-# Next 16: with output:"standalone", must use node server.js — NOT "next start"
-CMD ["sh", "-c", "echo \"FinSight web on ${HOSTNAME}:${PORT}\" && exec node server.js"]
+# Hardcode 3000 to match public domain port mapping (avoids PORT mismatch 502s)
+CMD ["sh", "-c", "echo 'FinSight starting on 0.0.0.0:3000' && exec npx next start -H 0.0.0.0 -p 3000"]
