@@ -165,32 +165,38 @@ export default function DashboardPage() {
   const [topCategories, setTopCategories] = useState<[string, number][]>([]);
 
   const fetchAll = useCallback(async (): Promise<DashboardPayload> => {
-    // Prefer single /dashboard payload; fall back to the old multi-call path
-    // that worked before if the new endpoint errors through the proxy.
+    // Use the classic multi-request Overview first — this is what worked before
+    // the /dashboard + /backend proxy changes. Prefer reliability over one round-trip.
     try {
-      const data = await api.getDashboard();
-      const cats: [string, number][] = data.top_categories.map((c) => [c.category, c.amount]);
-      return {
-        accounts: data.accounts,
-        recent: data.recent,
-        daily: data.daily,
-        dataError: null,
-        insightCards: data.insight_cards,
-        weeklyBrief: data.weekly_brief,
-        curSpend: data.kpis.cur_spend,
-        curIncome: data.kpis.cur_income,
-        netSavings: data.kpis.net_savings,
-        spendChange: data.kpis.spend_change_pct,
-        creditCount: data.kpis.credit_count,
-        topCategories: cats,
-      };
-    } catch {
+      return await loadDashboardLegacy();
+    } catch (legacyErr) {
       try {
-        return await loadDashboardLegacy();
-      } catch (err) {
-        const raw = err instanceof Error ? err.message : "Failed to load data";
+        const data = await api.getDashboard();
+        const cats: [string, number][] = data.top_categories.map((c) => [
+          c.category,
+          c.amount,
+        ]);
+        return {
+          accounts: data.accounts,
+          recent: data.recent,
+          daily: data.daily,
+          dataError: null,
+          insightCards: data.insight_cards,
+          weeklyBrief: data.weekly_brief,
+          curSpend: data.kpis.cur_spend,
+          curIncome: data.kpis.cur_income,
+          netSavings: data.kpis.net_savings,
+          spendChange: data.kpis.spend_change_pct,
+          creditCount: data.kpis.credit_count,
+          topCategories: cats,
+        };
+      } catch {
+        const raw =
+          legacyErr instanceof Error ? legacyErr.message : "Failed to load data";
         const msg = raw.replace(/^API \d+:\s*/i, "").slice(0, 220);
-        return emptyPayload(msg || "We couldn't load your finances right now. Please try again.");
+        return emptyPayload(
+          msg || "We couldn't load your finances right now. Please try again.",
+        );
       }
     }
   }, []);
