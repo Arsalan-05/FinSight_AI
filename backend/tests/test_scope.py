@@ -15,6 +15,12 @@ def test_allows_finance_questions() -> None:
     assert finance_scope_refusal("How much did I spend on dining last month?") is None
     assert finance_scope_refusal("What is my TFSA room?") is None
     assert finance_scope_refusal("Help me with this spend alert") is None
+    assert (
+        finance_scope_refusal(
+            "How do I plan savings for next month that I can save for an iphone"
+        )
+        is None
+    )
 
 
 def test_allows_finance_education() -> None:
