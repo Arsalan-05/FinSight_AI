@@ -166,3 +166,76 @@ class Notification(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class FxRate(Base):
+    """Bank of Canada (or cached) FX rate for a calendar day and pair (e.g. USDCAD)."""
+
+    __tablename__ = "fx_rates"
+
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    pair: Mapped[str] = mapped_column(String(16), primary_key=True)
+    rate: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=False, default="bank_of_canada")
+
+
+class LeakFinding(Base):
+    """Persisted money-leak finding from deterministic detectors."""
+
+    __tablename__ = "leak_findings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
+    # fx_markup | duplicate | fee | subscription_creep | forgotten_subscription
+    type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    amount_cad: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    evidence_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    # open | dismissed | resolved
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="open", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class MerchantAlias(Base):
+    """Maps noisy POS / processor merchant strings to a canonical name."""
+
+    __tablename__ = "merchant_aliases"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True, index=True
+    )
+    raw_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    canonical_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    source: Mapped[str] = mapped_column(String(50), nullable=False, default="normalize")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class AuditLog(Base):
+    """Append-only user-visible audit trail (tool calls, exports, deletes)."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
+    action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    resource_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    resource_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    detail_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class EvalRun(Base):
+    """Optional persisted eval run (file-based results remain primary for now)."""
+
+    __tablename__ = "eval_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    model: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    subset: Mapped[str] = mapped_column(String(50), nullable=False, default="smoke")
+    metrics_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    result_file: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
