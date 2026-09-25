@@ -155,6 +155,9 @@ async def _stream_reply(
             "content": result.reply,
             "citations": result.citations,
             "evidence": result.evidence,
+            "tier": result.tier,
+            "provider": result.provider,
+            "model": result.model,
         }
     )
 

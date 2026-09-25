@@ -622,6 +622,7 @@ function ChatPageContent() {
                     key={msg.id}
                     content={msg.content}
                     citations={msg.citations}
+                    modelLabel={msg.modelLabel}
                     streaming={displayLoading && msg.id === displayMessages[displayMessages.length - 1]?.id}
                     statusText={displayLoading && !msg.content ? displayAgentStatus : null}
                     onEvidenceClick={handleEvidenceClick}
@@ -729,12 +730,14 @@ function AgentBubble({
   citations,
   streaming,
   statusText,
+  modelLabel,
   onEvidenceClick,
 }: {
   content: string;
   citations?: TransactionCitation[];
   streaming?: boolean;
   statusText?: string | null;
+  modelLabel?: string;
   onEvidenceClick?: (evidenceId: string) => void;
 }) {
   return (
@@ -758,6 +761,11 @@ function AgentBubble({
             <FormatAgentText text={content} onEvidenceClick={onEvidenceClick} />
             {streaming && (
               <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[var(--accent)] align-middle" />
+            )}
+            {modelLabel && !streaming && (
+              <p className="mt-2 text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
+                {modelLabel}
+              </p>
             )}
             {citations && citations.length > 0 && (
               <div className="mt-4 border-t border-[var(--border)] pt-3">

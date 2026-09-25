@@ -35,6 +35,9 @@ class AgentResult:
     reply: str
     citations: list[dict[str, Any]] = field(default_factory=list)
     evidence: list[dict[str, Any]] = field(default_factory=list)
+    tier: str | None = None
+    provider: str | None = None
+    model: str | None = None
 
 
 def _last_ai_text(messages: list[BaseMessage]) -> str:
@@ -175,6 +178,13 @@ def run_agent(
     memory_summary = session.memory_summary or ""
     final_messages: list[BaseMessage] = messages
 
+    from agent.routing import resolve_chat_backend, route_chat_tier, tier_status_label
+
+    chat_tier = route_chat_tier(user_message)
+    chat_provider, chat_model = resolve_chat_backend(chat_tier)
+    if on_status:
+        on_status("thinking", tier_status_label(chat_tier, chat_provider, chat_model))
+
     try:
         store = EvidenceStore()
         graph = build_graph(
@@ -217,7 +227,14 @@ def run_agent(
         reply = _apply_numeric_guardrail(reply, tool_outputs)
         citations = _extract_citations(final_messages)
         evidence = store.list() or _build_evidence_from_tools(final_messages)
-        return AgentResult(reply=reply, citations=citations, evidence=evidence)
+        return AgentResult(
+            reply=reply,
+            citations=citations,
+            evidence=evidence,
+            tier=chat_tier,
+            provider=chat_provider,
+            model=chat_model,
+        )
     except Exception:
         # Persist the user turn even when the LLM fails (e.g. Ollama offline on Railway).
         save_session(db, session_id, final_messages, memory_summary, user_id=user_id)

@@ -22,8 +22,13 @@ def test_heavy_planning_routes_claude_tier() -> None:
     assert route_model(q) == "70b"
 
 
-def test_what_if_is_heavy() -> None:
-    assert route_chat_tier("What if I move to Waterloo and pay $1400 rent?") == "heavy"
+def test_spend_cutback_stays_basic() -> None:
+    """Common spend Q&A should stay on fast Llama, not Claude."""
+    assert route_chat_tier("Based on my spending, where should I cut back?") == "basic"
+
+
+def test_should_i_invest_is_heavy() -> None:
+    assert route_chat_tier("Should I invest more in my TFSA this year?") == "heavy"
 
 
 def test_leak_and_tax_are_heavy() -> None:

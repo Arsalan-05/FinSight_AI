@@ -140,6 +140,8 @@ export interface ChatMessage {
   content: string;
   citations?: TransactionCitation[];
   evidence?: EvidenceItem[];
+  /** Which model answered (from SSE done) — e.g. "Claude · claude-sonnet-4-6" */
+  modelLabel?: string;
 }
 
 export interface TransactionCitation {
@@ -186,6 +188,9 @@ export type ChatSSEEvent =
       content: string;
       citations?: TransactionCitation[];
       evidence?: EvidenceItem[];
+      tier?: string | null;
+      provider?: string | null;
+      model?: string | null;
     }
   | { type: "error"; message: string };
 
