@@ -33,11 +33,14 @@ Never commit project refs, service-role keys, or Plaid secrets. Prefer placehold
 ## Required env (frontend)
 
 ```
-NEXT_PUBLIC_API_URL=https://<api-host>
+NEXT_PUBLIC_API_URL=/backend
+API_PROXY_TARGET=https://<api-host>
 NEXT_PUBLIC_SITE_URL=https://<frontend-host>
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
+
+`NEXT_PUBLIC_API_URL=/backend` makes the browser call the **same website host** only. Next.js rewrites `/backend/*` to `API_PROXY_TARGET`. This avoids Safari/cross-origin failures when the API is on a different Railway hostname.
 
 ## Supabase Auth redirects
 
