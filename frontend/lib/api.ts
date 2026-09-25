@@ -10,13 +10,21 @@ import type {
   ChatSSEEvent,
   BootstrapResponse,
   CapabilitiesResponse,
+  EvalRunSummary,
   FinancialGoal,
+  ForecastRequest,
+  ForecastResult,
   BankConnection,
+  LeakDraft,
+  LeakFinding,
+  LeakSummary,
+  OsapPlanRequest,
   PlaidSyncResult,
   PlaidStatus,
   HealthResponse,
   DbHealthResponse,
   InsightsResponse,
+  RegisteredOptimizerRequest,
   SearchResponse,
   SearchStatusResponse,
   ReindexResponse,
@@ -30,9 +38,29 @@ import { authHeaders } from "./auth";
 import { getAccessTokenReady } from "./supabase/session";
 import { isSupabaseConfigured } from "./supabase/client";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(
+  /\/$/,
+  "",
+);
 
 const PUBLIC_PATHS = new Set(["/health", "/health/db", "/capabilities"]);
+
+function parseJsonBody<T>(text: string, path: string): T {
+  const trimmed = text.trimStart();
+  if (trimmed.startsWith("<") || trimmed.startsWith("<!")) {
+    throw new Error(
+      `API returned a web page for ${path}. NEXT_PUBLIC_API_URL must be the Railway API ` +
+        `(https://finsight-api-….up.railway.app), not the frontend. Currently: ${BASE || "(empty)"}`,
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `API returned non-JSON for ${path}. Check NEXT_PUBLIC_API_URL (currently: ${BASE || "(empty)"}).`,
+    );
+  }
+}
 
 async function buildHeaders(path: string, extra?: HeadersInit): Promise<HeadersInit> {
   const needsAuth = isSupabaseConfigured() && !PUBLIC_PATHS.has(path);
@@ -58,9 +86,9 @@ async function request<T>(
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
-    if (text.includes("Service Suspended") || text.trimStart().startsWith("<!DOCTYPE")) {
+    if (text.includes("Service Suspended") || text.trimStart().startsWith("<")) {
       throw new Error(
-        "API unavailable — the backend may be offline. Check the Railway API service and try again.",
+        "API unavailable — check Railway API service and that NEXT_PUBLIC_API_URL points at the API, not the frontend.",
       );
     }
     throw new Error(`API ${res.status}: ${text}`);
@@ -72,7 +100,7 @@ async function request<T>(
   if (!text) {
     return undefined as T;
   }
-  return JSON.parse(text) as T;
+  return parseJsonBody<T>(text, path);
 }
 
 async function requestWithRetry<T>(
@@ -387,6 +415,80 @@ export const api = {
       }
     }
   },
+
+  // ── Leaks ─────────────────────────────────────────────────────────────────
+
+  getLeaks: (rescan = true): Promise<LeakFinding[]> =>
+    request(`/leaks/?rescan=${rescan ? "true" : "false"}`),
+
+  getLeaksSummary: (): Promise<LeakSummary> => request("/leaks/summary"),
+
+  updateLeak: (
+    id: string,
+    data: { status?: string; still_using?: boolean },
+  ): Promise<LeakFinding> =>
+    request(`/leaks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  draftLeakAction: (
+    id: string,
+    kind?: string,
+  ): Promise<LeakDraft> =>
+    request(`/leaks/${id}/draft`, {
+      method: "POST",
+      body: JSON.stringify(kind ? { kind } : {}),
+    }),
+
+  // ── Planner & forecast ────────────────────────────────────────────────────
+
+  getPlannerRules: (year = 2026): Promise<Record<string, unknown>> =>
+    request(`/planner/rules?year=${year}`),
+
+  getPlannerYears: (): Promise<{ available_years: number[]; disclaimer?: string }> =>
+    request("/planner/years"),
+
+  runRegisteredOptimizer: (
+    data: RegisteredOptimizerRequest,
+  ): Promise<Record<string, unknown>> =>
+    request("/planner/registered", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  runOsapPlan: (data: OsapPlanRequest): Promise<Record<string, unknown>> =>
+    request("/planner/osap", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  runForecast: (data: ForecastRequest): Promise<ForecastResult> =>
+    request("/forecast", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getForecast: (params: ForecastRequest): Promise<ForecastResult> => {
+    const qs = new URLSearchParams();
+    qs.set("starting_balance", String(params.starting_balance));
+    qs.set("monthly_income_mean", String(params.monthly_income_mean));
+    qs.set("monthly_expense_mean", String(params.monthly_expense_mean));
+    if (params.monthly_income_std != null) {
+      qs.set("monthly_income_std", String(params.monthly_income_std));
+    }
+    if (params.monthly_expense_std != null) {
+      qs.set("monthly_expense_std", String(params.monthly_expense_std));
+    }
+    if (params.months != null) qs.set("months", String(params.months));
+    if (params.n_sims != null) qs.set("n_sims", String(params.n_sims));
+    if (params.seed != null) qs.set("seed", String(params.seed));
+    if (params.ruin_threshold != null) {
+      qs.set("ruin_threshold", String(params.ruin_threshold));
+    }
+    return request(`/forecast?${qs.toString()}`);
+  },
+
+  // ── Evals ─────────────────────────────────────────────────────────────────
+
+  getEvalRuns: (): Promise<EvalRunSummary[]> => request("/evals"),
 
   // ── Analytics helpers ─────────────────────────────────────────────────────
 

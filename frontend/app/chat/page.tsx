@@ -13,12 +13,13 @@ import {
   Target,
   Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { ChatHistorySidebar } from "@/components/chat/ChatHistorySidebar";
 import { FollowUpChips } from "@/components/chat/FollowUpChips";
 import { FormatAgentText } from "@/components/chat/formatAgentText";
+import { EvidenceDrawer } from "@/components/evidence/EvidenceDrawer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useChatStream } from "@/contexts/ChatStreamContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -35,7 +36,13 @@ import {
   saveSessionId,
   sessionMigrations,
 } from "@/lib/chat-stream-manager";
-import type { ChatMessage, ChatSessionSummary, FinancialGoal, TransactionCitation } from "@/lib/types";
+import type {
+  ChatMessage,
+  ChatSessionSummary,
+  EvidenceItem,
+  FinancialGoal,
+  TransactionCitation,
+} from "@/lib/types";
 
 const PROMPT_GROUPS = [
   {
@@ -121,6 +128,8 @@ function ChatPageContent() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -257,6 +266,26 @@ function ChatPageContent() {
   const displayLoading = managerState?.loading ?? loading;
   const displayAgentStatus = managerState?.agentStatus ?? agentStatus;
   const displayError = managerState?.error ?? error;
+
+  const evidenceById = useMemo(() => {
+    const map = new Map<string, EvidenceItem>();
+    for (const msg of displayMessages) {
+      for (const item of msg.evidence ?? []) {
+        map.set(item.id, item);
+      }
+    }
+    return map;
+  }, [displayMessages]);
+
+  const selectedEvidence = selectedEvidenceId
+    ? evidenceById.get(selectedEvidenceId) ?? null
+    : null;
+
+  const handleEvidenceClick = useCallback((evidenceId: string) => {
+    setSelectedEvidenceId(evidenceId);
+    setEvidenceOpen(true);
+  }, []);
+
   const lastAssistant = [...displayMessages].reverse().find((m) => m.role === "assistant");
   const followUpSuggestions =
     !displayLoading && lastAssistant?.content
@@ -595,6 +624,7 @@ function ChatPageContent() {
                     citations={msg.citations}
                     streaming={displayLoading && msg.id === displayMessages[displayMessages.length - 1]?.id}
                     statusText={displayLoading && !msg.content ? displayAgentStatus : null}
+                    onEvidenceClick={handleEvidenceClick}
                   />
                 ),
               )}
@@ -675,6 +705,13 @@ function ChatPageContent() {
           </div>
         </div>
       </div>
+
+      <EvidenceDrawer
+        open={evidenceOpen}
+        evidenceId={selectedEvidenceId}
+        evidence={selectedEvidence}
+        onClose={() => setEvidenceOpen(false)}
+      />
     </div>
   );
 }
@@ -692,11 +729,13 @@ function AgentBubble({
   citations,
   streaming,
   statusText,
+  onEvidenceClick,
 }: {
   content: string;
   citations?: TransactionCitation[];
   streaming?: boolean;
   statusText?: string | null;
+  onEvidenceClick?: (evidenceId: string) => void;
 }) {
   return (
     <div className="flex items-start gap-3">
@@ -716,7 +755,7 @@ function AgentBubble({
           </div>
         ) : (
           <>
-            <FormatAgentText text={content} />
+            <FormatAgentText text={content} onEvidenceClick={onEvidenceClick} />
             {streaming && (
               <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[var(--accent)] align-middle" />
             )}

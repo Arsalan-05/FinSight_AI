@@ -139,6 +139,7 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   citations?: TransactionCitation[];
+  evidence?: EvidenceItem[];
 }
 
 export interface TransactionCitation {
@@ -149,6 +150,14 @@ export interface TransactionCitation {
   category?: string;
   merchant?: string | null;
   source?: string;
+}
+
+/** Tool-result evidence attached to agent replies (ev_N). */
+export interface EvidenceItem {
+  id: string;
+  tool: string;
+  params: Record<string, unknown>;
+  result: Record<string, unknown>;
 }
 
 export interface ChatSessionSummary {
@@ -171,8 +180,126 @@ export type ChatSSEEvent =
   | { type: "session"; session_id: string }
   | { type: "status"; phase: string; detail: string }
   | { type: "token"; content: string }
-  | { type: "done"; session_id: string; content: string; citations?: TransactionCitation[] }
+  | {
+      type: "done";
+      session_id: string;
+      content: string;
+      citations?: TransactionCitation[];
+      evidence?: EvidenceItem[];
+    }
   | { type: "error"; message: string };
+
+// ── Leaks / planner / forecast / evals ───────────────────────────────────────
+
+export interface LeakFinding {
+  id: string;
+  user_id: string;
+  type: string;
+  amount_cad: number;
+  evidence: Record<string, unknown>;
+  status: string;
+  title?: string | null;
+  message?: string | null;
+  created_at?: string | null;
+}
+
+export interface LeakSummary {
+  total_found_cad: number;
+  total_resolved_cad: number;
+  open_count: number;
+  open_amount_cad: number;
+}
+
+export interface LeakDraft {
+  kind: string;
+  finding_type: string;
+  subject: string;
+  body: string;
+  fields_used: Record<string, unknown>;
+}
+
+export interface RegisteredOptimizerRequest {
+  income: number;
+  age: number;
+  first_time_buyer?: boolean;
+  horizon?: number;
+  existing_room?: { tfsa?: number; rrsp?: number; fhsa?: number; fhsa_lifetime_contributed?: number };
+  annual_contribution?: number;
+  tax_year?: number;
+  growth_rate?: number;
+  income_growth?: number;
+}
+
+export interface OsapPlanRequest {
+  principal: number;
+  annual_rate?: number | null;
+  standard_years?: number | null;
+  accelerated_years?: number | null;
+  extra_monthly?: number;
+  tax_year?: number;
+}
+
+export interface ForecastRequest {
+  starting_balance: number;
+  monthly_income_mean: number;
+  monthly_income_std?: number;
+  monthly_expense_mean: number;
+  monthly_expense_std?: number;
+  months?: number;
+  n_sims?: number;
+  seed?: number | null;
+  ruin_threshold?: number;
+}
+
+export interface ForecastBand {
+  month: number;
+  p10: number;
+  p50: number;
+  p90: number;
+}
+
+export interface ForecastResult {
+  starting_balance: number;
+  months: number;
+  n_sims: number;
+  seed?: number | null;
+  ruin_threshold: number;
+  ending_balance: {
+    p10: number;
+    p50: number;
+    p90: number;
+    mean: number;
+    min: number;
+    max: number;
+  };
+  p_ruin: number;
+  ruin_count: number;
+  bands_by_month: ForecastBand[];
+  disclaimer?: string;
+  inputs?: Record<string, number>;
+}
+
+export interface EvalRunSummary {
+  id?: string;
+  model: string;
+  subset: string;
+  dry_run?: boolean;
+  timestamp: string;
+  n_questions: number;
+  answer_numeric_acc: number;
+  tool_exact_acc: number;
+  tool_partial_acc?: number;
+  hallucinated_number_rate: number;
+  refusal_acc: number;
+  retrieval?: {
+    "recall@5"?: number;
+    "recall@10"?: number;
+    mrr?: number;
+    "ndcg@10"?: number;
+  };
+  fixture_transaction_count?: number;
+  planted_leak_count?: number;
+}
 
 export interface InsightCard {
   id: string;

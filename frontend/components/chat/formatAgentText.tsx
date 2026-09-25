@@ -1,7 +1,15 @@
-/** Lightweight formatting for agent replies — paragraphs, bullets, bold. */
+/** Lightweight formatting for agent replies — paragraphs, bullets, bold, evidence chips. */
 import type { ReactNode } from "react";
 
-export function FormatAgentText({ text }: { text: string }) {
+import { splitEvidenceSegments } from "@/lib/evidence";
+
+export function FormatAgentText({
+  text,
+  onEvidenceClick,
+}: {
+  text: string;
+  onEvidenceClick?: (evidenceId: string) => void;
+}) {
   const blocks = text.split(/\n\n+/);
 
   return (
@@ -16,7 +24,7 @@ export function FormatAgentText({ text }: { text: string }) {
               {lines
                 .filter((l) => l.trim())
                 .map((line, j) => (
-                  <li key={j}>{formatInline(line.replace(/^[-•*]\s*/, ""))}</li>
+                  <li key={j}>{formatInline(line.replace(/^[-•*]\s*/, ""), onEvidenceClick)}</li>
                 ))}
             </ul>
           );
@@ -27,7 +35,7 @@ export function FormatAgentText({ text }: { text: string }) {
             {lines.map((line, j) => (
               <span key={j}>
                 {j > 0 && <br />}
-                {formatInline(line)}
+                {formatInline(line, onEvidenceClick)}
               </span>
             ))}
           </p>
@@ -37,7 +45,18 @@ export function FormatAgentText({ text }: { text: string }) {
   );
 }
 
-function formatInline(text: string): ReactNode {
+function formatInline(
+  text: string,
+  onEvidenceClick?: (evidenceId: string) => void,
+): ReactNode {
+  const withEvidence = splitEvidenceTags(text, onEvidenceClick);
+  return withEvidence.map((part, i) => {
+    if (typeof part !== "string") return <span key={i}>{part}</span>;
+    return <span key={i}>{formatBold(part)}</span>;
+  });
+}
+
+function formatBold(text: string): ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
@@ -45,4 +64,33 @@ function formatInline(text: string): ReactNode {
     }
     return part;
   });
+}
+
+function splitEvidenceTags(
+  text: string,
+  onEvidenceClick?: (evidenceId: string) => void,
+): Array<string | ReactNode> {
+  const segments = splitEvidenceSegments(text);
+  if (segments.length === 0) return [text];
+
+  const out: Array<string | ReactNode> = [];
+  for (const seg of segments) {
+    if (seg.type === "text") {
+      out.push(seg.value);
+      continue;
+    }
+    out.push(
+      <button
+        key={`${seg.evidenceId}-${seg.raw}`}
+        type="button"
+        className="evidence-chip"
+        onClick={() => onEvidenceClick?.(seg.evidenceId)}
+        title={`View evidence ${seg.evidenceId}`}
+      >
+        {`$${seg.amount}`}
+        <span className="evidence-chip-id">{seg.evidenceId}</span>
+      </button>,
+    );
+  }
+  return out.length > 0 ? out : [text];
 }
