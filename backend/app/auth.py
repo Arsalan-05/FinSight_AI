@@ -7,6 +7,7 @@ from typing import Any
 import jwt
 from fastapi import Depends, Header, HTTPException, status
 from jwt import PyJWKClient
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -39,6 +40,15 @@ def _jwks_client() -> PyJWKClient:
     return PyJWKClient(jwks_url, cache_keys=True)
 
 
+def _token_alg(token: str) -> str:
+    try:
+        header = jwt.get_unverified_header(token)
+    except jwt.PyJWTError:
+        return ""
+    alg = header.get("alg")
+    return str(alg) if alg else ""
+
+
 def _decode_supabase_token(token: str) -> dict[str, Any]:
     """Verify Supabase user JWTs — ES256 via JWKS (new) or HS256 via shared secret (legacy)."""
     if not settings.supabase_auth_enabled:
@@ -47,27 +57,38 @@ def _decode_supabase_token(token: str) -> dict[str, Any]:
             detail="Supabase auth is not configured on the server",
         )
 
+    alg = _token_alg(token)
     try:
-        if settings.supabase_jwt_secret:
+        # Prefer algorithm declared in the token. New Supabase projects use ES256
+        # even when a legacy JWT secret env var is still present on Railway.
+        if alg in {"ES256", "RS256"} or not settings.supabase_jwt_secret:
+            signing_key = _jwks_client().get_signing_key_from_jwt(token)
             return jwt.decode(
                 token,
-                settings.supabase_jwt_secret,
-                algorithms=["HS256"],
+                signing_key.key,
+                algorithms=["ES256", "RS256"],
                 audience="authenticated",
             )
 
-        signing_key = _jwks_client().get_signing_key_from_jwt(token)
         return jwt.decode(
             token,
-            signing_key.key,
-            algorithms=["ES256", "RS256"],
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
             audience="authenticated",
         )
     except jwt.PyJWTError as exc:
-        logger.debug("JWT validation failed: %s", exc)
+        logger.info("JWT validation failed (%s): %s", type(exc).__name__, exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
+        ) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("JWT validation crashed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Auth verification unavailable ({type(exc).__name__})",
         ) from exc
 
 
@@ -77,41 +98,67 @@ def _sync_user_from_claims(db: Session, claims: dict[str, Any]) -> User:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
 
     email = str(claims.get("email") or "")
-    metadata = claims.get("user_metadata") or {}
-    name = (
+    raw_meta = claims.get("user_metadata")
+    metadata = raw_meta if isinstance(raw_meta, dict) else {}
+    name = str(
         metadata.get("full_name")
         or metadata.get("name")
         or (email.split("@")[0] if email else "User")
     )
 
-    user = db.query(User).filter(User.auth_id == auth_id).first()
-    if user:
-        if email and user.email != email:
-            user.email = email
-        if name and user.name != name:
-            user.name = name
-            db.commit()
-            db.refresh(user)
-        _check_beta_access(email)
-        return user
-
-    if email:
-        existing = db.query(User).filter(User.email == email).first()
-        if existing:
-            existing.auth_id = auth_id
-            if name:
-                existing.name = name
-            db.commit()
-            db.refresh(existing)
+    try:
+        user = db.query(User).filter(User.auth_id == str(auth_id)).first()
+        if user:
+            dirty = False
+            if email and user.email != email:
+                user.email = email
+                dirty = True
+            if name and user.name != name:
+                user.name = name
+                dirty = True
+            if dirty:
+                db.commit()
+                db.refresh(user)
             _check_beta_access(email)
-            return existing
+            return user
 
-    _check_beta_access(email)
-    user = User(auth_id=auth_id, email=email or f"{auth_id}@supabase.local", name=name)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+        if email:
+            existing = db.query(User).filter(User.email == email).first()
+            if existing:
+                existing.auth_id = str(auth_id)
+                if name:
+                    existing.name = name
+                db.commit()
+                db.refresh(existing)
+                _check_beta_access(email)
+                return existing
+
+        _check_beta_access(email)
+        user = User(
+            auth_id=str(auth_id),
+            email=email or f"{auth_id}@supabase.local",
+            name=name,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("User sync DB error")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database error during auth ({type(exc).__name__})",
+        ) from exc
+    except Exception as exc:
+        logger.exception("User sync crashed")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Auth sync failed ({type(exc).__name__})",
+        ) from exc
 
 
 def get_current_user(

@@ -39,11 +39,6 @@ class Settings(BaseSettings):
     ollama_num_predict: int = 1536
     ollama_keep_alive: str = "30m"
 
-    # When true, forces local Ollama for chat (no Groq/Anthropic cloud LLM).
-    # Set PRIVACY_MODE=true for air-gapped / PIPEDA-sensitive demos.
-    privacy_mode: bool = False
-
-
     database_url: str = "postgresql://finsight:finsight@localhost:5432/finsight"
     pgvector_collection: str = "transaction_embeddings"
     environment: str = "development"
@@ -91,6 +86,7 @@ class Settings(BaseSettings):
     plaid_webhook_secret: str = ""
 
     # When true, force local Ollama for chat (no third-party LLM). See docs/security.md.
+    # Set PRIVACY_MODE=true for air-gapped / PIPEDA-sensitive demos.
     privacy_mode: bool = False
 
     # Beta invite-only access (comma-separated emails; empty = open)
