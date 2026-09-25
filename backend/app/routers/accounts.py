@@ -31,7 +31,8 @@ def create_account(
     return account_to_out(db, account)
 
 
-@router.get("/", response_model=list[AccountOut])
+@router.get("/")
+@router.get("")
 def list_accounts(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
