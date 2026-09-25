@@ -9,9 +9,9 @@ import type { ChatMessage, ChatSessionSummary, EvidenceItem, TransactionCitation
 export const SESSION_KEY = "finsight_chat_session";
 const DRAFT_PREFIX = "finsight_chat_draft_";
 const DRAFT_MAX_AGE_MS = 30 * 60 * 1000;
-const STALL_MS = 12_000;
-const RECOVERY_INTERVAL_MS = 2_000;
-const MAX_RECOVERY_ATTEMPTS = 45;
+const STALL_MS = 90_000;
+const RECOVERY_INTERVAL_MS = 2_500;
+const MAX_RECOVERY_ATTEMPTS = 48;
 
 export type SessionChatState = {
   sessionId: string;
@@ -537,11 +537,16 @@ export async function sendChatMessage(
     const st = states.get(activeKey);
     if (!st?.loading) return;
     if (Date.now() - lastEventAt < STALL_MS) return;
+    // Stream still open — only try to hydrate a finished reply; do not mark failed yet.
+    if (activeSessionId && abortControllers.has(activeKey)) {
+      void tryFinishFromApi(activeSessionId, activeKey);
+      return;
+    }
     if (activeSessionId) {
       void tryFinishFromApi(activeSessionId, activeKey);
       ensureSessionRecovery(activeSessionId);
     }
-  }, 3000);
+  }, 4000);
 
   void (async () => {
     try {
