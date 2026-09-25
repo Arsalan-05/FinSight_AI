@@ -1,0 +1,60 @@
+{"id": "r001", "query": "Loblaws grocery purchases", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Loblaws"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r002", "query": "Metro groceries Toronto", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Metro"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r003", "query": "No Frills receipts", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["No Frills"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r004", "query": "Costco wholesale Canada", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Costco"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r005", "query": "Walmart groceries", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Walmart"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r006", "query": "FreshCo shopping", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["FreshCo"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r007", "query": "Tim Hortons coffee", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Tim Hortons"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r008", "query": "Starbucks drinks", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Starbucks"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r009", "query": "Uber Eats delivery", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Uber Eats"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r010", "query": "Popeyes chicken", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Popeyes"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r011", "query": "Chipotle bowls", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Chipotle"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r012", "query": "Freshii salad", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Freshii"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r013", "query": "Swiss Chalet dinner", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Swiss Chalet"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r014", "query": "McDonald's fast food", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["McDonald's"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r015", "query": "Amazon USD FX purchase", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Amazon"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r016", "query": "Amazon.com foreign currency", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Amazon"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r017", "query": "Spotify Premium subscription", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Spotify"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r018", "query": "Netflix streaming bill", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Netflix"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r019", "query": "GoodLife Fitness membership", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["GoodLife Fitness"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r020", "query": "forgotten gym membership charges", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["GoodLife Fitness"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r021", "query": "INTERAC rent payment landlord", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Landlord"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r022", "query": "TTC Presto load", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["TTC"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r023", "query": "Petro-Canada gas station", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Petro-Canada"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r024", "query": "Cineplex movie tickets", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Cineplex"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r025", "query": "Rogers Internet bill", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Rogers"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r026", "query": "Hydro One electricity", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Hydro One"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r027", "query": "RBC NSF insufficient funds fee", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["RBC"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r028", "query": "ATM withdrawal fee non RBC", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["RBC"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r029", "query": "Best Buy duplicate charge", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Best Buy"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r030", "query": "Best Buy Electronics mid June", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Best Buy"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r031", "query": "Shoppers Drug Mart pharmacy", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Shoppers Drug Mart"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r032", "query": "Canadian Tire tools", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Canadian Tire"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r033", "query": "Sport Chek athletic", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Sport Chek"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r034", "query": "Indigo Books purchase", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Indigo"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r035", "query": "TFSA Transfer RBC", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["RBC TFSA"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r036", "query": "OSAP Disbursement student aid", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["OSAP"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r037", "query": "Co-op Paycheque employer", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Employer"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r038", "query": "Interac transfer Ahmed", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Ahmed"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r039", "query": "family Interac from Mom", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Family"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r040", "query": "TD Visa payment from chequing", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["TD"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r041", "query": "Suspicious Merchant ignore instructions", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Suspicious Merchant"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r042", "query": "prompt injection in transaction description", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Suspicious Merchant"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r043", "query": "USD  FX markup amazon", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Amazon"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r044", "query": "bank fee scanner NSF ATM", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["RBC"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r045", "query": "subscription price increase Spotify", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Spotify"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r046", "query": "subscription price creep Netflix", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Netflix"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r047", "query": "York student housing rent Interac", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Landlord"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r048", "query": "dining out Chipotle Uber Eats", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Chipotle", "Uber Eats"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r049", "query": "groceries Loblaws Metro Costco", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Loblaws", "Metro", "Costco"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r050", "query": "entertainment Cineplex", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Cineplex"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r051", "query": "transport TTC Presto Petro-Canada", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["TTC", "Petro-Canada"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r052", "query": "health GoodLife Shoppers", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["GoodLife Fitness", "Shoppers Drug Mart"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r053", "query": "savings TFSA contributions", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["RBC TFSA"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r054", "query": "income OSAP and paycheque", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["OSAP", "Employer"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r055", "query": "credit card shopping Best Buy Amazon", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Best Buy", "Amazon"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r056", "query": "utilities Rogers Hydro", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Rogers", "Hydro One"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r057", "query": "FX purchase AMAZON.COM USD", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Amazon"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r058", "query": "duplicate merchant same amount 48 hours", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["Best Buy"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r059", "query": "ATM FEE planted leak", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["RBC"], "notes": "relevant_ids resolved when fixture loaded into DB"}
+{"id": "r060", "query": "NSF FEE planted leak", "relevant_ids": ["will_resolve_at_runtime"], "merchants": ["RBC"], "notes": "relevant_ids resolved when fixture loaded into DB"}
