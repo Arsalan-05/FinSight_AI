@@ -205,7 +205,7 @@ export const api = {
     if (params?.limit !== undefined) qs.set("limit", String(params.limit));
     if (params?.offset !== undefined) qs.set("offset", String(params.offset));
     const q = qs.toString();
-    return request(`/transactions/${q ? `?${q}` : ""}`);
+    return request(q ? `/transactions/?${q}` : "/transactions/");
   },
 
   createTransaction: (data: {
