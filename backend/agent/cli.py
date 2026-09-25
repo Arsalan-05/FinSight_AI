@@ -4,9 +4,10 @@ Usage:
     uv run python -m agent.cli "How much did I spend on dining?"
     uv run python -m agent.cli --session my-session "What about last month?"
 
-Requires Groq (free, same as Railway) + Voyage (free search, same as Railway):
-    GROQ_API_KEY=...   # console.groq.com
-    VOYAGE_API_KEY=... # dash.voyageai.com (200M free tokens)
+Requires Groq (basic) + optional Anthropic (heavy) + Voyage:
+    GROQ_API_KEY=...        # console.groq.com — Llama basic tier
+    ANTHROPIC_API_KEY=...   # console.anthropic.com — Claude heavy tier (optional)
+    VOYAGE_API_KEY=...      # dash.voyageai.com (200M free tokens)
 """
 
 from __future__ import annotations

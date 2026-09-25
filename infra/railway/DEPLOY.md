@@ -3,7 +3,7 @@
 **Production is Railway-only:** two services from this monorepo + Supabase for DB/auth.
 
 ```
-User → Railway frontend (Next.js) → Railway API (FastAPI) → Supabase + Groq + Voyage
+User → Railway frontend (Next.js) → Railway API (FastAPI) → Supabase + Groq + Claude + Voyage
 ```
 
 **Live URLs**
@@ -30,7 +30,11 @@ User → Railway frontend (Next.js) → Railway API (FastAPI) → Supabase + Gro
 | `DATABASE_FALLBACK_ENABLED` | `false` |
 | `LLM_PROVIDER` | `groq` |
 | `GROQ_API_KEY` | from [console.groq.com](https://console.groq.com) |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` (basic tier) |
+| `GROQ_HEAVY_MODEL` | `llama-3.3-70b-versatile` (heavy fallback without Claude) |
+| `LLM_ROUTING_ENABLED` | `true` |
+| `ANTHROPIC_API_KEY` | from [console.anthropic.com](https://console.anthropic.com) — Claude heavy tier |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` |
 | `EMBEDDING_PROVIDER` | `voyage` |
 | `VOYAGE_API_KEY` | from [dash.voyageai.com](https://dash.voyageai.com) |
 | `VOYAGE_MODEL` | `voyage-4-large` |

@@ -2,7 +2,7 @@
 
 ## 60-second pitch
 
-FinSight AI is a Canadian personal-finance agent that finds money you're losing — FX markups, duplicate charges, subscription creep, bank fees — and **proves every dollar** it shows. Deterministic Python engines do the math; the LLM only picks tools and explains. Evidence tags like `[[$412.30|ev_17]]` wire answers back to SQL/tool output, and a numeric guardrail rejects hallucinated amounts. Stack: FastAPI, LangGraph, Postgres/pgvector, Next.js, Groq, Voyage, Railway.
+FinSight AI is a Canadian personal-finance agent that finds money you're losing — FX markups, duplicate charges, subscription creep, bank fees — and **proves every dollar** it shows. Deterministic Python engines do the math; the LLM only picks tools and explains. Evidence tags like `[[$412.30|ev_17]]` wire answers back to SQL/tool output, and a numeric guardrail rejects hallucinated amounts. Stack: FastAPI, LangGraph, Postgres/pgvector, Next.js, Groq + Claude (tiered), Voyage, Railway.
 
 ## 5-minute deep dive
 
@@ -13,7 +13,7 @@ FinSight AI is a Canadian personal-finance agent that finds money you're losing 
 5. **Canadian planning** — TFSA/RRSP/FHSA rules YAML, OSAP, student tax helper, Monte Carlo forecast (seedable).
 6. **Trust & security** — RLS + app scoping, PII redaction, privacy mode (Ollama-only), audit log, PIPEDA export/delete.
 7. **Evals** — Frozen ~600-tx persona, golden set, CI smoke dry-run gate, metrics (hallucination rate, tool selection, NDCG).
-8. **Tradeoffs** — Groq 8B for free-tier rate limits over 70B; pgvector over Pinecone for residency/cost; no LLM arithmetic.
+8. **Tradeoffs** — Tiered LLMs: Groq 8B for fast spend Q&A; Claude Sonnet for planning/advice (Groq 70B if no Anthropic key); pgvector over Pinecone for residency/cost; no LLM arithmetic.
 
 ## Resume bullet templates
 
@@ -32,7 +32,8 @@ Replace `[N]`, `[X%]`, `[Y]` with measured metrics from [`docs/metrics.json`](./
 | Why not let the LLM calculate? | Non-deterministic; fails compliance/trust. AST-whitelisted `calculate` + engines only. |
 | Why pgvector? | Same DB as transactions; RLS; no sync lag; cost. See ADR 0001. |
 | Why LangGraph? | Explicit ReAct loop, tool cap, easier debugging than ad-hoc loops. ADR 0002. |
-| Fallback LLM? | Groq → Claude → Ollama (`resolve_llm_fallback`). |
+| Fallback LLM? | Heavy: Claude → Groq 70B; chain Groq → Claude → Ollama (`resolve_llm_fallback`). |
+| Model routing? | `route_chat_tier` → basic Llama / heavy Claude (ADR 0005). |
 | Demo offline? | `docker-compose.demo.yml` + optional host Ollama. |
 
 ## Links

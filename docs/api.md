@@ -19,9 +19,11 @@ Accounts, transactions, search, budgets, notifications, goals, insights — unch
 
 ## Chat
 
+Tiered LLM (ADR 0005): **basic** → Groq Llama 8B; **heavy** → Claude Sonnet when `ANTHROPIC_API_KEY` is set. See `GET /capabilities` → `ai.routing`.
+
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | `/chat` | SSE stream; citations + evidence in `done` event |
+| POST | `/chat` | SSE stream; citations + evidence in `done` event; status events show tier |
 | GET | `/chat/sessions` | History |
 | GET | `/chat/sessions/{id}` | Session detail (includes evidence when present) |
 

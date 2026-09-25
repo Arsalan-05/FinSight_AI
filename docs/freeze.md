@@ -28,7 +28,7 @@ Pin Railway / local to the tag or the commit SHA of the release. Prefer lockfile
 1. **No feature PRs** into `main` without an explicit unfreeze decision.
 2. **Allowed:** security patches, dependency CVEs (Dependabot), docs typos, broken-deploy hotfixes.
 3. **Evals gate stays on** in CI — do not delete the smoke dry-run step.
-4. **Model changes** only via config/env (Groq/Claude/Ollama fallback), not prompt rewrites that change money math.
+4. **Model changes** only via config/env (tiered Groq/Claude/Ollama), not prompt rewrites that change money math.
 5. **Schema:** new Alembic revisions only for critical fixes; document in CHANGELOG.
 
 ## Unfreeze

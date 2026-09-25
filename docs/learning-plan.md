@@ -65,7 +65,7 @@ Browser (Next.js)
 
 - [ ] You can answer “Why shouldn’t the LLM do the math?” in ≤20 seconds.
 - [ ] You can name the evidence tag format: `[[$412.30|ev_17]]`.
-- [ ] You know Groq 8B is default *because of free-tier rate limits*, not because it’s “smarter.”
+- [ ] You know **basic** turns use Groq Llama 8B *because of free-tier rate limits*, and **heavy** turns use Claude Sonnet when `ANTHROPIC_API_KEY` is set (ADR 0005).
 
 ---
 
@@ -286,7 +286,7 @@ This is the heart. Slow down.
 | `backend/agent/state.py` | TypedDict agent state |
 | `backend/agent/graph.py` | LangGraph ReAct: model ↔ tools, `MAX_TOOL_LOOPS = 6`, arg validation |
 | `backend/agent/runner.py` | Session load/save, profile, invoke graph, **numeric guardrail**, evidence list |
-| `backend/agent/llm.py`, `routing.py`, `prompts.py` | Provider fallback, 8B/70B routing (ADR 0005), system prompts |
+| `backend/agent/llm.py`, `routing.py`, `prompts.py` | Provider fallback, Llama basic / Claude heavy routing (ADR 0005), system prompts |
 | `backend/agent/memory.py`, `user_profile.py`, `goals.py`, `scope.py` | History, learned profile, goals, account scope |
 
 ### 7b — Tools
@@ -338,7 +338,8 @@ User message
 | What if the model invents $50? | Guardrail fails; amount stripped / not shown as verified |
 | Why `calculate` tool? | LLM must not free-form arithmetic; safe expression eval |
 | Privacy mode? | Forces Ollama; keeps chat off cloud LLM |
-| Fallback chain? | Groq → Claude → Ollama (`resolve_llm_fallback`) |
+| Fallback chain? | Heavy: Claude → Groq 70B; resolve_llm_fallback Groq → Claude → Ollama |
+| Model routing? | `route_chat_tier` basic Llama / heavy Claude |
 
 **Exit checkpoint**
 
@@ -423,7 +424,7 @@ Read each ADR and write a **4-line card** (Context / Decision / Alternative reje
 | 0002 | LangGraph vs ad-hoc loop |
 | 0003 | One embedding per transaction |
 | 0004 | Deterministic engines + LLM explainer |
-| 0005 | Model routing 8B / 70B |
+| 0005 | Model routing Llama basic / Claude heavy |
 | 0006 | Hybrid search + rerank |
 | 0007 | RLS + app scoping |
 | 0008 | Monte Carlo forecast |
@@ -461,7 +462,7 @@ Do this once with a friend or voice memos. No notes.
 6. **“How does search work?”** (RRF)
 7. **“How do you auth and isolate tenants?”**
 8. **“How do you know quality?”** (evals)
-9. **Tradeoff grill:** Why not LangChain agents alone? Why not Pinecone? Why not 70B always?
+9. **Tradeoff grill:** Why not LangChain agents alone? Why not Pinecone? Why not Claude always (cost)?
 10. **Failure modes:** Voyage down, Groq rate limit, empty demo user, tool loop spinning, bad CSV
 
 **Pass bar:** You pause to think, but you never say “I’d have to check what the AI generated.” Pointing to a file name is fine; reading the file mid-answer is not.

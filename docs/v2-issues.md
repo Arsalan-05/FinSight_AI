@@ -32,7 +32,7 @@ gh milestone create "v2.0" --description "FinSight AI provably excellent — the
 - [ ] Numeric guardrail
 - [ ] calculate tool (no eval)
 - [ ] Confidence / missing-data evals
-- [ ] Model routing 8B/70B
+- [ ] Model routing Llama basic / Claude heavy
 
 ## Phase 3 — Money-leak engine
 - [ ] FX markup + BoC rates

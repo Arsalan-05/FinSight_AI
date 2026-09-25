@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from agent.llm import chat_unavailable_message, llm_runtime_available
+from agent.routing import routing_manifest
 from agent.tools import get_tool_definitions
 from app.config import settings
 from db.base import DATABASE_URL
@@ -17,6 +18,7 @@ router = APIRouter(tags=["meta"])
 @router.get("/capabilities")
 def capabilities() -> dict[str, object]:
     tools = get_tool_definitions()
+    routing = routing_manifest()
     return {
         "product": "FinSight AI",
         "version": settings.app_version,
@@ -43,14 +45,7 @@ def capabilities() -> dict[str, object]:
             "anthropic_configured": bool(settings.anthropic_api_key),
             "anthropic_model": settings.anthropic_model,
             "llm_routing_enabled": settings.llm_routing_enabled,
-            "routing": {
-                "basic": "groq/" + settings.groq_model,
-                "heavy": (
-                    "anthropic/" + settings.anthropic_model
-                    if settings.anthropic_api_key
-                    else "groq/" + settings.groq_heavy_model
-                ),
-            },
+            "routing": routing,
             "search_via_voyage": settings.effective_embedding_provider == "voyage",
             "voyage_model": settings.voyage_model,
             "voyage_configured": settings.voyage_configured,

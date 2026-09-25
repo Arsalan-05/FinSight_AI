@@ -63,7 +63,7 @@ async def _stream_scoped_refusal(
     user_id: str | None,
     refusal: str,
 ) -> AsyncIterator[str]:
-    """Skip the agent for off-topic questions — instant reply, no Groq tokens."""
+    """Skip the agent for off-topic questions — instant reply, no Groq/Claude tokens."""
     _ensure_session_title(db, session_id, message, user_id)
     yield _sse({"type": "session", "session_id": session_id})
     session = load_session(db, session_id, user_id=user_id)

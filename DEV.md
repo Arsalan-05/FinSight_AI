@@ -42,12 +42,13 @@ docker compose up --build
 
 | Layer | Default | Fallback |
 |-------|---------|----------|
-| Chat | Groq `llama-3.1-8b-instant` (`GROQ_MODEL`) | Ollama `qwen2.5:7b` only if no `GROQ_API_KEY` (optional) |
-| Embeddings | Voyage `voyage-4-large` (1024-d) | Ollama `nomic-embed-text` (768-d) only if no `VOYAGE_API_KEY` (optional) |
+| Chat **basic** | Groq `llama-3.1-8b-instant` | Ollama `qwen2.5:7b` if no Groq key |
+| Chat **heavy** | Claude `claude-sonnet-4-6` (`ANTHROPIC_API_KEY`) | Groq `llama-3.3-70b-versatile`, then Ollama |
+| Embeddings | Voyage `voyage-4-large` (1024-d) | Ollama `nomic-embed-text` (768-d) if no Voyage key |
 
-Set `GROQ_API_KEY`, `GROQ_MODEL`, and `VOYAGE_API_KEY` in `.env` (local) and on the Railway **API** service. Frontend and Supabase do not need Groq/Voyage keys.
+Set `GROQ_API_KEY`, `LLM_ROUTING_ENABLED=true`, optional `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL`, and `VOYAGE_API_KEY` in `.env` (local) and on the Railway **API** service.
 
-**Why 8B not 70B:** Better free-tier rate limits for the advisor agent; sufficient for personal finance Q&A.
+**Why tiered:** Most questions stay on free Groq 8B (rate limits). Planning / advice / leaks / tax go to Claude for deeper reasoning (ADR 0005).
 
 ## Deploy after changes
 

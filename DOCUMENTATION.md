@@ -24,4 +24,5 @@ Canonical docs live under [`docs/`](./docs/). This file is a pointer so old link
 
 **License:** MIT — [LICENSE](./LICENSE). Redistribution is permitted under MIT terms; ownership remains with Arsalan Amir Ali.
 
-**Embeddings:** Voyage `vector(1024)` in production. Ollama is optional offline fallback (768-d), not a prerequisite.
+**Embeddings:** Voyage `vector(1024)` in production. Ollama is optional offline fallback (768-d), not a prerequisite.  
+**Chat LLMs:** Tiered — Groq Llama 8B (basic) + Claude Sonnet (heavy). See [ADR 0005](./docs/adr/0005-model-routing.md).
