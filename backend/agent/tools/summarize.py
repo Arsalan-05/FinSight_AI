@@ -14,23 +14,58 @@ def summarize_aggregate(result: dict[str, Any]) -> str:
         period_bits.append(str(filters["period"]))
     when = f" ({', '.join(period_bits)})" if period_bits else ""
 
+    coverage = result.get("data_coverage") or {}
+    all_span = coverage.get("all_transactions") or {}
+    cat_span = coverage.get("matching_category") or {}
+    coverage_hint = ""
+    if all_span.get("earliest") and all_span.get("latest"):
+        coverage_hint = (
+            f" Your imported data covers {all_span['earliest']} to {all_span['latest']}."
+        )
+    if cat and cat_span.get("earliest") and cat_span.get("latest"):
+        coverage_hint += (
+            f" For {cat}, activity exists from {cat_span['earliest']} "
+            f"to {cat_span['latest']}."
+        )
+
     if result.get("group_by") == "none":
         count = int(result.get("count", 0))
         total = float(result.get("total", 0))
         if count == 0:
             scope = f" for {cat}" if cat else ""
-            return f"No transactions found{scope}{when}."
+            msg = f"No transactions found{scope}{when}."
+            if result.get("broadened"):
+                msg += " Broader lookup also found nothing matching this filter."
+            elif coverage_hint:
+                msg += (
+                    coverage_hint
+                    + " Tell the user clearly: zero in the asked window, "
+                    "then offer the nearest month that has data "
+                    "(re-query with that month's dates or period=all)."
+                )
+            else:
+                msg += " No transactions are linked yet — ask them to upload or sync."
+            return msg
         amount = abs(total)
         scope = f" on {cat}" if cat else ""
+        broadened = ""
+        if result.get("broadened"):
+            broadened = (
+                " NOTE: Original window was empty; this total is from the "
+                "nearest month that has matching spend — explain that to the user."
+            )
         return (
             f"Found {count} transaction(s){scope}{when}. "
             f"Total spend: ${amount:.2f} (raw total {total:.2f})."
+            f"{broadened}"
         )
 
     groups = result.get("groups") or []
     if not groups:
-        return f"No spending groups found{when}."
-    # Sort by absolute spend descending for "top categories" readability
+        msg = f"No spending groups found{when}."
+        if coverage_hint:
+            msg += coverage_hint
+        return msg
     ranked = sorted(groups, key=lambda g: abs(float(g["total"])), reverse=True)
     lines = [f"Spending breakdown{when} (highest first):"]
     for g in ranked[:10]:
