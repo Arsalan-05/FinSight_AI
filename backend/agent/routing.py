@@ -27,7 +27,8 @@ _HEAVY_PATTERNS = (
     r"\bproject(?:ion|ed)?\b",
     r"\boptimiz(?:e|ation)\b",
     r"\bmulti[\s-]?step\b",
-    r"\bshould i\b",
+    # Narrow: bare "should I cut back?" stays on fast Llama; invest/compare → Claude
+    r"\bshould i (invest|contribute|open|switch|move|compare|prioriti[sz]e)\b",
     r"\btrade[\s-]?off\b",
     r"\badvise\b",
     r"\badvice\b",
@@ -144,10 +145,14 @@ def routing_manifest() -> dict[str, object]:
 
 
 def tier_status_label(tier: ChatTier, provider: str, model: str) -> str:
-    if tier == "heavy":
-        if provider == "anthropic":
-            return "Deeper discussion (Claude)"
-        return f"Deeper discussion ({model})"
+    """Human + machine-readable status so the UI shows which model is active."""
+    short = model.split("/")[-1]
     if provider == "anthropic":
-        return f"Quick answer (Claude · {model})"
-    return f"Quick answer ({model})"
+        name = f"Claude · {short}"
+    elif provider == "groq":
+        name = f"Llama · {short}"
+    else:
+        name = f"{provider} · {short}"
+    if tier == "heavy":
+        return f"Deeper discussion · {name}"
+    return f"Quick answer · {name}"

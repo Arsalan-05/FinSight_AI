@@ -524,7 +524,9 @@ export async function sendChatMessage(
   let activeSessionId = existingId;
   let statusIdx = 0;
   let lastEventAt = Date.now();
+  let gotLiveStatus = false;
   const fallbackTimer = setInterval(() => {
+    if (gotLiveStatus) return;
     statusIdx = (statusIdx + 1) % AGENT_STATUS.length;
     const st = states.get(activeKey);
     if (st?.loading) {
@@ -560,6 +562,7 @@ export async function sendChatMessage(
           }
           saveSessionId(activeSessionId);
         } else if (event.type === "status") {
+          gotLiveStatus = true;
           setState(activeKey, { agentStatus: event.detail || event.phase });
         } else if (event.type === "token") {
           reply += event.content;
@@ -579,13 +582,27 @@ export async function sendChatMessage(
           if (activeKey !== activeSessionId) {
             activeKey = migrateState(activeKey, activeSessionId);
           }
+          const modelHint =
+            event.provider && event.model
+              ? event.provider === "anthropic"
+                ? `Claude · ${event.model}`
+                : event.provider === "groq"
+                  ? `Llama · ${event.model}`
+                  : `${event.provider} · ${event.model}`
+              : null;
           const st = states.get(activeKey);
           if (st) {
             setState(activeKey, {
               sessionId: activeSessionId,
               messages: st.messages.map((m) =>
                 m.id === assistantId
-                  ? { ...m, content: reply, citations, evidence }
+                  ? {
+                      ...m,
+                      content: reply,
+                      citations,
+                      evidence,
+                      modelLabel: modelHint ?? undefined,
+                    }
                   : m,
               ),
               loading: false,

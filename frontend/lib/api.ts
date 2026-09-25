@@ -399,7 +399,7 @@ export const api = {
     signal?: AbortSignal,
   ): AsyncGenerator<ChatSSEEvent> {
     const token = await getAccessTokenReady();
-    const res = await fetch(`${BASE}/chat/`, {
+    const res = await fetch(`${BASE}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
