@@ -54,6 +54,7 @@ See [`docs/architecture.md`](./docs/architecture.md).
 | [Evals](./docs/evals.md) | Golden set, baselines, ablations |
 | [Security](./docs/security.md) | STRIDE + PIPEDA |
 | [Interview prep](./docs/interview-prep.md) | Pitch, deep dive, resume bullets |
+| [Learning plan](./docs/learning-plan.md) | Phase-by-phase mastery for interviews |
 | [E2E checklist](./docs/e2e-checklist.md) | 10 smoke flows |
 | [Freeze](./docs/freeze.md) | v2.0.0 maintenance mode |
 | [ADRs](./docs/adr/) | Architecture decisions (8) |
