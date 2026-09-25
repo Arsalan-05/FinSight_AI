@@ -30,8 +30,8 @@ User → Railway frontend (Next.js) → Railway API (FastAPI) → Supabase + Gro
 | `DATABASE_FALLBACK_ENABLED` | `false` |
 | `LLM_PROVIDER` | `groq` |
 | `GROQ_API_KEY` | from [console.groq.com](https://console.groq.com) |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` (basic tier) |
-| `GROQ_HEAVY_MODEL` | `llama-3.3-70b-versatile` (heavy fallback without Claude) |
+| `GROQ_MODEL` | `openai/gpt-oss-20b` (basic tier; Llama IDs retired Aug 2026) |
+| `GROQ_HEAVY_MODEL` | `openai/gpt-oss-120b` (heavy fallback without Claude) |
 | `LLM_ROUTING_ENABLED` | `true` |
 | `ANTHROPIC_API_KEY` | from [console.anthropic.com](https://console.anthropic.com) — Claude heavy tier |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` |

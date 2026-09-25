@@ -35,9 +35,9 @@ Run: `uv run python -m evals.run --model <id> --subset full`
 | Model | Role in product | Answer acc. | Tool exact | Halluc. $ rate | Refusal | Injection |
 |-------|-----------------|-------------|------------|----------------|---------|-----------|
 | Dry-run (fixture) | — | 1.00 | 1.00 | 0.133 | 1.00 | — |
-| Groq llama-3.1-8b | **basic** tier | — | — | — | — | — |
+| Groq gpt-oss-20b | **basic** tier | — | — | — | — | — |
 | Claude Sonnet (`claude-sonnet-4-6`) | **heavy** tier | — | — | — | — | — |
-| Groq llama-3.3-70b | heavy fallback (no Anthropic key) | — | — | — | — | — |
+| Groq gpt-oss-120b | heavy fallback (no Anthropic key) | — | — | — | — | — |
 | Ollama qwen2.5:7b | privacy / offline | — | — | — | — | — |
 
 *Dry-run scores fixture ground-truth helpers without an LLM. Live model rows fill after `evals.run --subset full`. CI fails if smoke accuracy drops >3 pts from baseline.*

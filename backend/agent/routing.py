@@ -150,7 +150,7 @@ def tier_status_label(tier: ChatTier, provider: str, model: str) -> str:
     if provider == "anthropic":
         name = f"Claude · {short}"
     elif provider == "groq":
-        name = f"Llama · {short}"
+        name = f"Groq · {short}"
     else:
         name = f"{provider} · {short}"
     if tier == "heavy":
