@@ -6,13 +6,14 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, cast
 
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
 from agent.guardrails.evidence import EvidenceStore, attach_evidence_ids_to_tool_result
 from agent.llm import call_llm
 from agent.prompts import tool_status_label
+from agent.routing import resolve_chat_backend, route_chat_tier, tier_status_label
 from agent.state import AgentState
 from agent.tools import execute_tool
 
@@ -97,11 +98,21 @@ def build_graph(
             on_status(phase, detail)
 
     def agent_node(state: AgentState) -> dict[str, list[AIMessage]]:
-        _emit("thinking", "Analyzing your question")
+        user_text = ""
+        for msg in reversed(state["messages"]):
+            if isinstance(msg, HumanMessage):
+                user_text = str(msg.content)
+                break
+        tier = route_chat_tier(user_text)
+        provider, model = resolve_chat_backend(tier)
+        _emit("thinking", tier_status_label(tier, provider, model))
         response = call_llm(
             state["messages"],
             state["memory_summary"],
             user_intelligence=state.get("user_intelligence", ""),
+            tier=tier,
+            provider=provider,
+            model=model,
         )
         return {"messages": [response]}
 
