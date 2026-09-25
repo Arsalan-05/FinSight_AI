@@ -36,7 +36,19 @@ def _jwks_client() -> PyJWKClient:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Supabase URL is not configured on the server",
         )
-    jwks_url = f"{settings.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+    from urllib.parse import urlparse
+
+    raw = settings.supabase_url.strip()
+    parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "SUPABASE_URL on the API service is invalid. "
+                "Set it to https://YOUR_PROJECT.supabase.co (no quotes)."
+            ),
+        )
+    jwks_url = f"{parsed.scheme}://{parsed.netloc}/auth/v1/.well-known/jwks.json"
     return PyJWKClient(jwks_url, cache_keys=True)
 
 

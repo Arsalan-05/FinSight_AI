@@ -161,26 +161,37 @@ def health_db() -> dict[str, object]:
 @app.get("/health/auth")
 def health_auth() -> dict[str, object]:
     """Report whether Supabase JWKS is reachable (no secrets, no user token)."""
+    import json
+    import urllib.error
     import urllib.request
+    from urllib.parse import urlparse
 
     configured = settings.supabase_auth_enabled
     jwks_ok = False
     jwks_error: Optional[str] = None
     jwks_keys = 0
-    if settings.supabase_url:
-        jwks_url = f"{settings.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
-        try:
-            with urllib.request.urlopen(jwks_url, timeout=8) as resp:
-                import json
-
-                payload = json.loads(resp.read().decode())
-                keys = payload.get("keys") or []
-                jwks_keys = len(keys) if isinstance(keys, list) else 0
-                jwks_ok = jwks_keys > 0
-        except Exception as exc:
-            jwks_error = exc.__class__.__name__
+    supabase_host: Optional[str] = None
+    raw = (settings.supabase_url or "").strip()
+    if raw:
+        parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+        supabase_host = parsed.netloc or None
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            jwks_error = "InvalidURL"
+        else:
+            jwks_url = f"{parsed.scheme}://{parsed.netloc}/auth/v1/.well-known/jwks.json"
+            try:
+                with urllib.request.urlopen(jwks_url, timeout=8) as resp:
+                    payload = json.loads(resp.read().decode())
+                    keys = payload.get("keys") or []
+                    jwks_keys = len(keys) if isinstance(keys, list) else 0
+                    jwks_ok = jwks_keys > 0
+            except urllib.error.HTTPError as exc:
+                jwks_error = f"HTTPError:{exc.code}"
+            except Exception as exc:
+                jwks_error = exc.__class__.__name__
     return {
         "supabase_auth_configured": configured,
+        "supabase_host": supabase_host,
         "jwt_secret_configured": bool(settings.supabase_jwt_secret),
         "jwks_ok": jwks_ok,
         "jwks_keys": jwks_keys,
