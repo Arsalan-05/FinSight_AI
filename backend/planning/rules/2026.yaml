@@ -1,0 +1,37 @@
+# Canadian registered-account and tax rules for calendar year 2026.
+# Educational estimates — verify with CRA My Account before contributing.
+year: 2026
+
+tfsa_limit: 7000
+rrsp_limit: 33810
+fhsa_limit: 8000
+fhsa_lifetime_cap: 40000
+
+# Federal brackets: each rate applies to income up to `up_to` (null = no upper bound).
+# Lowest federal rate 14% for 2026 (CRA).
+federal_tax_brackets:
+  - { up_to: 58523, rate: 0.14 }
+  - { up_to: 117045, rate: 0.205 }
+  - { up_to: 181440, rate: 0.26 }
+  - { up_to: 258482, rate: 0.29 }
+  - { up_to: null, rate: 0.33 }
+
+# Ontario brackets (simplified; excludes surtax / health premium).
+ontario_brackets:
+  - { up_to: 53891, rate: 0.0505 }
+  - { up_to: 107785, rate: 0.0915 }
+  - { up_to: 150000, rate: 0.1116 }
+  - { up_to: 220000, rate: 0.1216 }
+  - { up_to: null, rate: 0.1316 }
+
+# Illustrative OSAP / Canada Student Loan planner defaults.
+osap:
+  interest_rate: 0.055
+  standard_amortization_years: 9.5
+
+sources:
+  tfsa: "https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/tax-free-savings-account/contributing/before.html"
+  rrsp: "https://www.canada.ca/en/revenue-agency/services/tax/registered-plans-administrators/whats-new.html"
+  fhsa: "https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/first-home-savings-account.html"
+  federal_brackets: "https://www.canada.ca/en/revenue-agency/services/tax/individuals/tax-rates-brackets/current-year.html"
+  ontario_brackets: "https://www.canada.ca/en/revenue-agency/services/tax/individuals/tax-rates-brackets/current-year.html"
