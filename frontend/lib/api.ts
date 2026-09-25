@@ -90,12 +90,32 @@ async function request<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
+  // Avoid trailing-slash 308s through the /backend proxy (breaks auth headers).
+  const normalized =
+    path.length > 1 && path.endsWith("/") ? path.replace(/\/+$/, "") : path;
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, {
-      headers: await buildHeaders(path, init?.headers),
+    res = await fetch(`${BASE}${normalized}`, {
+      headers: await buildHeaders(normalized, init?.headers),
       ...init,
+      redirect: "manual",
     });
+    // If a proxy/framework still redirects, follow once same-origin without
+    // dropping the Authorization header (fetch would strip it on redirect).
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("Location");
+      if (loc) {
+        const nextUrl = loc.startsWith("http")
+          ? loc
+          : typeof window !== "undefined"
+            ? `${window.location.origin}${loc}`
+            : loc;
+        res = await fetch(nextUrl, {
+          headers: await buildHeaders(normalized, init?.headers),
+          ...init,
+        });
+      }
+    }
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
     // Safari: "Load failed" · Chrome: "Failed to fetch"
@@ -124,7 +144,7 @@ async function request<T>(
   if (!text) {
     return undefined as T;
   }
-  return parseJsonBody<T>(text, path);
+  return parseJsonBody<T>(text, normalized);
 }
 
 async function requestWithRetry<T>(
@@ -154,7 +174,7 @@ export const api = {
 
   capabilities: (): Promise<CapabilitiesResponse> => request("/capabilities"),
 
-  getDashboard: (): Promise<DashboardResponse> => request("/dashboard/"),
+  getDashboard: (): Promise<DashboardResponse> => request("/dashboard"),
 
   getMe: (): Promise<User> => request("/auth/me"),
 
