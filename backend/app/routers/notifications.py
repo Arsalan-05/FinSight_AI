@@ -27,6 +27,7 @@ def _prefs_out(user: User) -> AlertPreferencesOut:
     )
 
 
+@router.get("", response_model=list[NotificationOut])
 @router.get("/", response_model=list[NotificationOut])
 def list_notifications(
     db: Session = Depends(get_db),
