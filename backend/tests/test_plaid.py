@@ -112,6 +112,7 @@ def test_plaid_sync_modified_and_removed(db_session, monkeypatch):
         },
     )
     monkeypatch.setattr("integrations.plaid_sync._embed_transactions", lambda *_a, **_k: None)
+    monkeypatch.setattr("integrations.plaid_sync._reembed_transaction", lambda *_a, **_k: None)
     monkeypatch.setattr("notifications.alerts.check_budget_alerts", lambda *_a, **_k: [])
 
     result = sync_connection(db_session, conn)

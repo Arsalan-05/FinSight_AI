@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -27,7 +27,7 @@ def _seed(db_session) -> tuple[User, list[str]]:
     db_session.add(
         Transaction(
             account_id=acct.id,
-            transaction_date=date(2026, 5, 15),
+            transaction_date=date.today() - timedelta(days=30),
             description="Groceries",
             amount=-85.00,
             category="Groceries",

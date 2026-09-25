@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from db.models import Transaction
 from insights.recurring import detect_recurring_charges
@@ -10,11 +10,12 @@ from insights.tfsa import tfsa_contribution_status
 
 
 def _seed_txs(db_session, account_id: str):
+    today = date.today()
     for i in range(3):
         db_session.add(
             Transaction(
                 account_id=account_id,
-                transaction_date=date(2026, 2 + i, 12),
+                transaction_date=today - timedelta(days=30 * (i + 1)),
                 description="Spotify Premium",
                 amount=-11.99,
                 category="Subscriptions",
@@ -24,7 +25,7 @@ def _seed_txs(db_session, account_id: str):
     db_session.add(
         Transaction(
             account_id=account_id,
-            transaction_date=date(2026, 4, 1),
+            transaction_date=today - timedelta(days=10),
             description="TFSA Contribution",
             amount=500.0,
             category="Savings",
