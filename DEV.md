@@ -42,8 +42,8 @@ docker compose up --build
 
 | Layer | Default | Fallback |
 |-------|---------|----------|
-| Chat **basic** | Groq `llama-3.1-8b-instant` | Ollama `qwen2.5:7b` if no Groq key |
-| Chat **heavy** | Claude `claude-sonnet-4-6` (`ANTHROPIC_API_KEY`) | Groq `llama-3.3-70b-versatile`, then Ollama |
+| Chat **basic** | Groq `openai/gpt-oss-20b` | Ollama `qwen2.5:7b` if no Groq key |
+| Chat **heavy** | Claude `claude-sonnet-4-6` (`ANTHROPIC_API_KEY`) | Groq `openai/gpt-oss-120b`, then Ollama |
 | Embeddings | Voyage `voyage-4-large` (1024-d) | Ollama `nomic-embed-text` (768-d) if no Voyage key |
 
 Set `GROQ_API_KEY`, `LLM_ROUTING_ENABLED=true`, optional `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL`, and `VOYAGE_API_KEY` in `.env` (local) and on the Railway **API** service.

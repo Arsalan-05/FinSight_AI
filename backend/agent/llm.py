@@ -719,13 +719,38 @@ def call_llm(
         key = api_key or settings.groq_api_key
         if not key:
             raise ValueError("GROQ_API_KEY is required when LLM_PROVIDER=groq")
-        return _call_groq(
-            messages,
-            memory_summary,
-            key,
-            user_intelligence=user_intelligence,
-            model=resolved_model,
-        )
+        try:
+            return _call_groq(
+                messages,
+                memory_summary,
+                key,
+                user_intelligence=user_intelligence,
+                model=resolved_model,
+            )
+        except RuntimeError as exc:
+            # Retired model IDs / outages → Claude if configured
+            if settings.anthropic_api_key and (
+                "does not exist" in str(exc)
+                or "model_not_found" in str(exc).lower()
+                or " 404" in str(exc)
+                or " 429" in str(exc)
+                or " 500" in str(exc)
+                or " 502" in str(exc)
+                or " 503" in str(exc)
+            ):
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Groq failed (%s); falling back to Claude", exc
+                )
+                return _call_anthropic(
+                    messages,
+                    memory_summary,
+                    settings.anthropic_api_key,
+                    user_intelligence=user_intelligence,
+                    model=settings.anthropic_model,
+                )
+            raise
     return _call_ollama(messages, memory_summary, user_intelligence=user_intelligence)
 
 

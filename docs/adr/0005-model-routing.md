@@ -15,8 +15,8 @@ comparisons, and money-leak discussions need stronger reasoning.
 
 | Tier | When | Provider / model |
 |------|------|------------------|
-| **basic** | Spend totals, filters, short Q&A | Groq `llama-3.1-8b-instant` |
-| **heavy** | Planning, TFSA/RRSP/OSAP, what-if, advice, leaks, tax, long multi-question | **Claude** `claude-sonnet-4-6` when `ANTHROPIC_API_KEY` is set; else Groq `llama-3.3-70b-versatile` |
+| **basic** | Spend totals, filters, short Q&A | Groq `openai/gpt-oss-20b` |
+| **heavy** | Planning, TFSA/RRSP/OSAP, what-if, advice, leaks, tax, long multi-question | **Claude** `claude-sonnet-4-6` when `ANTHROPIC_API_KEY` is set; else Groq `openai/gpt-oss-120b` |
 
 `LLM_ROUTING_ENABLED=true` (default). `PRIVACY_MODE=true` forces Ollama for all tiers.
 

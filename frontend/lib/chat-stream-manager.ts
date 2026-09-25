@@ -624,31 +624,15 @@ export async function sendChatMessage(
         const st = states.get(activeKey);
         if (st) {
           const assistant = st.messages.find((m) => m.id === assistantId);
-          if (assistant?.content?.trim()) {
-            setState(activeKey, {
-              loading: false,
-              agentStatus: null,
-              error: msg,
-            });
-          } else if (activeSessionId) {
-            const finished = await tryFinishFromApi(activeSessionId, activeKey);
-            if (!finished) {
-              setState(activeKey, {
-                loading: true,
-                agentStatus: AGENT_STATUS[0],
-                error: null,
-                messages: st.messages.filter((m) => m.id !== assistantId),
-              });
-              ensureSessionRecovery(activeSessionId);
-            }
-          } else {
-            setState(activeKey, {
-              loading: false,
-              agentStatus: null,
-              error: msg,
-              messages: st.messages.filter((m) => m.id !== assistantId),
-            });
-          }
+          // Surface real API/agent errors — do not hide them behind stall recovery.
+          setState(activeKey, {
+            loading: false,
+            agentStatus: null,
+            error: msg,
+            messages: assistant?.content?.trim()
+              ? st.messages
+              : st.messages.filter((m) => m.id !== assistantId),
+          });
         }
       } else {
         setState(activeKey, { loading: false, agentStatus: null });
@@ -658,12 +642,13 @@ export async function sendChatMessage(
       clearInterval(stallTimer);
       abortControllers.delete(activeKey);
       const st = states.get(activeKey);
-      if (st?.loading && activeSessionId) {
+      // Only recover on clean disconnects (no error already set).
+      if (st?.loading && !st.error && activeSessionId) {
         const finished = await tryFinishFromApi(activeSessionId, activeKey);
         if (!finished) {
           ensureSessionRecovery(activeSessionId);
         }
-      } else if (st?.loading) {
+      } else if (st?.loading && !st.error) {
         setState(activeKey, {
           loading: false,
           agentStatus: null,

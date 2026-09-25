@@ -17,11 +17,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Unified advisor: Groq Llama (basic) + Claude (heavy) when keyed
+    # Groq free/dev chat (Llama IDs retired Aug 2026 — see console.groq.com/docs/deprecations)
     groq_api_key: str = ""
-    groq_model: str = "llama-3.1-8b-instant"
+    groq_model: str = "openai/gpt-oss-20b"
     # Used when heavy tier is selected but Anthropic key is missing
-    groq_heavy_model: str = "llama-3.3-70b-versatile"
+    groq_heavy_model: str = "openai/gpt-oss-120b"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-6"
     # basic (Llama) + heavy (Claude) routing for chat — see agent/routing.py / ADR 0005
