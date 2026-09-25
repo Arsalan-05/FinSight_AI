@@ -1,0 +1,23 @@
+{
+  "source": "offline_fallback",
+  "rates": [
+    {"date": "2025-01-02", "pair": "USDCAD", "rate": 1.4382},
+    {"date": "2025-01-02", "pair": "EURCAD", "rate": 1.4921},
+    {"date": "2025-01-02", "pair": "GBPCAD", "rate": 1.7985},
+    {"date": "2025-06-15", "pair": "USDCAD", "rate": 1.3650},
+    {"date": "2025-06-15", "pair": "EURCAD", "rate": 1.5600},
+    {"date": "2025-06-15", "pair": "GBPCAD", "rate": 1.8500},
+    {"date": "2026-01-15", "pair": "USDCAD", "rate": 1.4200},
+    {"date": "2026-01-15", "pair": "EURCAD", "rate": 1.5400},
+    {"date": "2026-01-15", "pair": "GBPCAD", "rate": 1.8200},
+    {"date": "2026-03-10", "pair": "USDCAD", "rate": 1.4100},
+    {"date": "2026-03-10", "pair": "EURCAD", "rate": 1.5350},
+    {"date": "2026-03-10", "pair": "GBPCAD", "rate": 1.8150},
+    {"date": "2026-06-01", "pair": "USDCAD", "rate": 1.3800},
+    {"date": "2026-06-01", "pair": "EURCAD", "rate": 1.5200},
+    {"date": "2026-06-01", "pair": "GBPCAD", "rate": 1.7900},
+    {"date": "2026-09-01", "pair": "USDCAD", "rate": 1.3650},
+    {"date": "2026-09-01", "pair": "EURCAD", "rate": 1.5100},
+    {"date": "2026-09-01", "pair": "GBPCAD", "rate": 1.7800}
+  ]
+}

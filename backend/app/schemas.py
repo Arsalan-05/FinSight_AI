@@ -196,3 +196,35 @@ class AlertPreferencesIn(BaseModel):
 class AlertPreferencesOut(BaseModel):
     spend_alerts: bool = True
     email_digest: bool = False
+
+
+# ── Leaks ─────────────────────────────────────────────────────────────────────
+
+
+class LeakFindingOut(BaseModel):
+    id: str
+    user_id: str
+    type: str
+    amount_cad: float
+    evidence: dict
+    status: str
+    title: str | None = None
+    message: str | None = None
+    created_at: str | None = None
+
+
+class LeakUpdate(BaseModel):
+    status: str | None = None  # open | dismissed | resolved
+    still_using: bool | None = None  # forgotten-subscription toggle
+
+
+class LeakDraftRequest(BaseModel):
+    kind: str | None = None  # cancellation | dispute | fee_reversal
+
+
+class LeakDraftOut(BaseModel):
+    kind: str
+    finding_type: str
+    subject: str
+    body: str
+    fields_used: dict
