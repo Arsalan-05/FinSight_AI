@@ -12,16 +12,21 @@ from app.config import settings
 from app.logging_config import configure_logging
 from app.middleware.api_key import ApiKeyMiddleware
 from app.middleware.request_id import RequestIdMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.routers import (
     accounts,
+    audit,
     auth,
     budgets,
     capabilities,
     chat,
+    evals_api,
     goals,
     insights,
     integrations,
+    leaks,
     notifications,
+    planner,
     search,
     transactions,
     users,
@@ -47,6 +52,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="FinSight AI", version=settings.app_version, lifespan=lifespan)
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -76,6 +82,10 @@ app.include_router(integrations.router)
 app.include_router(capabilities.router)
 app.include_router(budgets.router)
 app.include_router(notifications.router)
+app.include_router(planner.router)
+app.include_router(leaks.router)
+app.include_router(audit.router)
+app.include_router(evals_api.router)
 
 
 @app.get("/health")

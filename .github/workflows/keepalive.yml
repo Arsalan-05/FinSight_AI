@@ -1,0 +1,60 @@
+name: Keepalive
+
+on:
+  schedule:
+    - cron: "0 12 * * 1" # weekly Monday 12:00 UTC
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl production health
+        id: health
+        env:
+          HEALTH_URL: ${{ vars.FINSIGHT_HEALTH_URL }}
+        run: |
+          set +e
+          if [ -z "$HEALTH_URL" ]; then
+            echo "FINSIGHT_HEALTH_URL repo variable not set — skipping live check"
+            echo "http_status=skipped" >> "$GITHUB_OUTPUT"
+            echo "curl_exit=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          STATUS=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 30 "$HEALTH_URL")
+          EC=$?
+          echo "http_status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "curl_exit=$EC" >> "$GITHUB_OUTPUT"
+          if [ "$EC" -ne 0 ] || [ "$STATUS" != "200" ]; then
+            echo "Health check failed: curl_exit=$EC http=$STATUS"
+            cat /tmp/health.json || true
+            exit 1
+          fi
+          echo "Health OK ($STATUS)"
+          cat /tmp/health.json
+
+      - name: Open issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Keepalive: production health check failed"
+          BODY="Weekly keepalive failed on $(date -u +%Y-%m-%dT%H:%MZ).
+
+          - Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - HTTP status: ${{ steps.health.outputs.http_status }}
+          - Curl exit: ${{ steps.health.outputs.curl_exit }}
+
+          Confirm repository variable \`FINSIGHT_HEALTH_URL\` points at the live \`/health\` endpoint."
+
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues?state=open&per_page=50" \
+            --jq ".[] | select(.title == \"$TITLE\") | .number" | head -n1)
+          if [ -n "$EXISTING" ]; then
+            echo "Issue #$EXISTING already open — commenting"
+            gh api "repos/${{ github.repository }}/issues/$EXISTING/comments" \
+              -f body="$BODY"
+          else
+            gh api "repos/${{ github.repository }}/issues" \
+              -f title="$TITLE" \
+              -f body="$BODY"
+          fi
