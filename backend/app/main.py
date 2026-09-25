@@ -20,6 +20,7 @@ from app.routers import (
     budgets,
     capabilities,
     chat,
+    dashboard,
     evals_api,
     goals,
     insights,
@@ -71,6 +72,7 @@ if settings.finsight_api_key:
     app.add_middleware(ApiKeyMiddleware, api_key=settings.finsight_api_key)
 
 app.include_router(auth.router)
+app.include_router(dashboard.router)
 app.include_router(users.router)
 app.include_router(accounts.router)
 app.include_router(transactions.router)

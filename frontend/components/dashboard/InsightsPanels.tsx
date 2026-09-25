@@ -9,12 +9,23 @@ import { chatUrl } from "@/lib/chat-url";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import type { WeeklyBrief } from "@/lib/types";
 
-export function WeeklyBriefPanel({ stagger = 1 }: { stagger?: number }) {
+export function WeeklyBriefPanel({
+  stagger = 1,
+  initial,
+}: {
+  stagger?: number;
+  initial?: WeeklyBrief | null;
+}) {
   const authReady = useAuthReady();
-  const [brief, setBrief] = useState<WeeklyBrief | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [brief, setBrief] = useState<WeeklyBrief | null>(initial ?? null);
+  const [loading, setLoading] = useState(initial === undefined);
 
   useEffect(() => {
+    if (initial !== undefined) {
+      setBrief(initial);
+      setLoading(false);
+      return;
+    }
     if (!authReady) return;
     let active = true;
     api
@@ -31,7 +42,7 @@ export function WeeklyBriefPanel({ stagger = 1 }: { stagger?: number }) {
     return () => {
       active = false;
     };
-  }, [authReady]);
+  }, [authReady, initial]);
 
   if (!authReady || loading) {
     return <div className="panel h-40 shimmer rounded-2xl" />;
@@ -77,12 +88,23 @@ export function WeeklyBriefPanel({ stagger = 1 }: { stagger?: number }) {
   );
 }
 
-export function SpendAlertsPanel({ stagger = 2 }: { stagger?: number }) {
+export function SpendAlertsPanel({
+  stagger = 2,
+  initial,
+}: {
+  stagger?: number;
+  initial?: WeeklyBrief["alerts"] | null;
+}) {
   const authReady = useAuthReady();
-  const [alerts, setAlerts] = useState<WeeklyBrief["alerts"]>([]);
-  const [loading, setLoading] = useState(true);
+  const [alerts, setAlerts] = useState<WeeklyBrief["alerts"]>(initial ?? []);
+  const [loading, setLoading] = useState(initial === undefined);
 
   useEffect(() => {
+    if (initial !== undefined) {
+      setAlerts(initial ?? []);
+      setLoading(false);
+      return;
+    }
     if (!authReady) return;
     let active = true;
     api
@@ -99,7 +121,7 @@ export function SpendAlertsPanel({ stagger = 2 }: { stagger?: number }) {
     return () => {
       active = false;
     };
-  }, [authReady]);
+  }, [authReady, initial]);
 
   if (!authReady || loading || alerts.length === 0) return null;
 
@@ -132,11 +154,21 @@ export function SpendAlertsPanel({ stagger = 2 }: { stagger?: number }) {
   );
 }
 
-export function TfsaRoomCard({ stagger = 3 }: { stagger?: number }) {
+export function TfsaRoomCard({
+  stagger = 3,
+  initial,
+}: {
+  stagger?: number;
+  initial?: WeeklyBrief["tfsa"] | null;
+}) {
   const authReady = useAuthReady();
-  const [tfsa, setTfsa] = useState<WeeklyBrief["tfsa"] | null>(null);
+  const [tfsa, setTfsa] = useState<WeeklyBrief["tfsa"] | null>(initial ?? null);
 
   useEffect(() => {
+    if (initial !== undefined) {
+      setTfsa(initial);
+      return;
+    }
     if (!authReady) return;
     let active = true;
     api
@@ -148,7 +180,7 @@ export function TfsaRoomCard({ stagger = 3 }: { stagger?: number }) {
     return () => {
       active = false;
     };
-  }, [authReady]);
+  }, [authReady, initial]);
 
   if (!authReady || !tfsa) return null;
 
