@@ -2,7 +2,10 @@
 
 import {
   Bell,
+  Calculator,
   CreditCard,
+  Droplets,
+  FlaskConical,
   LayoutDashboard,
   LineChart,
   LogOut,
@@ -11,14 +14,16 @@ import {
   Search,
   Settings,
   Receipt,
+  TrendingUp,
   Users,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type CSSProperties } from "react";
+import { Suspense, useEffect, useState, type CSSProperties } from "react";
 
 import { LogoMark, LogoWordmark } from "@/components/brand/Logo";
+import { DemoBanner } from "@/components/DemoBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { NotificationBell } from "@/components/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -27,12 +32,16 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/analytics", label: "Analytics", icon: LineChart },
+  { href: "/leaks", label: "Leaks", icon: Droplets },
+  { href: "/planner", label: "Planner", icon: Calculator },
+  { href: "/forecast", label: "Forecast", icon: TrendingUp },
   { href: "/transactions", label: "Transactions", icon: CreditCard },
   { href: "/accounts", label: "Accounts", icon: Users },
   { href: "/subscriptions", label: "Subscriptions", icon: Receipt },
   { href: "/notifications", label: "Alerts", icon: Bell },
   { href: "/search", label: "Search", icon: Search },
   { href: "/chat", label: "Advisor", icon: MessageSquare },
+  { href: "/evals", label: "Evals", icon: FlaskConical },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -166,6 +175,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             pathname.startsWith("/chat") ? "px-4 md:px-6" : "px-4 md:px-8",
           ].join(" ")}
         >
+          <Suspense fallback={null}>
+            <DemoBanner />
+          </Suspense>
           {children}
         </main>
       </div>

@@ -4,7 +4,7 @@
  */
 
 import { api } from "@/lib/api";
-import type { ChatMessage, ChatSessionSummary, TransactionCitation } from "@/lib/types";
+import type { ChatMessage, ChatSessionSummary, EvidenceItem, TransactionCitation } from "@/lib/types";
 
 export const SESSION_KEY = "finsight_chat_session";
 const DRAFT_PREFIX = "finsight_chat_draft_";
@@ -507,7 +507,7 @@ export async function sendChatMessage(
     messages: [
       ...prior,
       userMsg,
-      { id: assistantId, role: "assistant", content: "", citations: [] },
+      { id: assistantId, role: "assistant", content: "", citations: [], evidence: [] },
     ],
     loading: true,
     agentStatus: AGENT_STATUS[0],
@@ -545,6 +545,7 @@ export async function sendChatMessage(
     try {
       let reply = "";
       let citations: TransactionCitation[] = [];
+      let evidence: EvidenceItem[] = [];
 
       for await (const event of api.chatStream(
         message,
@@ -573,6 +574,7 @@ export async function sendChatMessage(
         } else if (event.type === "done") {
           reply = event.content;
           citations = event.citations ?? [];
+          evidence = event.evidence ?? [];
           activeSessionId = event.session_id;
           if (activeKey !== activeSessionId) {
             activeKey = migrateState(activeKey, activeSessionId);
@@ -582,7 +584,9 @@ export async function sendChatMessage(
             setState(activeKey, {
               sessionId: activeSessionId,
               messages: st.messages.map((m) =>
-                m.id === assistantId ? { ...m, content: reply, citations } : m,
+                m.id === assistantId
+                  ? { ...m, content: reply, citations, evidence }
+                  : m,
               ),
               loading: false,
               agentStatus: null,
