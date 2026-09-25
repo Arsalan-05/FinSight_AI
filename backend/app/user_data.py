@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.csv_sanitize import sanitize_csv_cell
 from db.models import (
     Account,
     BankConnection,
@@ -37,8 +38,8 @@ def export_user_data(db: Session, user: User) -> dict[str, Any]:
     return {
         "user": {
             "id": user.id,
-            "email": user.email,
-            "name": user.name,
+            "email": sanitize_csv_cell(user.email),
+            "name": sanitize_csv_cell(user.name),
             "created_at": user.created_at.isoformat() if user.created_at else None,
         },
         "goals": json.loads(user.goals_json or "[]"),
@@ -48,8 +49,8 @@ def export_user_data(db: Session, user: User) -> dict[str, Any]:
         "accounts": [
             {
                 "id": a.id,
-                "name": a.name,
-                "institution": a.institution,
+                "name": sanitize_csv_cell(a.name),
+                "institution": sanitize_csv_cell(a.institution),
                 "account_type": a.account_type,
                 "plaid_account_id": a.plaid_account_id,
                 "created_at": a.created_at.isoformat() if a.created_at else None,
@@ -61,18 +62,18 @@ def export_user_data(db: Session, user: User) -> dict[str, Any]:
                 "id": t.id,
                 "account_id": t.account_id,
                 "transaction_date": t.transaction_date.isoformat(),
-                "description": t.description,
+                "description": sanitize_csv_cell(t.description),
                 "amount": float(t.amount),
-                "category": t.category,
-                "merchant": t.merchant,
-                "notes": t.notes,
+                "category": sanitize_csv_cell(t.category),
+                "merchant": sanitize_csv_cell(t.merchant) if t.merchant else None,
+                "notes": sanitize_csv_cell(t.notes) if t.notes else None,
             }
             for t in txs
         ],
         "bank_connections": [
             {
                 "id": c.id,
-                "institution_name": c.institution_name,
+                "institution_name": sanitize_csv_cell(c.institution_name),
                 "status": c.status,
                 "last_synced_at": c.last_synced_at.isoformat() if c.last_synced_at else None,
             }
@@ -81,7 +82,7 @@ def export_user_data(db: Session, user: User) -> dict[str, Any]:
         "budgets": [
             {
                 "id": b.id,
-                "category": b.category,
+                "category": sanitize_csv_cell(b.category),
                 "monthly_limit": float(b.monthly_limit),
             }
             for b in budgets
@@ -89,7 +90,7 @@ def export_user_data(db: Session, user: User) -> dict[str, Any]:
         "chat_sessions": [
             {
                 "id": s.id,
-                "title": s.title,
+                "title": sanitize_csv_cell(s.title),
                 "pinned": s.pinned,
                 "message_count": len(json.loads(s.messages_json or "[]")),
             }

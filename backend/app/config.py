@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     ollama_num_predict: int = 1536
     ollama_keep_alive: str = "30m"
 
+    # When true, forces local Ollama for chat (no Groq/Anthropic cloud LLM).
+    # Set PRIVACY_MODE=true for air-gapped / PIPEDA-sensitive demos.
+    privacy_mode: bool = False
+
+
     database_url: str = "postgresql://finsight:finsight@localhost:5432/finsight"
     pgvector_collection: str = "transaction_embeddings"
     environment: str = "development"
@@ -79,6 +84,9 @@ class Settings(BaseSettings):
     plaid_token_encryption_key: str = ""
     plaid_sync_interval_seconds: int = 14_400  # 4 hours
     plaid_webhook_secret: str = ""
+
+    # When true, force local Ollama for chat (no third-party LLM). See docs/security.md.
+    privacy_mode: bool = False
 
     # Beta invite-only access (comma-separated emails; empty = open)
     beta_allowed_emails: str = ""
@@ -169,7 +177,12 @@ class Settings(BaseSettings):
 
     @property
     def effective_llm_provider(self) -> str:
-        """Groq when key is set (same model local + Railway). Ollama fallback for offline dev."""
+        """Groq when key is set (same model local + Railway). Ollama fallback for offline dev.
+
+        ``privacy_mode=True`` always forces Ollama so no transaction text leaves the machine.
+        """
+        if self.privacy_mode:
+            return "ollama"
         provider = self.llm_provider.lower()
         if provider == "anthropic":
             return "anthropic"
