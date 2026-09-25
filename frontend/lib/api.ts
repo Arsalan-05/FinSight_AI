@@ -39,7 +39,16 @@ import { authHeaders } from "./auth";
 import { getAccessTokenReady } from "./supabase/session";
 import { isSupabaseConfigured } from "./supabase/client";
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(
+/**
+ * API base URL for browser fetches.
+ *
+ * Production (Railway): set NEXT_PUBLIC_API_URL=/backend so the browser only
+ * talks to the same origin as the website. Next.js rewrites /backend → API
+ * (API_PROXY_TARGET). That matches how single-service Railway apps feel fast/reliable.
+ *
+ * Local: NEXT_PUBLIC_API_URL=http://127.0.0.1:8000 (direct) or /backend with proxy.
+ */
+const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(
   /\/$/,
   "",
 );
@@ -50,8 +59,8 @@ function parseJsonBody<T>(text: string, path: string): T {
   const trimmed = text.trimStart();
   if (trimmed.startsWith("<") || trimmed.startsWith("<!")) {
     throw new Error(
-      `API returned a web page for ${path}. NEXT_PUBLIC_API_URL must be the Railway API ` +
-        `(https://finsight-api-….up.railway.app), not the frontend. Currently: ${BASE || "(empty)"}`,
+      `API returned a web page for ${path}. If using the proxy, set NEXT_PUBLIC_API_URL=/backend ` +
+        `and API_PROXY_TARGET to the Railway API URL. Currently BASE=${BASE || "(empty)"}`,
     );
   }
   try {
@@ -92,8 +101,9 @@ async function request<T>(
     // Safari: "Load failed" · Chrome: "Failed to fetch"
     if (/load failed|failed to fetch|networkerror|network request failed/i.test(raw)) {
       throw new Error(
-        "Could not reach the API. Check your network, that the Railway API is online, " +
-          `and that NEXT_PUBLIC_API_URL is set (currently: ${BASE || "(empty)"}).`,
+        "Could not reach the API through this site. On Railway, set NEXT_PUBLIC_API_URL=/backend " +
+          "and API_PROXY_TARGET to the API service URL, then redeploy the frontend. " +
+          `BASE=${BASE || "(empty)"}`,
       );
     }
     throw e instanceof Error ? e : new Error(raw || "Request failed");
