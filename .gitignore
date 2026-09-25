@@ -221,3 +221,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Eval run artifacts (keep directory via .gitkeep)
+backend/evals/results/*.json

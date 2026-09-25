@@ -42,8 +42,8 @@ docker compose up --build
 
 | Layer | Default | Fallback |
 |-------|---------|----------|
-| Chat | Groq `llama-3.1-8b-instant` (`GROQ_MODEL`) | Ollama `qwen2.5:7b` if no `GROQ_API_KEY` |
-| Embeddings | Voyage `voyage-4-large` | Ollama `nomic-embed-text` if no `VOYAGE_API_KEY` |
+| Chat | Groq `llama-3.1-8b-instant` (`GROQ_MODEL`) | Ollama `qwen2.5:7b` only if no `GROQ_API_KEY` (optional) |
+| Embeddings | Voyage `voyage-4-large` (1024-d) | Ollama `nomic-embed-text` (768-d) only if no `VOYAGE_API_KEY` (optional) |
 
 Set `GROQ_API_KEY`, `GROQ_MODEL`, and `VOYAGE_API_KEY` in `.env` (local) and on the Railway **API** service. Frontend and Supabase do not need Groq/Voyage keys.
 
