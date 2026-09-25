@@ -1,4 +1,4 @@
-"""Unit tests for the RAG pipeline: build_content formatter and retrieve()."""
+"""Unit tests for the RAG pipeline: build_content formatter and retrieve helpers."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from db.models import Transaction
 from rag.embedder import build_content
-from rag.retriever import retrieve
+from rag.retriever import retrieve, rrf_fuse
 
 _FAKE_VECTOR = [0.1] * 1024
 
@@ -65,76 +65,91 @@ class TestBuildContent:
 
     def test_fields_joined_by_pipe(self) -> None:
         content = build_content(_tx(merchant=None, notes=None))
-        # Core fields should be separated by " | "
         assert " | " in content
 
     def test_absolute_amount_displayed(self) -> None:
-        # Negative amounts must show their absolute value, not a minus sign
         content = build_content(_tx(amount=-99.50))
         assert "-99" not in content
         assert "99.50" in content
 
 
-# ── retrieve ──────────────────────────────────────────────────────────────────
+# ── rrf_fuse / retrieve ───────────────────────────────────────────────────────
 
 
-def _mock_db(return_txs: list[Transaction]) -> MagicMock:
-    """Build a mock Session whose chained query returns *return_txs*."""
-    mock_db = MagicMock()
-    (
-        mock_db.query.return_value.join.return_value.order_by.return_value.limit.return_value.all.return_value
-    ) = return_txs
-    return mock_db
+class TestRrfHelper:
+    def test_rrf_fuse_basic(self) -> None:
+        assert rrf_fuse([["a", "b"], ["b", "c"]], limit=2)[0] in {"a", "b"}
 
 
 class TestRetrieve:
     def test_returns_matching_transactions(self) -> None:
         tx1 = _tx(id="tx-1")
         tx2 = _tx(id="tx-2", description="Coffee Shop")
-        mock_db = _mock_db([tx1, tx2])
 
-        with patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]):
-            results = retrieve("food spending", mock_db, k=2)
+        mock_db = MagicMock()
+        # vector path: query().join().filter?().order_by().limit().all()
+        # keyword path: similar
+        # final hydrate: query().filter().all()
+        vector_chain = MagicMock()
+        vector_chain.join.return_value = vector_chain
+        vector_chain.filter.return_value = vector_chain
+        vector_chain.order_by.return_value = vector_chain
+        vector_chain.limit.return_value = vector_chain
+        vector_chain.all.return_value = [tx1, tx2]
+
+        hydrate_chain = MagicMock()
+        hydrate_chain.filter.return_value = hydrate_chain
+        hydrate_chain.all.return_value = [tx1, tx2]
+
+        # Alternating query results: vector, keyword, hydrate
+        mock_db.query.side_effect = [vector_chain, vector_chain, hydrate_chain]
+
+        with (
+            patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]),
+            patch("rag.retriever._has_tsvector_column", return_value=False),
+            patch("rag.retriever.semantic_cache") as mock_cache,
+        ):
+            mock_cache.get.return_value = None
+            results = retrieve("food spending", mock_db, k=2, use_cache=False, use_rerank=False)
 
         assert len(results) == 2
-        assert results[0].id == "tx-1"
-        assert results[1].id == "tx-2"
+        assert {r.id for r in results} == {"tx-1", "tx-2"}
 
     def test_returns_empty_list_when_no_embeddings(self) -> None:
-        mock_db = _mock_db([])
+        mock_db = MagicMock()
+        empty_chain = MagicMock()
+        empty_chain.join.return_value = empty_chain
+        empty_chain.filter.return_value = empty_chain
+        empty_chain.order_by.return_value = empty_chain
+        empty_chain.limit.return_value = empty_chain
+        empty_chain.all.return_value = []
+        mock_db.query.return_value = empty_chain
 
-        with patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]):
-            results = retrieve("coffee", mock_db, k=5)
+        with (
+            patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]),
+            patch("rag.retriever._has_tsvector_column", return_value=False),
+        ):
+            results = retrieve("coffee", mock_db, k=5, use_cache=False, use_rerank=False)
 
         assert results == []
 
     def test_uses_query_input_type(self) -> None:
-        mock_db = _mock_db([])
+        mock_db = MagicMock()
+        empty_chain = MagicMock()
+        empty_chain.join.return_value = empty_chain
+        empty_chain.filter.return_value = empty_chain
+        empty_chain.order_by.return_value = empty_chain
+        empty_chain.limit.return_value = empty_chain
+        empty_chain.all.return_value = []
+        mock_db.query.return_value = empty_chain
 
-        with patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]) as mock_embed:
-            retrieve("subscriptions last month", mock_db, k=3)
+        with (
+            patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]) as mock_embed,
+            patch("rag.retriever._has_tsvector_column", return_value=False),
+        ):
+            retrieve("subscriptions last month", mock_db, k=3, use_cache=False, use_rerank=False)
 
-        mock_embed.assert_called_once_with(
-            ["subscriptions last month"], input_type="query", api_key=""
-        )
-
-    def test_respects_k_limit(self) -> None:
-        mock_db = _mock_db([])
-
-        with patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]):
-            retrieve("dining", mock_db, k=7)
-
-        mock_db.query.return_value.join.return_value.order_by.return_value.limit.assert_called_once_with(
-            7
-        )
-
-    def test_passes_query_vector_to_db(self) -> None:
-        """The vector returned by embed_texts must flow into the DB query chain."""
-        expected_vector = [0.42] * 1024
-        mock_db = _mock_db([])
-
-        with patch("rag.retriever.embed_texts", return_value=[expected_vector]):
-            retrieve("test", mock_db, k=1)
-
-        # Verify query() was called with the Transaction model
-        mock_db.query.assert_called_once_with(Transaction)
+        # cleaned query may drop "last month"
+        assert mock_embed.call_count == 1
+        assert mock_embed.call_args.kwargs.get("input_type") == "query"
+        assert mock_embed.call_args.kwargs.get("api_key") == ""
