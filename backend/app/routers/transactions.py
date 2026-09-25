@@ -23,6 +23,9 @@ from app.scoping import assert_account_owned, scope_transactions
 from db.models import Transaction, TransactionEmbedding, User
 from ingest.bank_csv import detect_and_parse_csv, guess_merchant
 from ingest.interac import normalize_interac_transaction
+from ingest.jobs import enqueue, get_job
+from ingest.merchants import normalize_merchant
+from rag.cache import cache_user_key, semantic_cache
 from rag.embedder import build_content, embed_texts
 
 logger = logging.getLogger(__name__)
@@ -34,6 +37,57 @@ class CategoryRuleCreate(BaseModel):
     match: str = Field(default="merchant_contains")
     value: str = Field(..., min_length=1, max_length=200)
     category: str = Field(..., min_length=1, max_length=100)
+
+
+def _process_upload_rows(
+    rows: list[dict[str, Any]],
+    *,
+    account_id: str,
+    db: Session,
+    current_user: User | None,
+    parse_errors: list[str],
+    bank: str,
+) -> dict[str, object]:
+    created = 0
+    errors: list[str] = list(parse_errors)
+    created_txs: list[Transaction] = []
+
+    for i, row in enumerate(rows, start=2):
+        try:
+            desc, cat, merchant, notes = normalize_interac_transaction(
+                row["description"],
+                category=row.get("category", "Uncategorized"),
+                merchant=row.get("merchant"),
+                notes=row.get("notes"),
+            )
+            if not merchant:
+                merchant = guess_merchant(desc)
+            merchant = normalize_merchant(merchant) or merchant
+            if current_user:
+                cat = resolve_category(
+                    current_user,
+                    description=desc,
+                    merchant=merchant,
+                    default=cat,
+                )
+            tx = Transaction(
+                account_id=account_id,
+                transaction_date=row["date"],
+                description=desc,
+                amount=float(row["amount"]),
+                category=cat,
+                merchant=merchant,
+                notes=notes,
+            )
+            db.add(tx)
+            created_txs.append(tx)
+            created += 1
+        except Exception as exc:
+            errors.append(f"Row {i}: {exc}")
+
+    db.commit()
+    _embed_and_store(created_txs, db)
+    return {"created": created, "errors": errors, "bank_detected": bank}
 
 
 def _embed_and_store(txs: list[Transaction], db: Session) -> None:
@@ -87,6 +141,11 @@ def create_transaction(
 async def upload_csv(
     file: UploadFile,
     account_id: str = Query(..., description="Account to attach transactions to"),
+    async_mode: bool = Query(
+        False,
+        alias="async",
+        description="If true, queue ingest and return job_id immediately",
+    ),
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ) -> dict[str, object]:
@@ -109,46 +168,49 @@ async def upload_csv(
             detail=parse_errors[0] if parse_errors else "Unrecognized CSV format",
         )
 
-    created = 0
-    errors: list[str] = list(parse_errors)
-    created_txs: list[Transaction] = []
+    if async_mode:
+        # Snapshot primitives for the background thread (avoid request-scoped session).
+        from db.base import SessionLocal
 
-    for i, row in enumerate(rows, start=2):
-        try:
-            desc, cat, merchant, notes = normalize_interac_transaction(
-                row["description"],
-                category=row.get("category", "Uncategorized"),
-                merchant=row.get("merchant"),
-                notes=row.get("notes"),
-            )
-            if not merchant:
-                merchant = guess_merchant(desc)
-            if current_user:
-                cat = resolve_category(
-                    current_user,
-                    description=desc,
-                    merchant=merchant,
-                    default=cat,
+        user_id = current_user.id if current_user else None
+        rows_snapshot = list(rows)
+        errors_snapshot = list(parse_errors)
+        bank_id = bank
+
+        def _job() -> dict[str, object]:
+            session = SessionLocal()
+            try:
+                user = session.query(User).filter(User.id == user_id).first() if user_id else None
+                return _process_upload_rows(
+                    rows_snapshot,
+                    account_id=account_id,
+                    db=session,
+                    current_user=user,
+                    parse_errors=errors_snapshot,
+                    bank=bank_id,
                 )
-            tx = Transaction(
-                account_id=account_id,
-                transaction_date=row["date"],
-                description=desc,
-                amount=float(row["amount"]),
-                category=cat,
-                merchant=merchant,
-                notes=notes,
-            )
-            db.add(tx)
-            created_txs.append(tx)
-            created += 1
-        except Exception as exc:
-            errors.append(f"Row {i}: {exc}")
+            finally:
+                session.close()
 
-    db.commit()
-    _embed_and_store(created_txs, db)
-    return {"created": created, "errors": errors, "bank_detected": bank}
+        job_id = enqueue(_job, job_type="csv_upload")
+        return {"job_id": job_id, "status": "queued", "bank_detected": bank}
 
+    return _process_upload_rows(
+        rows,
+        account_id=account_id,
+        db=db,
+        current_user=current_user,
+        parse_errors=parse_errors,
+        bank=bank,
+    )
+
+
+@router.get("/upload/jobs/{job_id}")
+def upload_job_status(job_id: str) -> dict[str, object]:
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
 
 @router.get("/rules")
 def list_category_rules(user: User = Depends(get_current_user)) -> list[dict[str, Any]]:
@@ -245,11 +307,15 @@ def update_transaction(
     data = payload.model_dump(exclude_unset=True)
     if not data:
         return tx
+    notes_changed = "notes" in data and data["notes"] != tx.notes
     for key, value in data.items():
         setattr(tx, key, value)
     db.commit()
     db.refresh(tx)
     _embed_and_store([tx], db)
+    if notes_changed:
+        user_id = current_user.id if current_user else None
+        semantic_cache.invalidate(cache_user_key(user_id, [tx.account_id]))
     if current_user:
         from notifications.alerts import check_budget_alerts
 
