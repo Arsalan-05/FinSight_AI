@@ -26,6 +26,9 @@ const apiProxyTarget = (
 const nextConfig = {
   // No standalone — Railway uses `next start` reliably without it.
   devIndicators: false,
+  // Critical with /backend proxy: do NOT 308 /backend/foo/ → /backend/foo
+  // (that redirect drops Authorization and breaks Overview).
+  skipTrailingSlashRedirect: true,
   async redirects() {
     return [
       {

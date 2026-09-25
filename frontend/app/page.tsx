@@ -34,7 +34,118 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import type { Account, InsightCard, Transaction, WeeklyBrief } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
 import { useChartColors } from "@/lib/chart-theme";
-import { formatCurrency, formatDateShort } from "@/lib/utils";
+import { formatCurrency, formatDateShort, getCurrentMonthRange, getDateRange } from "@/lib/utils";
+
+type DashboardPayload = {
+  accounts: Account[];
+  recent: Transaction[];
+  daily: { day: string; spend: number }[];
+  dataError: string | null;
+  insightCards: InsightCard[];
+  weeklyBrief: WeeklyBrief | null;
+  curSpend: number;
+  curIncome: number;
+  netSavings: number;
+  spendChange: number | null;
+  creditCount: number;
+  topCategories: [string, number][];
+};
+
+function emptyPayload(error: string | null): DashboardPayload {
+  return {
+    accounts: [],
+    recent: [],
+    daily: [],
+    dataError: error,
+    insightCards: [],
+    weeklyBrief: null,
+    curSpend: 0,
+    curIncome: 0,
+    netSavings: 0,
+    spendChange: null,
+    creditCount: 0,
+    topCategories: [],
+  };
+}
+
+async function loadDashboardLegacy(): Promise<DashboardPayload> {
+  const { from: curFrom, to: curTo } = getCurrentMonthRange();
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  const prevFrom = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  const prevTo = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const thirtyRange = getDateRange(1);
+
+  const [accs, recentList, curList, prevList, thirtyList] = await Promise.all([
+    api.getAccounts(),
+    api.getTransactions({ limit: 10 }),
+    api.getTransactions({ date_from: curFrom, date_to: curTo, limit: 500 }),
+    api.getTransactions({ date_from: prevFrom, date_to: prevTo, limit: 500 }),
+    api.getAllTransactions(thirtyRange.from, thirtyRange.to),
+  ]);
+
+  let insightCards: InsightCard[] = [];
+  let weeklyBrief: WeeklyBrief | null = null;
+  if (accs.length > 0) {
+    try {
+      const insights = await api.getInsights();
+      insightCards = insights.insight_cards;
+    } catch {
+      /* optional */
+    }
+    try {
+      weeklyBrief = await api.getWeeklyBrief();
+    } catch {
+      /* optional */
+    }
+  }
+
+  const curSpend = curList.items
+    .filter((t) => t.amount < 0)
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
+  const curIncome = curList.items
+    .filter((t) => t.amount > 0)
+    .reduce((s, t) => s + t.amount, 0);
+  const prevSpend = prevList.items
+    .filter((t) => t.amount < 0)
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
+  const creditCount = curList.items.filter((t) => t.amount > 0).length;
+  const netSavings = curIncome - curSpend;
+  const spendChange = prevSpend > 0 ? ((curSpend - prevSpend) / prevSpend) * 100 : null;
+
+  const catMap: Record<string, number> = {};
+  for (const tx of curList.items) {
+    if (tx.amount < 0) catMap[tx.category] = (catMap[tx.category] ?? 0) + Math.abs(tx.amount);
+  }
+  const topCategories = Object.entries(catMap)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 6) as [string, number][];
+
+  const dayMap: Record<string, number> = {};
+  for (const tx of thirtyList) {
+    if (tx.amount < 0) {
+      dayMap[tx.transaction_date] = (dayMap[tx.transaction_date] ?? 0) + Math.abs(tx.amount);
+    }
+  }
+  const daily = Object.entries(dayMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, spend]) => ({ day: day.slice(5), spend }));
+
+  return {
+    accounts: accs,
+    recent: recentList.items,
+    daily,
+    dataError: null,
+    insightCards,
+    weeklyBrief,
+    curSpend,
+    curIncome,
+    netSavings,
+    spendChange,
+    creditCount,
+    topCategories,
+  };
+}
 
 export default function DashboardPage() {
   const chart = useChartColors();
@@ -53,7 +164,9 @@ export default function DashboardPage() {
   const [creditCount, setCreditCount] = useState(0);
   const [topCategories, setTopCategories] = useState<[string, number][]>([]);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (): Promise<DashboardPayload> => {
+    // Prefer single /dashboard payload; fall back to the old multi-call path
+    // that worked before if the new endpoint errors through the proxy.
     try {
       const data = await api.getDashboard();
       const cats: [string, number][] = data.top_categories.map((c) => [c.category, c.amount]);
@@ -61,7 +174,7 @@ export default function DashboardPage() {
         accounts: data.accounts,
         recent: data.recent,
         daily: data.daily,
-        dataError: null as string | null,
+        dataError: null,
         insightCards: data.insight_cards,
         weeklyBrief: data.weekly_brief,
         curSpend: data.kpis.cur_spend,
@@ -71,27 +184,18 @@ export default function DashboardPage() {
         creditCount: data.kpis.credit_count,
         topCategories: cats,
       };
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : "Failed to load data";
-      const msg = raw.replace(/^API \d+:\s*/i, "").slice(0, 220);
-      return {
-        accounts: [] as Account[],
-        recent: [] as Transaction[],
-        daily: [] as { day: string; spend: number }[],
-        dataError: msg || "We couldn't load your finances right now. Please try again.",
-        insightCards: [] as InsightCard[],
-        weeklyBrief: null as WeeklyBrief | null,
-        curSpend: 0,
-        curIncome: 0,
-        netSavings: 0,
-        spendChange: null as number | null,
-        creditCount: 0,
-        topCategories: [] as [string, number][],
-      };
+    } catch {
+      try {
+        return await loadDashboardLegacy();
+      } catch (err) {
+        const raw = err instanceof Error ? err.message : "Failed to load data";
+        const msg = raw.replace(/^API \d+:\s*/i, "").slice(0, 220);
+        return emptyPayload(msg || "We couldn't load your finances right now. Please try again.");
+      }
     }
   }, []);
 
-  const applyPayload = useCallback((payload: Awaited<ReturnType<typeof fetchAll>>) => {
+  const applyPayload = useCallback((payload: DashboardPayload) => {
     setDataError(payload.dataError);
     setAccounts(payload.accounts);
     setRecent(payload.recent);
