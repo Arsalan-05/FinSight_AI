@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from agent.goals import goals_summary_for_prompt
 from agent.graph import build_graph
+from agent.guardrails.evidence import EvidenceStore
+from agent.guardrails.numeric import strip_unverified, verify_numeric_grounding
 from agent.llm import llm_runtime_available, summarize_memory
 from agent.memory import load_messages, load_session, save_session
 from agent.user_profile import (
@@ -32,6 +34,7 @@ logger = logging.getLogger(__name__)
 class AgentResult:
     reply: str
     citations: list[dict[str, Any]] = field(default_factory=list)
+    evidence: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _last_ai_text(messages: list[BaseMessage]) -> str:
@@ -39,6 +42,44 @@ def _last_ai_text(messages: list[BaseMessage]) -> str:
         if isinstance(msg, AIMessage) and msg.content and not msg.tool_calls:
             return str(msg.content)
     return ""
+
+
+def _collect_tool_outputs(messages: list[BaseMessage]) -> list[str]:
+    return [str(msg.content) for msg in messages if isinstance(msg, ToolMessage)]
+
+
+def _build_evidence_from_tools(messages: list[BaseMessage]) -> list[dict[str, Any]]:
+    """Register each tool result and return the evidence list for AgentResult."""
+    store = EvidenceStore()
+    for msg in messages:
+        if not isinstance(msg, ToolMessage):
+            continue
+        raw = str(msg.content)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            data = {"raw": raw}
+        if not isinstance(data, dict):
+            data = {"value": data}
+        existing_id = data.get("evidence_id")
+        payload = {k: v for k, v in data.items() if k != "evidence_id"}
+        eid = existing_id if isinstance(existing_id, str) and existing_id.startswith("ev_") else None
+        store.register(msg.name or "tool", {}, payload, evidence_id=eid)
+    return store.list()
+
+
+def _apply_numeric_guardrail(reply: str, tool_outputs: list[str]) -> str:
+    """Verify amounts against tool outputs; strip unverified on failure."""
+    if not reply:
+        return reply
+    result = verify_numeric_grounding(reply, tool_outputs)
+    if result.ok:
+        return reply
+    logger.info(
+        "Numeric guardrail failed for %d amount(s); stripping unverified",
+        len(result.unverified),
+    )
+    return strip_unverified(reply, result.unverified)
 
 
 def _extract_citations(messages: list[BaseMessage]) -> list[dict[str, Any]]:
@@ -71,7 +112,7 @@ def _extract_citations(messages: list[BaseMessage]) -> list[dict[str, Any]]:
         elif msg.name == "get_financial_insights":
             for item in data.get("subscriptions", {}).get("items", []):
                 for tid in item.get("transaction_ids", []):
-                    if tid not in seen:
+                    if tid and tid not in seen:
                         seen.add(tid)
                         citations.append(
                             {
@@ -135,7 +176,13 @@ def run_agent(
     final_messages: list[BaseMessage] = messages
 
     try:
-        graph = build_graph(db, account_ids=account_ids, on_status=on_status)
+        store = EvidenceStore()
+        graph = build_graph(
+            db,
+            account_ids=account_ids,
+            on_status=on_status,
+            evidence_store=store,
+        )
         result = graph.invoke(
             {
                 "messages": messages,
@@ -143,7 +190,8 @@ def run_agent(
                 "user_intelligence": user_intelligence,
                 "session_id": session_id,
             },
-            config={"recursion_limit": 18},
+            # agent↔tools can alternate; cap tool rounds at MAX_TOOL_LOOPS (6) in graph.
+            config={"recursion_limit": 20},
         )
 
         final_messages = result["messages"]
@@ -165,8 +213,11 @@ def run_agent(
 
         save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
         reply = _last_ai_text(final_messages)
+        tool_outputs = _collect_tool_outputs(final_messages)
+        reply = _apply_numeric_guardrail(reply, tool_outputs)
         citations = _extract_citations(final_messages)
-        return AgentResult(reply=reply, citations=citations)
+        evidence = store.list() or _build_evidence_from_tools(final_messages)
+        return AgentResult(reply=reply, citations=citations, evidence=evidence)
     except Exception:
         # Persist the user turn even when the LLM fails (e.g. Ollama offline on Railway).
         save_session(db, session_id, final_messages, memory_summary, user_id=user_id)

@@ -11,6 +11,7 @@ _TOOL_LABELS: dict[str, str] = {
     "get_user_financial_profile": "Reviewing your spending patterns",
     "get_tfsa_status": "Checking TFSA contribution room",
     "get_cash_runway": "Estimating cash runway",
+    "calculate": "Checking the math",
     "search_web": "Searching the web for current information",
     "convert_currency": "Converting currency",
     "get_exchange_rates": "Fetching exchange rates",
@@ -59,6 +60,12 @@ def build_system_prompt(
         "- ALWAYS call a tool before stating any dollar amount, count, or trend from their data.",
         "- NEVER invent transaction figures — if tools return empty, say so and "
         "suggest next steps.",
+        "- NEVER do arithmetic mentally. Use the calculate tool or SQL aggregate tools "
+        "for every sum, difference, product, quotient, or percentage.",
+        "- Tag EVERY dollar amount with its evidence id from tool results as "
+        "[[$X.XX|ev_N]] (example: [[$412.30|ev_1]]). Do not invent evidence ids.",
+        "- If data is missing or a tool returns empty/error: say so explicitly — "
+        "do not fill gaps with estimates unless you clearly label them as estimates.",
         "- Debits are expenses (negative in DB) — report spending as positive CAD dollars.",
         "- For Canadian users: CAD default, Interac, TFSA, RRSP, FHSA are familiar.",
         "- When advising on rates, limits, or products: use search_web for current information.",
@@ -76,6 +83,7 @@ def build_system_prompt(
         '- Current tax limits, ETF info, bank products → search_web',
         '- TFSA / RRSP room → get_tfsa_status (then search_web if CRA rules needed)',
         '- Student runway → get_cash_runway',
+        '- Any arithmetic (sums, tax %, splits) → calculate',
         '- FX / stocks → convert_currency, get_exchange_rates, get_market_quote',
         "",
         "Never pass category=\"none\" to aggregate_spending. Read each tool's summary field.",
@@ -103,6 +111,9 @@ def build_groq_compact_system_prompt(
         f"Today: {today.isoformat()}.",
         "Finance only — refuse trivia, celebrities, sports, and non-money topics.",
         "Call tools before stating dollar amounts from the user's data.",
+        "Never do arithmetic mentally — use calculate or SQL aggregate tools.",
+        "Tag every dollar amount as [[$X.XX|ev_N]] using evidence ids from tools.",
+        "If data is missing, say so explicitly.",
         "Debits are expenses — report spending as positive CAD.",
         "Be concise. Use search_web only for current rates/limits.",
         "Follow-ups: use prior messages — short questions refer to the last topic.",
