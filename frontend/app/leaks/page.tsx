@@ -33,12 +33,12 @@ export default function LeaksPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (rescan = false) => {
     setLoading(true);
     setError(null);
     try {
       const [list, sum] = await Promise.all([
-        api.getLeaks(true),
+        api.getLeaks(rescan),
         api.getLeaksSummary(),
       ]);
       setFindings(list);
@@ -54,7 +54,7 @@ export default function LeaksPage() {
 
   useEffect(() => {
     if (!authReady) return;
-    void load();
+    void load(false);
   }, [authReady, load]);
 
   const updateStatus = async (id: string, status: string) => {
@@ -81,7 +81,7 @@ export default function LeaksPage() {
         actions={
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={() => void load(true)}
             disabled={loading}
             className="btn-ghost inline-flex items-center gap-2 px-3 py-2 text-sm"
           >

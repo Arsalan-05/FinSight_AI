@@ -28,7 +28,7 @@ export async function getAccessToken(): Promise<string | null> {
  * Wait for Supabase to hydrate the browser session before protected API calls.
  * Uses onAuthStateChange so we don't race the cookie read on first paint.
  */
-export async function getAccessTokenReady(maxMs = 8000): Promise<string | null> {
+export async function getAccessTokenReady(maxMs = 2500): Promise<string | null> {
   if (!isSupabaseConfigured()) return null;
 
   const existing = await readToken();

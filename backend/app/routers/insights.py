@@ -39,6 +39,7 @@ def get_weekly_brief(
     return build_weekly_brief(db, account_ids=account_ids)
 
 
+@router.get("")
 @router.get("/")
 def get_insights(
     db: Session = Depends(get_db),

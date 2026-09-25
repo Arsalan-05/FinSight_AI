@@ -30,6 +30,7 @@ def _owned_finding(db: Session, leak_id: str, user: User) -> LeakFinding:
     return row
 
 
+@router.get("", response_model=list[LeakFindingOut])
 @router.get("/", response_model=list[LeakFindingOut])
 def list_leaks(
     db: Session = Depends(get_db),

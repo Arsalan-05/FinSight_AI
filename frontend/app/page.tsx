@@ -34,7 +34,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import type { Account, InsightCard, Transaction, WeeklyBrief } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
 import { useChartColors } from "@/lib/chart-theme";
-import { formatCurrency, formatDateShort, getCurrentMonthRange, getDateRange } from "@/lib/utils";
+import { formatCurrency, formatDateShort, getCurrentMonthRange } from "@/lib/utils";
 
 type DashboardPayload = {
   accounts: Account[];
@@ -68,37 +68,42 @@ function emptyPayload(error: string | null): DashboardPayload {
   };
 }
 
+async function loadDashboardFast(): Promise<DashboardPayload> {
+  const data = await api.getDashboard();
+  const cats: [string, number][] = data.top_categories.map((c) => [
+    c.category,
+    c.amount,
+  ]);
+  return {
+    accounts: data.accounts,
+    recent: data.recent,
+    daily: data.daily,
+    dataError: null,
+    insightCards: data.insight_cards,
+    weeklyBrief: data.weekly_brief,
+    curSpend: data.kpis.cur_spend,
+    curIncome: data.kpis.cur_income,
+    netSavings: data.kpis.net_savings,
+    spendChange: data.kpis.spend_change_pct,
+    creditCount: data.kpis.credit_count,
+    topCategories: cats,
+  };
+}
+
 async function loadDashboardLegacy(): Promise<DashboardPayload> {
   const { from: curFrom, to: curTo } = getCurrentMonthRange();
   const d = new Date();
   d.setMonth(d.getMonth() - 1);
   const prevFrom = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
   const prevTo = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
-  const thirtyRange = getDateRange(1);
 
-  const [accs, recentList, curList, prevList, thirtyList] = await Promise.all([
+  // Keep first paint light — skip full 30-day pagination; chart can be empty on fallback.
+  const [accs, recentList, curList, prevList] = await Promise.all([
     api.getAccounts(),
     api.getTransactions({ limit: 10 }),
     api.getTransactions({ date_from: curFrom, date_to: curTo, limit: 500 }),
     api.getTransactions({ date_from: prevFrom, date_to: prevTo, limit: 500 }),
-    api.getAllTransactions(thirtyRange.from, thirtyRange.to),
   ]);
-
-  let insightCards: InsightCard[] = [];
-  let weeklyBrief: WeeklyBrief | null = null;
-  if (accs.length > 0) {
-    try {
-      const insights = await api.getInsights();
-      insightCards = insights.insight_cards;
-    } catch {
-      /* optional */
-    }
-    try {
-      weeklyBrief = await api.getWeeklyBrief();
-    } catch {
-      /* optional */
-    }
-  }
 
   const curSpend = curList.items
     .filter((t) => t.amount < 0)
@@ -121,23 +126,13 @@ async function loadDashboardLegacy(): Promise<DashboardPayload> {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 6) as [string, number][];
 
-  const dayMap: Record<string, number> = {};
-  for (const tx of thirtyList) {
-    if (tx.amount < 0) {
-      dayMap[tx.transaction_date] = (dayMap[tx.transaction_date] ?? 0) + Math.abs(tx.amount);
-    }
-  }
-  const daily = Object.entries(dayMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, spend]) => ({ day: day.slice(5), spend }));
-
   return {
     accounts: accs,
     recent: recentList.items,
-    daily,
+    daily: [],
     dataError: null,
-    insightCards,
-    weeklyBrief,
+    insightCards: [],
+    weeklyBrief: null,
     curSpend,
     curIncome,
     netSavings,
@@ -165,34 +160,15 @@ export default function DashboardPage() {
   const [topCategories, setTopCategories] = useState<[string, number][]>([]);
 
   const fetchAll = useCallback(async (): Promise<DashboardPayload> => {
-    // Use the classic multi-request Overview first — this is what worked before
-    // the /dashboard + /backend proxy changes. Prefer reliability over one round-trip.
+    // One round-trip first — snappy. Legacy multi-call only if /dashboard fails.
     try {
-      return await loadDashboardLegacy();
-    } catch (legacyErr) {
+      return await loadDashboardFast();
+    } catch (primaryErr) {
       try {
-        const data = await api.getDashboard();
-        const cats: [string, number][] = data.top_categories.map((c) => [
-          c.category,
-          c.amount,
-        ]);
-        return {
-          accounts: data.accounts,
-          recent: data.recent,
-          daily: data.daily,
-          dataError: null,
-          insightCards: data.insight_cards,
-          weeklyBrief: data.weekly_brief,
-          curSpend: data.kpis.cur_spend,
-          curIncome: data.kpis.cur_income,
-          netSavings: data.kpis.net_savings,
-          spendChange: data.kpis.spend_change_pct,
-          creditCount: data.kpis.credit_count,
-          topCategories: cats,
-        };
+        return await loadDashboardLegacy();
       } catch {
         const raw =
-          legacyErr instanceof Error ? legacyErr.message : "Failed to load data";
+          primaryErr instanceof Error ? primaryErr.message : "Failed to load data";
         const msg = raw.replace(/^API \d+:\s*/i, "").slice(0, 220);
         return emptyPayload(
           msg || "We couldn't load your finances right now. Please try again.",
