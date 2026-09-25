@@ -1,0 +1,73 @@
+# Offline / local demo: Postgres + API only.
+# Frontend: cd frontend && npm run dev → http://localhost:3000
+#
+# Ollama (optional offline LLM/embeddings) must run on the host:
+#   ollama pull qwen2.5:7b && ollama pull nomic-embed-text
+# API reaches host Ollama via host.docker.internal:11434.
+# Prefer GROQ_API_KEY + VOYAGE_API_KEY in .env for cloud demos.
+#
+# Seed (~600 tx eval persona) after health is green:
+#   cd backend && uv run python -c "
+#   from db.base import SessionLocal
+#   from evals.fixtures.load import load_fixture_into_db
+#   db = SessionLocal()
+#   print(load_fixture_into_db(db, user_email='demo@finsight.local')['transaction_count'])
+#   db.close()
+#   "
+# Or rely on /auth/sync demo provision for empty OAuth users.
+#
+# Usage: docker compose -f docker-compose.demo.yml up --build
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: finsight
+      POSTGRES_PASSWORD: finsight
+      POSTGRES_DB: finsight
+    volumes:
+      - pgdata_demo:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finsight -d finsight"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://finsight:finsight@db:5432/finsight}
+      DATABASE_FALLBACK_URL: postgresql://finsight:finsight@db:5432/finsight
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-voyage}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      VOYAGE_MODEL: ${VOYAGE_MODEL:-voyage-4-large}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata_demo:

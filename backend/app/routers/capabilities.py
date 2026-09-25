@@ -79,10 +79,13 @@ def capabilities() -> dict[str, object]:
         "reliability": [
             "rate_limiting",
             "request_id_middleware",
+            "security_headers",
             "health_ready_probe",
             "structured_logging_production",
             "per_user_data_scoping",
+            "privacy_mode",
         ],
+        "privacy_mode": settings.privacy_mode,
         "beta": {
             "invite_only": bool(settings.beta_allowed_emails.strip()),
         },

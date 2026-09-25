@@ -21,6 +21,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy app/ agent/ db/ rag/ insights/
       - run: uv run pytest -q
+      - run: uv run python -m evals.run --subset smoke --dry-run
 
   frontend:
     runs-on: ubuntu-latest
