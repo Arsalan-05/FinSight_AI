@@ -69,6 +69,7 @@ def _call_anthropic(
     api_key: str,
     *,
     user_intelligence: str = "",
+    model: str | None = None,
 ) -> AIMessage:
     client = anthropic.Anthropic(api_key=api_key)
     system = [
@@ -79,7 +80,7 @@ def _call_anthropic(
         }
     ]
     response = client.messages.create(
-        model=ANTHROPIC_MODEL,
+        model=model or settings.anthropic_model or ANTHROPIC_MODEL,
         max_tokens=2048,
         system=system,  # type: ignore[arg-type]
         tools=TOOL_DEFINITIONS,  # type: ignore[arg-type]
@@ -402,11 +403,13 @@ def _call_groq(
     api_key: str,
     *,
     user_intelligence: str = "",
+    model: str | None = None,
 ) -> AIMessage:
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+    chat_model = model or settings.groq_model
 
     trim_levels: list[dict[str, Any]] = [
         {
@@ -450,7 +453,7 @@ def _call_groq(
 
             def _payload(*, use_tools: bool, system_text: str) -> dict[str, Any]:
                 payload: dict[str, Any] = {
-                    "model": settings.groq_model,
+                    "model": chat_model,
                     "messages": [{"role": "system", "content": system_text}]
                     + _to_groq_messages(context_messages),
                     "temperature": 0.2,
@@ -646,21 +649,62 @@ def call_llm(
     api_key: str = "",
     *,
     user_intelligence: str = "",
+    tier: str | None = None,
+    provider: str | None = None,
+    model: str | None = None,
 ) -> AIMessage:
-    """Call the configured LLM provider (Ollama by default)."""
-    provider = settings.effective_llm_provider
-    if provider == "anthropic":
+    """Call an LLM provider.
+
+    When ``tier`` is set (``basic`` / ``heavy``), routing picks Llama vs Claude.
+    Explicit ``provider`` + ``model`` override routing.
+    """
+    from agent.routing import ChatTier, resolve_chat_backend, route_chat_tier
+
+    resolved_provider = provider
+    resolved_model = model
+    if resolved_provider is None:
+        chat_tier: ChatTier = "basic"
+        if tier in ("basic", "heavy"):
+            chat_tier = tier  # type: ignore[assignment]
+        elif tier is None and settings.llm_routing_enabled:
+            # Infer from latest user message when caller didn't pass a tier
+            for msg in reversed(messages):
+                if isinstance(msg, HumanMessage):
+                    chat_tier = route_chat_tier(str(msg.content))
+                    break
+        resolved_provider, resolved_model = resolve_chat_backend(chat_tier)
+
+    if resolved_provider == "anthropic":
         key = api_key or settings.anthropic_api_key
         if not key:
-            raise ValueError("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic")
+            # Fall back to Groq basic rather than hard-fail mid-conversation
+            if settings.groq_api_key:
+                return _call_groq(
+                    messages,
+                    memory_summary,
+                    settings.groq_api_key,
+                    user_intelligence=user_intelligence,
+                    model=settings.groq_model,
+                )
+            raise ValueError("ANTHROPIC_API_KEY is required for Claude heavy tier")
         return _call_anthropic(
-            messages, memory_summary, key, user_intelligence=user_intelligence
+            messages,
+            memory_summary,
+            key,
+            user_intelligence=user_intelligence,
+            model=resolved_model,
         )
-    if provider == "groq":
+    if resolved_provider == "groq":
         key = api_key or settings.groq_api_key
         if not key:
             raise ValueError("GROQ_API_KEY is required when LLM_PROVIDER=groq")
-        return _call_groq(messages, memory_summary, key, user_intelligence=user_intelligence)
+        return _call_groq(
+            messages,
+            memory_summary,
+            key,
+            user_intelligence=user_intelligence,
+            model=resolved_model,
+        )
     return _call_ollama(messages, memory_summary, user_intelligence=user_intelligence)
 
 

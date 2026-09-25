@@ -38,7 +38,19 @@ def capabilities() -> dict[str, object]:
         "ai": {
             "chat_via_groq": settings.effective_llm_provider == "groq",
             "groq_model": settings.groq_model,
+            "groq_heavy_model": settings.groq_heavy_model,
             "groq_configured": settings.groq_configured,
+            "anthropic_configured": bool(settings.anthropic_api_key),
+            "anthropic_model": settings.anthropic_model,
+            "llm_routing_enabled": settings.llm_routing_enabled,
+            "routing": {
+                "basic": "groq/" + settings.groq_model,
+                "heavy": (
+                    "anthropic/" + settings.anthropic_model
+                    if settings.anthropic_api_key
+                    else "groq/" + settings.groq_heavy_model
+                ),
+            },
             "search_via_voyage": settings.effective_embedding_provider == "voyage",
             "voyage_model": settings.voyage_model,
             "voyage_configured": settings.voyage_configured,
@@ -63,6 +75,7 @@ def capabilities() -> dict[str, object]:
                 "transaction_rag",
                 "sql_aggregates",
                 "sse_streaming",
+                "tiered_llm_routing",
             ],
             "max_tool_rounds": 18,
             "chat_available": llm_runtime_available(),
