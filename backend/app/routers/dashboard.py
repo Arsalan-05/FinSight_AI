@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from calendar import monthrange
 from datetime import date, timedelta
 from typing import Any
@@ -18,6 +19,8 @@ from app.schemas import AccountOut, TransactionOut
 from app.scoping import account_ids_for_user, accounts_for_user, scope_transactions
 from db.models import Transaction, User
 from insights.service import build_all_insights, build_weekly_brief
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -36,17 +39,53 @@ def _scoped_tx_query(db: Session, user: User | None):
     return scope_transactions(db.query(Transaction), db, user)
 
 
+def _f(value: Any) -> float:
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 @router.get("")
 @router.get("/")
 def get_dashboard(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ) -> dict[str, Any]:
-    """Everything the Overview page needs in one response.
+    """Everything the Overview page needs in one response."""
+    empty: dict[str, Any] = {
+        "provisioned_demo": False,
+        "accounts": [],
+        "recent": [],
+        "kpis": {
+            "cur_spend": 0.0,
+            "cur_income": 0.0,
+            "prev_spend": 0.0,
+            "net_savings": 0.0,
+            "spend_change_pct": None,
+            "credit_count": 0,
+        },
+        "top_categories": [],
+        "daily": [],
+        "insight_cards": [],
+        "weekly_brief": None,
+    }
+    try:
+        return _build_dashboard(db, current_user)
+    except Exception:
+        logger.exception("GET /dashboard failed")
+        # Prefer a degraded payload over a hard 500 for Overview first paint.
+        try:
+            accounts = accounts_for_user(db, current_user)
+            empty["accounts"] = [
+                account_to_out(db, a).model_dump(mode="json") for a in accounts
+            ]
+        except Exception:
+            logger.exception("dashboard account fallback failed")
+        return empty
 
-    Replaces: bootstrap + accounts + 3–5 transaction list calls + insights + weekly brief.
-    Aggregations run in SQL so we do not ship hundreds of raw rows twice.
-    """
+
+def _build_dashboard(db: Session, current_user: User | None) -> dict[str, Any]:
     provisioned = False
     if current_user is not None:
         provisioned = ensure_user_has_data(db, current_user)
@@ -69,65 +108,45 @@ def get_dashboard(
         .all()
     )
 
-    # Current / previous month spend & income (SQL aggregates — no fat payloads)
-    cur_debits = (
-        base.filter(
-            Transaction.transaction_date >= cur_start,
-            Transaction.transaction_date <= cur_end,
-            Transaction.amount < 0,
-        )
-        .with_entities(func.coalesce(func.sum(Transaction.amount), 0), func.count())
-        .one()
+    cur_spend_q = base.filter(
+        Transaction.transaction_date >= cur_start,
+        Transaction.transaction_date <= cur_end,
+        Transaction.amount < 0,
     )
-    cur_credits = (
-        base.filter(
-            Transaction.transaction_date >= cur_start,
-            Transaction.transaction_date <= cur_end,
-            Transaction.amount > 0,
-        )
-        .with_entities(func.coalesce(func.sum(Transaction.amount), 0), func.count())
-        .one()
+    cur_income_q = base.filter(
+        Transaction.transaction_date >= cur_start,
+        Transaction.transaction_date <= cur_end,
+        Transaction.amount > 0,
     )
-    prev_debits = (
-        base.filter(
-            Transaction.transaction_date >= prev_start,
-            Transaction.transaction_date <= prev_end,
-            Transaction.amount < 0,
-        )
-        .with_entities(func.coalesce(func.sum(Transaction.amount), 0))
-        .scalar()
+    prev_spend_q = base.filter(
+        Transaction.transaction_date >= prev_start,
+        Transaction.transaction_date <= prev_end,
+        Transaction.amount < 0,
     )
 
-    cur_spend = abs(float(cur_debits[0] or 0))
-    cur_income = float(cur_credits[0] or 0)
-    credit_count = int(cur_credits[1] or 0)
-    prev_spend = abs(float(prev_debits or 0))
+    cur_spend = abs(_f(cur_spend_q.with_entities(func.sum(Transaction.amount)).scalar()))
+    cur_income = _f(cur_income_q.with_entities(func.sum(Transaction.amount)).scalar())
+    credit_count = int(cur_income_q.with_entities(func.count()).scalar() or 0)
+    prev_spend = abs(_f(prev_spend_q.with_entities(func.sum(Transaction.amount)).scalar()))
     net_savings = cur_income - cur_spend
     spend_change_pct = (
         ((cur_spend - prev_spend) / prev_spend) * 100 if prev_spend > 0 else None
     )
 
-    # Top categories this month (debits)
     cat_rows = (
-        base.filter(
-            Transaction.transaction_date >= cur_start,
-            Transaction.transaction_date <= cur_end,
-            Transaction.amount < 0,
-        )
-        .with_entities(Transaction.category, func.sum(Transaction.amount))
+        cur_spend_q.with_entities(Transaction.category, func.sum(Transaction.amount))
         .group_by(Transaction.category)
         .all()
     )
     top_categories = sorted(
         [
-            {"category": c or "Uncategorized", "amount": round(abs(float(total or 0)), 2)}
+            {"category": c or "Uncategorized", "amount": round(abs(_f(total)), 2)}
             for c, total in cat_rows
         ],
         key=lambda x: x["amount"],
         reverse=True,
     )[:6]
 
-    # Daily spend last 30 days
     daily_rows = (
         base.filter(
             Transaction.transaction_date >= thirty_start,
@@ -140,10 +159,7 @@ def get_dashboard(
         .all()
     )
     daily = [
-        {
-            "day": d.isoformat()[5:],  # MM-DD
-            "spend": round(abs(float(total or 0)), 2),
-        }
+        {"day": d.isoformat()[5:], "spend": round(abs(_f(total)), 2)}
         for d, total in daily_rows
     ]
 
@@ -154,10 +170,12 @@ def get_dashboard(
             insights = build_all_insights(db, account_ids=account_ids)
             insight_cards = list(insights.get("insight_cards") or [])
         except Exception:
+            logger.exception("dashboard insights failed")
             insight_cards = []
         try:
             weekly_brief = build_weekly_brief(db, account_ids=account_ids)
         except Exception:
+            logger.exception("dashboard weekly brief failed")
             weekly_brief = None
 
     return {
@@ -169,7 +187,9 @@ def get_dashboard(
             "cur_income": round(cur_income, 2),
             "prev_spend": round(prev_spend, 2),
             "net_savings": round(net_savings, 2),
-            "spend_change_pct": round(spend_change_pct, 1) if spend_change_pct is not None else None,
+            "spend_change_pct": (
+                round(spend_change_pct, 1) if spend_change_pct is not None else None
+            ),
             "credit_count": credit_count,
         },
         "top_categories": top_categories,

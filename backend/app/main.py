@@ -51,7 +51,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         digest_task.cancel()
 
 
-app = FastAPI(title="FinSight AI", version=settings.app_version, lifespan=lifespan)
+app = FastAPI(
+    title="FinSight AI",
+    version=settings.app_version,
+    lifespan=lifespan,
+    # Prevent /path/ → /path redirects. Through the Next /backend proxy those
+    # Location headers strip the /backend prefix and break the browser call.
+    redirect_slashes=False,
+)
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIdMiddleware)
