@@ -254,6 +254,7 @@ def reapply_category_rules(
     return {"updated": updated}
 
 
+@router.get("", response_model=TransactionListOut)
 @router.get("/", response_model=TransactionListOut)
 def list_transactions(
     account_id: str | None = Query(None),
