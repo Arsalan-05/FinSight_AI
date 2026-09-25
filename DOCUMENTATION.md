@@ -14,6 +14,7 @@ Canonical docs live under [`docs/`](./docs/). This file is a pointer so old link
 | Live metrics | [docs/metrics.json](./docs/metrics.json) |
 | ADRs | [docs/adr/](./docs/adr/) |
 | Interview prep | [docs/interview-prep.md](./docs/interview-prep.md) |
+| Learning plan (master the repo) | [docs/learning-plan.md](./docs/learning-plan.md) |
 | E2E checklist | [docs/e2e-checklist.md](./docs/e2e-checklist.md) |
 | Freeze / v2.0.0 | [docs/freeze.md](./docs/freeze.md) |
 | Privacy page | [docs/privacy.html](./docs/privacy.html) |

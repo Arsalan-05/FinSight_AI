@@ -37,4 +37,4 @@ Replace `[N]`, `[X%]`, `[Y]` with measured metrics from [`docs/metrics.json`](./
 
 ## Links
 
-- [Architecture](./architecture.md) · [ADRs](./adr/) · [Evals](./evals.md) · [Security](./security.md) · [Freeze](./freeze.md)
+- [Learning plan](./learning-plan.md) (phase-by-phase mastery) · [Architecture](./architecture.md) · [ADRs](./adr/) · [Evals](./evals.md) · [Security](./security.md) · [Freeze](./freeze.md)
