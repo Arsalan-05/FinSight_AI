@@ -159,6 +159,7 @@ async def _stream_reply(
     )
 
 
+@router.post("")
 @router.post("/")
 async def chat(
     payload: ChatRequest,
