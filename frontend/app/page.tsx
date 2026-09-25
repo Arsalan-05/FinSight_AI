@@ -31,146 +31,110 @@ import {
 import { api } from "@/lib/api";
 import { chatUrl, promptFromInsightAction } from "@/lib/chat-url";
 import { useAuthReady } from "@/hooks/useAuthReady";
-import type { Account, InsightCard, Transaction, TransactionList } from "@/lib/types";
+import type { Account, InsightCard, Transaction, WeeklyBrief } from "@/lib/types";
 import { getCategoryColor } from "@/lib/types";
 import { useChartColors } from "@/lib/chart-theme";
-import {
-  formatCurrency,
-  formatDateShort,
-  getCurrentMonthRange,
-  getDateRange,
-} from "@/lib/utils";
+import { formatCurrency, formatDateShort } from "@/lib/utils";
 
 export default function DashboardPage() {
   const chart = useChartColors();
   const authReady = useAuthReady();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [recent, setRecent] = useState<Transaction[]>([]);
-  const [curMonth, setCurMonth] = useState<Transaction[]>([]);
-  const [lastMonth, setLastMonth] = useState<Transaction[]>([]);
   const [daily, setDaily] = useState<{ day: string; spend: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
   const [insightCards, setInsightCards] = useState<InsightCard[]>([]);
+  const [weeklyBrief, setWeeklyBrief] = useState<WeeklyBrief | null>(null);
+  const [curSpend, setCurSpend] = useState(0);
+  const [curIncome, setCurIncome] = useState(0);
+  const [netSavings, setNetSavings] = useState(0);
+  const [spendChange, setSpendChange] = useState<number | null>(null);
+  const [creditCount, setCreditCount] = useState(0);
+  const [topCategories, setTopCategories] = useState<[string, number][]>([]);
 
   const fetchAll = useCallback(async () => {
-    const { from: curFrom, to: curTo } = getCurrentMonthRange();
-    const { from: prevFrom, to: prevTo } = (() => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - 1);
-      return {
-        from: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10),
-        to: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10),
-      };
-    })();
-    const thirtyRange = getDateRange(1);
-    const emptyList: TransactionList = { total: 0, items: [] };
-
-    let accs: Account[] = [];
-    let recentList = emptyList;
-    let curList = emptyList;
-    let prevList = emptyList;
-    let thirtyList: Transaction[] = [];
-    let insightCards: InsightCard[] = [];
-
     try {
-      [accs, recentList, curList, prevList, thirtyList] = await Promise.all([
-        api.getAccounts(),
-        api.getTransactions({ limit: 10 }),
-        api.getTransactions({ date_from: curFrom, date_to: curTo, limit: 500 }),
-        api.getTransactions({ date_from: prevFrom, date_to: prevTo, limit: 500 }),
-        api.getAllTransactions(thirtyRange.from, thirtyRange.to),
-      ]);
-      if (accs.length > 0) {
-        try {
-          const insights = await api.getInsights();
-          insightCards = insights.insight_cards;
-        } catch {
-          // insights optional
-        }
-      }
+      const data = await api.getDashboard();
+      const cats: [string, number][] = data.top_categories.map((c) => [c.category, c.amount]);
+      return {
+        accounts: data.accounts,
+        recent: data.recent,
+        daily: data.daily,
+        dataError: null as string | null,
+        insightCards: data.insight_cards,
+        weeklyBrief: data.weekly_brief,
+        curSpend: data.kpis.cur_spend,
+        curIncome: data.kpis.cur_income,
+        netSavings: data.kpis.net_savings,
+        spendChange: data.kpis.spend_change_pct,
+        creditCount: data.kpis.credit_count,
+        topCategories: cats,
+      };
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Failed to load data";
-      const msg = raw.replace(/^API \d+:\s*/i, "").slice(0, 180);
+      const msg = raw.replace(/^API \d+:\s*/i, "").slice(0, 220);
       return {
-        accs,
-        recentList,
-        curList,
-        prevList,
-        dailyData: [],
+        accounts: [] as Account[],
+        recent: [] as Transaction[],
+        daily: [] as { day: string; spend: number }[],
         dataError: msg || "We couldn't load your finances right now. Please try again.",
-        insightCards: [],
+        insightCards: [] as InsightCard[],
+        weeklyBrief: null as WeeklyBrief | null,
+        curSpend: 0,
+        curIncome: 0,
+        netSavings: 0,
+        spendChange: null as number | null,
+        creditCount: 0,
+        topCategories: [] as [string, number][],
       };
     }
+  }, []);
 
-    const dayMap: Record<string, number> = {};
-    for (const tx of thirtyList) {
-      if (tx.amount < 0)
-        dayMap[tx.transaction_date] = (dayMap[tx.transaction_date] ?? 0) + Math.abs(tx.amount);
-    }
-    const dailyData = Object.entries(dayMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, spend]) => ({ day: day.slice(5), spend }));
-
-    return {
-      accs,
-      recentList,
-      curList,
-      prevList,
-      dailyData,
-      dataError: null,
-      insightCards,
-    };
+  const applyPayload = useCallback((payload: Awaited<ReturnType<typeof fetchAll>>) => {
+    setDataError(payload.dataError);
+    setAccounts(payload.accounts);
+    setRecent(payload.recent);
+    setDaily(payload.daily);
+    setInsightCards(payload.insightCards);
+    setWeeklyBrief(payload.weeklyBrief);
+    setCurSpend(payload.curSpend);
+    setCurIncome(payload.curIncome);
+    setNetSavings(payload.netSavings);
+    setSpendChange(payload.spendChange);
+    setCreditCount(payload.creditCount);
+    setTopCategories(payload.topCategories);
+    setLoading(false);
   }, []);
 
   const reload = useCallback(() => {
     setLoading(true);
-    fetchAll().then(({ accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards }) => {
-      setDataError(err);
-      setAccounts(accs);
-      setRecent(recentList.items);
-      setCurMonth(curList.items);
-      setLastMonth(prevList.items);
-      setDaily(dailyData);
-      setInsightCards(cards);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [fetchAll]);
+    fetchAll().then(applyPayload).catch(() => setLoading(false));
+  }, [fetchAll, applyPayload]);
 
   useEffect(() => {
     if (!authReady) return;
     let active = true;
-    fetchAll().then(({ accs, recentList, curList, prevList, dailyData, dataError: err, insightCards: cards }) => {
-      if (!active) return;
-      setDataError(err);
-      setAccounts(accs);
-      setRecent(recentList.items);
-      setCurMonth(curList.items);
-      setLastMonth(prevList.items);
-      setDaily(dailyData);
-      setInsightCards(cards);
-      setLoading(false);
-    }).catch(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [authReady, fetchAll]);
+    fetchAll()
+      .then((payload) => {
+        if (!active) return;
+        applyPayload(payload);
+      })
+      .catch(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [authReady, fetchAll, applyPayload]);
 
-  const curSpend = curMonth.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-  const curIncome = curMonth.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const prevSpend = lastMonth.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-  const netSavings = curIncome - curSpend;
-  const spendChange = prevSpend > 0 ? ((curSpend - prevSpend) / prevSpend) * 100 : null;
-
-  // Top categories this month
-  const catMap: Record<string, number> = {};
-  for (const tx of curMonth) {
-    if (tx.amount < 0) catMap[tx.category] = (catMap[tx.category] ?? 0) + Math.abs(tx.amount);
-  }
-  const topCategories = Object.entries(catMap)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 6);
   const maxCat = topCategories[0]?.[1] ?? 1;
-
-  const greeting = new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening";
+  const greeting =
+    new Date().getHours() < 12
+      ? "morning"
+      : new Date().getHours() < 17
+        ? "afternoon"
+        : "evening";
 
   return (
     <div className="page-container gap-8">
@@ -200,8 +164,8 @@ export default function DashboardPage() {
 
       {accounts.length > 0 && !dataError && (
         <>
-          <WeeklyBriefPanel stagger={1} />
-          <SpendAlertsPanel stagger={2} />
+          <WeeklyBriefPanel stagger={1} initial={weeklyBrief} />
+          <SpendAlertsPanel stagger={2} initial={weeklyBrief?.alerts ?? []} />
         </>
       )}
 
@@ -235,7 +199,9 @@ export default function DashboardPage() {
 
       <BudgetsPanel stagger={4} />
 
-      {accounts.length > 0 && !dataError && <TfsaRoomCard stagger={5} />}
+      {accounts.length > 0 && !dataError && (
+        <TfsaRoomCard stagger={5} initial={weeklyBrief?.tfsa ?? null} />
+      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -264,7 +230,7 @@ export default function DashboardPage() {
           icon={<TrendingUp size={15} />}
           label="Monthly Income"
           value={formatCurrency(curIncome)}
-          sub={`${curMonth.filter((t) => t.amount > 0).length} credit transactions`}
+          sub={`${creditCount} credit transactions`}
           accent="emerald"
           loading={loading}
           stagger={3}

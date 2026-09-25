@@ -24,6 +24,7 @@ import type {
   HealthResponse,
   DbHealthResponse,
   InsightsResponse,
+  DashboardResponse,
   RegisteredOptimizerRequest,
   SearchResponse,
   SearchStatusResponse,
@@ -80,10 +81,23 @@ async function request<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: await buildHeaders(path, init?.headers),
-    ...init,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: await buildHeaders(path, init?.headers),
+      ...init,
+    });
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    // Safari: "Load failed" · Chrome: "Failed to fetch"
+    if (/load failed|failed to fetch|networkerror|network request failed/i.test(raw)) {
+      throw new Error(
+        "Could not reach the API. Check your network, that the Railway API is online, " +
+          `and that NEXT_PUBLIC_API_URL is set (currently: ${BASE || "(empty)"}).`,
+      );
+    }
+    throw e instanceof Error ? e : new Error(raw || "Request failed");
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     if (text.includes("Service Suspended") || text.trimStart().startsWith("<")) {
@@ -129,6 +143,8 @@ export const api = {
   healthDb: (): Promise<DbHealthResponse> => request("/health/db"),
 
   capabilities: (): Promise<CapabilitiesResponse> => request("/capabilities"),
+
+  getDashboard: (): Promise<DashboardResponse> => request("/dashboard/"),
 
   getMe: (): Promise<User> => request("/auth/me"),
 

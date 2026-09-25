@@ -331,6 +331,25 @@ export interface WeeklyBrief {
   subscriptions_monthly: number;
 }
 
+/** Single-payload Overview response from GET /dashboard/ */
+export interface DashboardResponse {
+  provisioned_demo: boolean;
+  accounts: Account[];
+  recent: Transaction[];
+  kpis: {
+    cur_spend: number;
+    cur_income: number;
+    prev_spend: number;
+    net_savings: number;
+    spend_change_pct: number | null;
+    credit_count: number;
+  };
+  top_categories: Array<{ category: string; amount: number }>;
+  daily: Array<{ day: string; spend: number }>;
+  insight_cards: InsightCard[];
+  weekly_brief: WeeklyBrief | null;
+}
+
 export interface Budget {
   id: string;
   category: string;

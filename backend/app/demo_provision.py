@@ -7,7 +7,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.demo_seed import provision_starter_data
-from db.models import Account, Transaction, TransactionEmbedding, User
+from db.models import Account, Transaction, User
 
 logger = logging.getLogger(__name__)
 
@@ -62,23 +62,10 @@ def _clone_from_demo_user(db: Session, user: User) -> bool:
                 notes=tx.notes,
             )
             db.add(new_tx)
-            db.flush()
             tx_count += 1
-
-            emb = (
-                db.query(TransactionEmbedding)
-                .filter(TransactionEmbedding.transaction_id == tx.id)
-                .first()
-            )
-            if emb:
-                db.add(
-                    TransactionEmbedding(
-                        transaction_id=new_tx.id,
-                        content=emb.content,
-                        embedding=emb.embedding,
-                    )
-                )
+            # Skip embedding clone here — it made first login multi-second.
+            # Users can rebuild search index from /search when needed.
 
     db.commit()
-    logger.info("Cloned %d transactions for user %s", tx_count, user.email)
+    logger.info("Cloned %d transactions for user %s (embeddings deferred)", tx_count, user.email)
     return True
