@@ -38,6 +38,7 @@ def _summarize(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+@router.get("")
 @router.get("/")
 def list_evals(
     limit: int = Query(20, ge=1, le=100),

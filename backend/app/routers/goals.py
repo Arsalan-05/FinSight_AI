@@ -36,6 +36,7 @@ def _require_user(user: User | None) -> User:
     return user
 
 
+@router.get("")
 @router.get("/")
 def list_goals(
     db: Session = Depends(get_db),

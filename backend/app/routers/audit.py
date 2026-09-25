@@ -14,6 +14,7 @@ from db.models import AuditLog, User
 router = APIRouter(prefix="/audit", tags=["audit"])
 
 
+@router.get("")
 @router.get("/")
 def list_audit(
     db: Session = Depends(get_db),

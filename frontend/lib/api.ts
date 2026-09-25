@@ -446,7 +446,7 @@ export const api = {
 
   // ── Leaks ─────────────────────────────────────────────────────────────────
 
-  getLeaks: (rescan = true): Promise<LeakFinding[]> =>
+  getLeaks: (rescan = false): Promise<LeakFinding[]> =>
     request(`/leaks/?rescan=${rescan ? "true" : "false"}`),
 
   getLeaksSummary: (): Promise<LeakSummary> => request("/leaks/summary"),
@@ -516,7 +516,7 @@ export const api = {
 
   // ── Evals ─────────────────────────────────────────────────────────────────
 
-  getEvalRuns: (): Promise<EvalRunSummary[]> => request("/evals"),
+  getEvalRuns: (): Promise<EvalRunSummary[]> => request("/evals/"),
 
   // ── Analytics helpers ─────────────────────────────────────────────────────
 

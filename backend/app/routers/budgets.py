@@ -45,6 +45,7 @@ def _budget_with_spend(db: Session, budget: Budget) -> BudgetWithSpendOut:
     )
 
 
+@router.get("", response_model=list[BudgetWithSpendOut])
 @router.get("/", response_model=list[BudgetWithSpendOut])
 def list_budgets(
     db: Session = Depends(get_db),
