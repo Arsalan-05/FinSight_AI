@@ -7,14 +7,16 @@ import re
 _FINANCE_RE = re.compile(
     r"\b("
     r"spend|spending|spent|budget|budgets|transaction|transactions|money|saving|savings|"
+    r"save\s+for|afford|cut\s+back|set\s+aside|"
+    r"iphone|phone|laptop|vacation|trip|wedding|emergency\s*fund|"
     r"tfsa|rrsp|fhsa|resp|invest|investing|investment|portfolio|rent|mortgage|loan|debt|"
     r"credit|debit|subscription|subscriptions|account|accounts|bank|banking|"
     r"income|salary|paycheque|paycheck|pay|expense|expenses|cash|runway|"
     r"grocer|dining|merchant|category|categories|alert|alerts|goal|goals|"
     r"finance|financial|cad|dollar|dollars|tax|taxes|cra|etf|etfs|stock|stocks|"
     r"market|markets|rate|rates|interest|inflation|dividend|crypto|"
-    r"afford|affordable|net\s*worth|balance|balances|transfer|interac|"
-    r"weekly\s*brief|overspend|frugal|emergency\s*fund"
+    r"affordable|net\s*worth|balance|balances|transfer|interac|"
+    r"weekly\s*brief|overspend|frugal"
     r")\b",
     re.I,
 )
@@ -61,7 +63,8 @@ def finance_scope_refusal(message: str) -> str | None:
 
 _REFUSAL = (
     "I'm FinSight — your personal finance advisor. I can help with spending, budgets, "
-    "savings, TFSA/RRSP, subscriptions, and questions grounded in your transaction data. "
+    "savings goals (like saving for a phone or trip), TFSA/RRSP, subscriptions, and "
+    "questions grounded in your transaction data. "
     "I can't answer general trivia or entertainment questions here. "
-    "Try asking something like: “How much did I spend on dining last month?”"
+    "Try asking something like: “How should I save for an iPhone next month?”"
 )

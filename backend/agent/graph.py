@@ -106,6 +106,7 @@ def build_graph(
         tier = route_chat_tier(user_text)
         provider, model = resolve_chat_backend(tier)
         _emit("thinking", tier_status_label(tier, provider, model))
+        _emit("thinking", "Reading your question…")
         response = call_llm(
             state["messages"],
             state["memory_summary"],
@@ -114,6 +115,10 @@ def build_graph(
             provider=provider,
             model=model,
         )
+        if response.tool_calls:
+            _emit("tool", "Gathering the numbers you need")
+        else:
+            _emit("composing", "Writing your answer")
         return {"messages": [response]}
 
     def tools_node(state: AgentState) -> dict[str, list[ToolMessage]]:

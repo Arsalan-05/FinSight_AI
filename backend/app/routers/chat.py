@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import queue
+import time
 import uuid
 from collections.abc import AsyncIterator
 
@@ -122,11 +123,24 @@ async def _stream_reply(
 
     task = asyncio.create_task(asyncio.to_thread(run))
 
+    last_heartbeat = time.monotonic()
     while not task.done():
         try:
             phase, detail = status_queue.get_nowait()
             yield _sse({"type": "status", "phase": phase, "detail": detail})
+            last_heartbeat = time.monotonic()
         except queue.Empty:
+            now = time.monotonic()
+            # Keep SSE / proxy / UI alive during long Claude/Groq tool loops
+            if now - last_heartbeat >= 4.0:
+                yield _sse(
+                    {
+                        "type": "status",
+                        "phase": "working",
+                        "detail": "Still working on your plan…",
+                    }
+                )
+                last_heartbeat = now
             await asyncio.sleep(0.05)
 
     while not status_queue.empty():
