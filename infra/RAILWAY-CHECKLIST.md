@@ -34,21 +34,27 @@ Plus any Plaid/SMTP vars you use.
 ## B. Frontend service (`finsight-web`)
 
 Root Directory: `frontend`  
-Set **before** each build that needs new public env:
+**Important:** the browser must **not** call the API hostname directly (Safari often fails that cross-origin fetch even on hotspot). Use the same-origin proxy:
 
 ```
-NEXT_PUBLIC_API_URL=https://finsight-api-production-2aee.up.railway.app
+NEXT_PUBLIC_API_URL=/backend
+API_PROXY_TARGET=https://finsight-api-production-2aee.up.railway.app
 NEXT_PUBLIC_SITE_URL=https://finsightai-production-43d0.up.railway.app
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 ```
 
+Both `NEXT_PUBLIC_API_URL` and `API_PROXY_TARGET` must be set **before** the Docker build (Railway rebuild after changing them).
+
 ### Frontend variables (must match roles)
 
 | Variable | Must be |
 |----------|---------|
-| `NEXT_PUBLIC_API_URL` | **API** host |
+| `NEXT_PUBLIC_API_URL` | `/backend` (same-origin proxy path) |
+| `API_PROXY_TARGET` | Full Railway **API** URL |
 | `NEXT_PUBLIC_SITE_URL` | **Frontend** host |
+
+Flow: Browser → `https://frontend/backend/...` → Next rewrite → Railway API. Same pattern as a single-service app.
 
 ## C. Pre-public release
 
@@ -61,6 +67,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 
 ```bash
 curl https://finsight-api-production-2aee.up.railway.app/health/db
+# After proxy deploy, this should also work via the website:
+curl -I https://finsightai-production-43d0.up.railway.app/backend/health
 ```
 
-Expect `connected: true`, `schema_ready: true`.
+Expect API `connected: true`, `schema_ready: true`.
