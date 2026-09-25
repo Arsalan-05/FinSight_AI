@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repo root is two levels up from app/; backend/ is one level up.
@@ -99,6 +100,17 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_use_tls: bool = True
+
+    @field_validator("supabase_url", mode="before")
+    @classmethod
+    def _clean_supabase_url(cls, value: object) -> object:
+        """Strip quotes/whitespace — Railway vars often get pasted as \"https://...\"."""
+        if not isinstance(value, str):
+            return value
+        cleaned = value.strip().strip('"').strip("'").strip()
+        if cleaned.endswith("/"):
+            cleaned = cleaned.rstrip("/")
+        return cleaned
 
     @property
     def plaid_enabled(self) -> bool:
