@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -83,6 +84,26 @@ def _apply_numeric_guardrail(reply: str, tool_outputs: list[str]) -> str:
         len(result.unverified),
     )
     return strip_unverified(reply, result.unverified)
+
+
+_TOOL_NAME_RE = re.compile(
+    r"\b("
+    r"aggregate_spending|search_transactions|get_financial_insights|"
+    r"get_user_financial_profile|get_tfsa_status|get_cash_runway|"
+    r"search_web|convert_currency|get_exchange_rates|get_market_quote|"
+    r"run_registered_optimizer|run_osap_plan|run_cash_forecast"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_tool_leak(reply: str) -> str:
+    """Strip internal tool identifiers from user-facing prose."""
+    if not reply or not _TOOL_NAME_RE.search(reply):
+        return reply
+    cleaned = _TOOL_NAME_RE.sub("your spending data", reply)
+    cleaned = re.sub(r" {2,}", " ", cleaned)
+    return cleaned.strip()
 
 
 def _extract_citations(messages: list[BaseMessage]) -> list[dict[str, Any]]:
@@ -224,7 +245,7 @@ def run_agent(
         save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
         reply = _last_ai_text(final_messages)
         tool_outputs = _collect_tool_outputs(final_messages)
-        reply = _apply_numeric_guardrail(reply, tool_outputs)
+        reply = _sanitize_tool_leak(_apply_numeric_guardrail(reply, tool_outputs))
         citations = _extract_citations(final_messages)
         evidence = store.list() or _build_evidence_from_tools(final_messages)
         return AgentResult(

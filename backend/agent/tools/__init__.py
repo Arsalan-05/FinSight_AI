@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from agent.tools.aggregator import aggregate_spending
 from agent.tools.calculate import calculate
+from agent.tools.categories import normalize_category as _normalize_category
+from agent.tools.coverage import attach_coverage, latest_month_with_spend
 from agent.tools.dates import last_month_range, resolve_aggregate_dates
 from agent.tools.summarize import is_empty_aggregate, summarize_aggregate
 from agent.tools.web_search import search_web
@@ -50,7 +52,10 @@ CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "description": (
             "SQL aggregate over transactions — totals, counts, grouped by category, "
             "merchant, or month. Use for ALL 'how much did I spend' questions. "
-            "Set period='last_month' for 'last month' questions (do not guess dates)."
+            "Set period='last_month' for 'last month' (do not guess dates). "
+            "For dining/restaurants/eating out/takeout use category=Dining. "
+            "If the window is empty, the summary includes your data date range — "
+            "tell the user in plain English; never invent numbers."
         ),
         "input_schema": {
             "type": "object",
@@ -86,8 +91,10 @@ CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "category": {
                     "type": "string",
                     "description": (
-                        "Filter by category name (Dining, Groceries, etc.). "
-                        "OMIT this field for all-categories breakdowns — never pass 'none'."
+                        "Canonical category: Dining, Groceries, Transport, "
+                        "Subscriptions, Utilities, Rent, Income, Transfers, Bank Fees. "
+                        "Synonyms (restaurants, eating out, takeout) map to Dining. "
+                        "OMIT for all-categories — never pass 'none'."
                     ),
                 },
                 "transaction_type": {
@@ -305,16 +312,6 @@ def _parse_date(value: str | None) -> date | None:
 _INVALID_CATEGORY_VALUES = frozenset({"none", "all", "any", "null", "n/a", ""})
 
 
-def _normalize_category(value: Any) -> str | None:
-    """Drop bogus category values small models pass (e.g. category='none')."""
-    if value is None:
-        return None
-    text = str(value).strip()
-    if not text or text.lower() in _INVALID_CATEGORY_VALUES:
-        return None
-    return text
-
-
 def _normalize_account_id(value: Any) -> str | None:
     if value is None:
         return None
@@ -357,6 +354,18 @@ def _format_transaction(tx: Any) -> dict[str, Any]:
         "merchant": tx.merchant,
         "account_id": tx.account_id,
     }
+
+
+def _finalize_aggregate(
+    result: dict[str, Any],
+    db: Session,
+    *,
+    account_ids: list[str] | None,
+    category: str | None,
+) -> str:
+    attach_coverage(result, db, account_ids=account_ids, category=category)
+    result["summary"] = summarize_aggregate(result)
+    return json.dumps(result)
 
 
 def execute_tool(
@@ -402,23 +411,51 @@ def execute_tool(
         if args.get("period"):
             result["filters"]["period"] = args["period"]
 
+        # 1) Wrong absolute dates → calendar last month (debits)
         if is_empty_aggregate(result):
             retry_start, retry_end = last_month_range()
-            result = _run_aggregate(
-                db,
-                start_date=retry_start,
-                end_date=retry_end,
-                group_by="none" if category else "category",
-                category=category,
-                account_id=None,
-                transaction_type="debit",
-                account_ids=account_ids,
-            )
-            result["filters"]["period"] = "last_month"
-            result["auto_retried"] = True
+            same_window = start_date == retry_start and end_date == retry_end
+            if not same_window or txn_type != "debit" or account_id:
+                result = _run_aggregate(
+                    db,
+                    start_date=retry_start,
+                    end_date=retry_end,
+                    group_by="none" if category else "category",
+                    category=category,
+                    account_id=None,
+                    transaction_type="debit",
+                    account_ids=account_ids,
+                )
+                result["filters"]["period"] = "last_month"
+                result["auto_retried"] = True
 
-        result["summary"] = summarize_aggregate(result)
-        return json.dumps(result)
+        # 2) Asked window truly empty but history exists → nearest month with spend
+        if is_empty_aggregate(result):
+            nearest = latest_month_with_spend(
+                db,
+                account_ids=account_ids,
+                category=category,
+                transaction_type="debit",
+            )
+            if nearest:
+                near_start, near_end = nearest
+                result = _run_aggregate(
+                    db,
+                    start_date=near_start,
+                    end_date=near_end,
+                    group_by="none" if category else "category",
+                    category=category,
+                    account_id=None,
+                    transaction_type="debit",
+                    account_ids=account_ids,
+                )
+                result["filters"]["period"] = "nearest_month_with_data"
+                result["broadened"] = True
+                result["auto_retried"] = True
+
+        return _finalize_aggregate(
+            result, db, account_ids=account_ids, category=category
+        )
 
     if name == "get_financial_insights":
         return json.dumps(build_all_insights(db, account_ids=account_ids))

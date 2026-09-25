@@ -104,3 +104,85 @@ def test_aggregate_retry_on_wrong_year(db_session) -> None:
     assert result["count"] == 1
     assert "40.00" in result["summary"]
     assert result.get("auto_retried") is True
+
+
+def test_category_alias_restaurants_to_dining(db_session) -> None:
+    user = User(email="alias@test.com", name="Alias")
+    db_session.add(user)
+    db_session.flush()
+    account = Account(
+        user_id=user.id, name="Checking", institution="RBC", account_type="checking"
+    )
+    db_session.add(account)
+    db_session.flush()
+    db_session.add(
+        Transaction(
+            account_id=account.id,
+            transaction_date=date(2026, 8, 12),
+            description="Dinner out",
+            amount=-55.0,
+            category="Dining",
+        )
+    )
+    db_session.commit()
+
+    with patch("agent.tools.dates.date") as mock_date:
+        mock_date.today.return_value = date(2026, 9, 15)
+        mock_date.fromisoformat = date.fromisoformat
+        result = json.loads(
+            execute_tool(
+                "aggregate_spending",
+                {
+                    "period": "last_month",
+                    "category": "restaurants",
+                    "transaction_type": "debit",
+                    "group_by": "none",
+                },
+                db=db_session,
+            )
+        )
+    assert result["count"] == 1
+    assert result["filters"]["category"] == "Dining"
+    assert "55.00" in result["summary"]
+
+
+def test_broaden_to_nearest_month_when_last_month_empty(db_session) -> None:
+    user = User(email="broaden@test.com", name="Broaden")
+    db_session.add(user)
+    db_session.flush()
+    account = Account(
+        user_id=user.id, name="Checking", institution="Simplii", account_type="checking"
+    )
+    db_session.add(account)
+    db_session.flush()
+    db_session.add(
+        Transaction(
+            account_id=account.id,
+            transaction_date=date(2026, 6, 10),
+            description="Tim Hortons",
+            amount=-12.5,
+            category="Dining",
+        )
+    )
+    db_session.commit()
+
+    with patch("agent.tools.dates.date") as mock_date:
+        mock_date.today.return_value = date(2026, 9, 25)
+        mock_date.fromisoformat = date.fromisoformat
+        result = json.loads(
+            execute_tool(
+                "aggregate_spending",
+                {
+                    "period": "last_month",
+                    "category": "Dining",
+                    "transaction_type": "debit",
+                    "group_by": "none",
+                },
+                db=db_session,
+            )
+        )
+    assert result["count"] == 1
+    assert result.get("broadened") is True
+    assert result["filters"]["start_date"] == "2026-06-01"
+    assert "12.50" in result["summary"]
+    assert "nearest" in result["summary"].lower() or "NOTE" in result["summary"]

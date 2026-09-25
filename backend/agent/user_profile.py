@@ -52,9 +52,21 @@ def build_data_profile(
         return {"transaction_count": 0, "message": "No transactions ingested yet."}
 
     today = date.today()
-    window_start = today - timedelta(days=90)
+    window_start = today - timedelta(days=365)
+
+    earliest, latest = q.with_entities(
+        func.min(Transaction.transaction_date),
+        func.max(Transaction.transaction_date),
+    ).one()
 
     base = q.filter(Transaction.transaction_date >= window_start)
+    # If 365-day window is sparse, fall back to full history for fingerprint
+    if base.count() == 0:
+        base = q
+        window_days = max(1, (latest - earliest).days) if earliest and latest else 365
+    else:
+        window_days = 365
+
     debits = base.filter(Transaction.amount < 0)
     credits = base.filter(Transaction.amount > 0)
 
@@ -90,16 +102,15 @@ def build_data_profile(
         debits.order_by(Transaction.amount.asc()).limit(5).all()
     )
 
-    months_active = max(
-        1,
-        (today - window_start).days / 30.0,
-    )
+    months_active = max(1.0, window_days / 30.0)
     avg_monthly_spend = abs(spend_total) / months_active
     avg_monthly_income = income_total / months_active
 
     return {
         "transaction_count": total,
-        "window_days": 90,
+        "window_days": window_days,
+        "data_from": earliest.isoformat() if earliest else None,
+        "data_to": latest.isoformat() if latest else None,
         "avg_monthly_spend_cad": round(avg_monthly_spend, 2),
         "avg_monthly_income_cad": round(avg_monthly_income, 2),
         "net_monthly_cad": round(avg_monthly_income + spend_total / months_active, 2),
@@ -142,8 +153,13 @@ def profile_narrative(data_profile: dict[str, Any], learned: dict[str, Any]) -> 
 
     lines.append(
         f"Based on {data_profile['transaction_count']} transactions "
-        f"(last {data_profile.get('window_days', 90)} days analyzed):"
+        f"(last {data_profile.get('window_days', 365)} days analyzed):"
     )
+    if data_profile.get("data_from") and data_profile.get("data_to"):
+        lines.append(
+            f"- Linked data spans {data_profile['data_from']} → {data_profile['data_to']} "
+            "(if the user asks about a month outside this range, say so clearly)."
+        )
     lines.append(
         f"- Avg monthly spend: ${data_profile.get('avg_monthly_spend_cad', 0):,.2f} CAD"
     )

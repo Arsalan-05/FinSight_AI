@@ -21,7 +21,7 @@ except ImportError:  # pragma: no cover - optional dep
 # Keyword rules used when sklearn is unavailable (and as cold-start fallback).
 _KEYWORD_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("Groceries", ("loblaws", "metro", "no frills", "costco", "walmart", "freshco", "sobeys")),
-    ("Dining", ("tim hortons", "starbucks", "uber eats", "doordash", "mcdonald", "restaurant")),
+    ("Dining", ("tim hortons", "starbucks", "uber eats", "doordash", "mcdonald", "restaurant", "sushi", "pizza", "chipotle", "a&w", "harvey", "popeyes")),
     ("Transport", ("uber", "lyft", "presto", "shell", "esso", "petro", "gas")),
     ("Subscriptions", ("netflix", "spotify", "apple.com/bill", "disney+", "youtube premium")),
     ("Utilities", ("hydro", "enbridge", "rogers", "bell", "telus", "internet")),
