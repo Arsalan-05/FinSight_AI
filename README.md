@@ -15,17 +15,17 @@
 
 ## Stack
 
-Python · FastAPI · LangGraph · PostgreSQL · pgvector · Next.js · Supabase Auth · Groq · Voyage · Railway
+Python · FastAPI · LangGraph · PostgreSQL · pgvector · Next.js · Supabase Auth · Groq · Claude · Voyage · Railway
 
-**AI:** Groq for chat · Voyage `voyage-4-large` (1024-d) for search · Ollama optional offline only.  
-**LLM fallback:** Groq → Claude → Ollama (`resolve_llm_fallback`).
+**AI:** Tiered chat — Groq Llama 8B (basic) + Claude Sonnet (heavy) · Voyage `voyage-4-large` (1024-d) for search · Ollama optional offline only.  
+**LLM fallback:** Claude heavy → Groq 70B if no Anthropic key; overall chain Groq → Claude → Ollama (`resolve_llm_fallback`).
 
 ## Quick start (local)
 
 ```bash
 cp .env.example .env
 cp frontend/.env.local.example frontend/.env.local
-# Add GROQ_API_KEY + VOYAGE_API_KEY + Supabase keys
+# Add GROQ_API_KEY + ANTHROPIC_API_KEY (optional heavy) + VOYAGE_API_KEY + Supabase keys
 
 docker compose up -d db
 cd backend && uv sync && uv run alembic upgrade head

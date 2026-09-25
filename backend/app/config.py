@@ -17,14 +17,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Unified advisor: Groq free tier (local + Railway) — same model everywhere
+    # Unified advisor: Groq Llama (basic) + Claude (heavy) when keyed
     groq_api_key: str = ""
     groq_model: str = "llama-3.1-8b-instant"
     # Used when heavy tier is selected but Anthropic key is missing
     groq_heavy_model: str = "llama-3.3-70b-versatile"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-6"
-    # basic (Llama) + heavy (Claude) routing for chat
+    # basic (Llama) + heavy (Claude) routing for chat — see agent/routing.py / ADR 0005
     llm_routing_enabled: bool = True
     voyage_api_key: str = ""
     # Best free Voyage tier: 200M tokens/account — https://docs.voyageai.com/docs/pricing

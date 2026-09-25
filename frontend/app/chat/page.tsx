@@ -663,7 +663,7 @@ function ChatPageContent() {
                   </span>
                   {slowHint && (
                     <p className="text-xs text-[var(--muted)]">
-                      Still working — the advisor may be calling tools or waiting on Groq.
+                      Still working — the advisor may be calling tools or waiting on Groq / Claude.
                       Leaving this page is fine; the answer will save when ready.
                     </p>
                   )}

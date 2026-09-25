@@ -26,11 +26,25 @@ def _system_text(memory_summary: str, user_intelligence: str = "") -> str:
 
 
 def _to_anthropic_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
+    """Convert LangChain messages to Anthropic Messages API format.
+
+    Consecutive tool results must share one ``user`` turn (Anthropic requirement).
+    """
     out: list[dict[str, Any]] = []
+    pending_tools: list[dict[str, Any]] = []
+
+    def flush_tools() -> None:
+        nonlocal pending_tools
+        if pending_tools:
+            out.append({"role": "user", "content": pending_tools})
+            pending_tools = []
+
     for msg in messages:
         if isinstance(msg, HumanMessage):
+            flush_tools()
             out.append({"role": "user", "content": str(msg.content)})
         elif isinstance(msg, AIMessage):
+            flush_tools()
             if msg.tool_calls:
                 blocks: list[dict[str, Any]] = []
                 if msg.content:
@@ -41,25 +55,21 @@ def _to_anthropic_messages(messages: list[BaseMessage]) -> list[dict[str, Any]]:
                             "type": "tool_use",
                             "id": tc["id"],
                             "name": tc["name"],
-                            "input": tc["args"],
+                            "input": tc["args"] if isinstance(tc["args"], dict) else {},
                         }
                     )
                 out.append({"role": "assistant", "content": blocks})
             else:
                 out.append({"role": "assistant", "content": str(msg.content)})
         elif isinstance(msg, ToolMessage):
-            out.append(
+            pending_tools.append(
                 {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": msg.tool_call_id,
-                            "content": str(msg.content),
-                        }
-                    ],
+                    "type": "tool_result",
+                    "tool_use_id": msg.tool_call_id,
+                    "content": str(msg.content),
                 }
             )
+    flush_tools()
     return out
 
 
@@ -542,21 +552,32 @@ def _summarize_groq(messages: list[BaseMessage], current_summary: str, api_key: 
         return str(content).strip()
 
 
-def _summarize_anthropic(messages: list[BaseMessage], current_summary: str, api_key: str) -> str:
-    recent = _recent_exchange(messages)
-    if not recent:
-        return current_summary
+def _summarize_anthropic(
+    messages: list[BaseMessage],
+    current_summary: str,
+    api_key: str,
+    *,
+    model: str | None = None,
+) -> str:
     client = anthropic.Anthropic(api_key=api_key)
-    prompt = _memory_prompt(current_summary, recent)
+    transcript = "\n".join(
+        f"{'User' if isinstance(m, HumanMessage) else 'Assistant'}: {m.content}"
+        for m in messages[-8:]
+        if isinstance(m, (HumanMessage, AIMessage)) and m.content
+    )
+    prompt = (
+        "Update this rolling memory of a personal-finance chat. "
+        "Keep facts, goals, and preferences; drop chit-chat. Max 8 sentences.\n\n"
+        f"Current summary:\n{current_summary or '(empty)'}\n\n"
+        f"New turns:\n{transcript}"
+    )
     response = client.messages.create(
-        model=ANTHROPIC_MODEL,
-        max_tokens=300,
+        model=model or settings.anthropic_model or ANTHROPIC_MODEL,
+        max_tokens=400,
         messages=[{"role": "user", "content": prompt}],
     )
-    first = response.content[0]
-    if first.type == "text":
-        return first.text.strip()
-    return current_summary
+    parts = [b.text for b in response.content if b.type == "text"]
+    return "\n".join(parts).strip() or current_summary
 
 
 def _summarize_ollama(messages: list[BaseMessage], current_summary: str) -> str:
@@ -713,15 +734,17 @@ def summarize_memory(
     current_summary: str,
     api_key: str = "",
 ) -> str:
-    """Update the rolling memory summary after a conversation turn."""
+    """Update the rolling memory summary after a conversation turn (basic tier)."""
     if len(messages) < 2:
         return current_summary
-    provider = settings.effective_llm_provider
+    from agent.routing import resolve_utility_backend
+
+    provider, model = resolve_utility_backend()
     if provider == "anthropic":
         key = api_key or settings.anthropic_api_key
         if not key:
             return current_summary
-        return _summarize_anthropic(messages, current_summary, key)
+        return _summarize_anthropic(messages, current_summary, key, model=model)
     if provider == "groq":
         key = api_key or settings.groq_api_key
         if not key:
@@ -731,22 +754,22 @@ def summarize_memory(
 
 
 def call_llm_plain(prompt: str, *, max_tokens: int = 400) -> str:
-    """Single-turn LLM call without tools — for memory/profile JSON updates."""
-    provider = settings.effective_llm_provider
+    """Single-turn LLM call without tools — memory/profile JSON (basic tier)."""
+    from agent.routing import resolve_utility_backend
+
+    provider, model = resolve_utility_backend()
     if provider == "anthropic":
         key = settings.anthropic_api_key
         if not key:
-            raise ValueError("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic")
+            raise ValueError("ANTHROPIC_API_KEY is required for Claude utility calls")
         client = anthropic.Anthropic(api_key=key)
         response = client.messages.create(
-            model=ANTHROPIC_MODEL,
+            model=model or settings.anthropic_model or ANTHROPIC_MODEL,
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        first = response.content[0]
-        if first.type == "text":
-            return first.text.strip()
-        return ""
+        parts = [b.text for b in response.content if b.type == "text"]
+        return "\n".join(parts).strip()
     if provider == "groq":
         key = settings.groq_api_key
         if not key:
@@ -759,7 +782,7 @@ def call_llm_plain(prompt: str, *, max_tokens: int = 400) -> str:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": settings.groq_model,
+                    "model": model or settings.groq_model,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.1,
                     "max_tokens": max_tokens,

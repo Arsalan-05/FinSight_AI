@@ -9,7 +9,7 @@ from app.config import settings
 
 ChatTier = Literal["basic", "heavy"]
 
-# Multi-step / planning / comparison / deep advice → heavy tier (Claude)
+# Multi-step / planning / comparison / deep advice / money recovery → Claude
 _HEAVY_PATTERNS = (
     r"\bwhat[\s-]?if\b",
     r"\bplan\b",
@@ -38,6 +38,21 @@ _HEAVY_PATTERNS = (
     r"\bdiscuss\b",
     r"\banalyze\b",
     r"\banalys[ei]s\b",
+    r"\bleak\b",
+    r"\brecover(?:y|ing|ed)?\b",
+    r"\bcancel(?:lation)?\b",
+    r"\bdispute\b",
+    r"\bnegotiat(?:e|ion)\b",
+    r"\bbudget(?:ing)?\b",
+    r"\bdebt\b",
+    r"\binterest rate\b",
+    r"\bmortgage\b",
+    r"\bretire(?:ment)?\b",
+    r"\btax(?:es|able)?\b",
+    r"\bpros and cons\b",
+    r"\bin depth\b",
+    r"\bdeep dive\b",
+    r"\bwalk me through\b",
 )
 
 _HEAVY_RE = re.compile("|".join(_HEAVY_PATTERNS), re.IGNORECASE)
@@ -68,8 +83,8 @@ def route_chat_tier(question: str) -> ChatTier:
 def resolve_chat_backend(tier: ChatTier) -> tuple[str, str]:
     """Pick ``(provider, model)`` for a tier.
 
-    - basic → Groq Llama (fast/cheap)
-    - heavy → Claude when ``ANTHROPIC_API_KEY`` is set; else stronger Groq; else basic Groq
+    - basic → Groq Llama 8B (fast/cheap)
+    - heavy → Claude Sonnet when ``ANTHROPIC_API_KEY`` is set; else Groq 70B; else Ollama
     - privacy_mode → Ollama only
     """
     if settings.privacy_mode:
@@ -91,13 +106,41 @@ def resolve_chat_backend(tier: ChatTier) -> tuple[str, str]:
             return "groq", settings.groq_heavy_model
         return "ollama", settings.ollama_model
 
-    # basic
+    # basic — always prefer fast Llama; Claude only if Groq missing
     if settings.groq_api_key:
         return "groq", settings.groq_model
     if settings.anthropic_api_key:
-        # No Groq key — still allow Claude rather than failing
         return "anthropic", settings.anthropic_model
     return "ollama", settings.ollama_model
+
+
+def resolve_utility_backend() -> tuple[str, str]:
+    """Backend for memory summaries / profile JSON — prefer cheap basic tier."""
+    return resolve_chat_backend("basic")
+
+
+def routing_manifest() -> dict[str, object]:
+    """Public description of the live tier map (for ``/capabilities``)."""
+    basic_p, basic_m = resolve_chat_backend("basic")
+    heavy_p, heavy_m = resolve_chat_backend("heavy")
+    return {
+        "enabled": settings.llm_routing_enabled and not settings.privacy_mode,
+        "privacy_mode": settings.privacy_mode,
+        "basic": {
+            "provider": basic_p,
+            "model": basic_m,
+            "label": f"{basic_p}/{basic_m}",
+            "role": "Fast spend Q&A, lookups, simple aggregates",
+        },
+        "heavy": {
+            "provider": heavy_p,
+            "model": heavy_m,
+            "label": f"{heavy_p}/{heavy_m}",
+            "role": "Planning, comparisons, advice, leaks, tax, what-if",
+        },
+        "claude_configured": bool(settings.anthropic_api_key),
+        "fallback_without_claude": f"groq/{settings.groq_heavy_model}",
+    }
 
 
 def tier_status_label(tier: ChatTier, provider: str, model: str) -> str:
@@ -105,4 +148,6 @@ def tier_status_label(tier: ChatTier, provider: str, model: str) -> str:
         if provider == "anthropic":
             return "Deeper discussion (Claude)"
         return f"Deeper discussion ({model})"
+    if provider == "anthropic":
+        return f"Quick answer (Claude · {model})"
     return f"Quick answer ({model})"

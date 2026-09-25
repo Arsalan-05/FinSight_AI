@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from agent.routing import resolve_chat_backend, route_chat_tier, route_model
+from agent.routing import (
+    resolve_chat_backend,
+    resolve_utility_backend,
+    route_chat_tier,
+    route_model,
+    routing_manifest,
+)
 
 
 def test_basic_spend_question_routes_llama() -> None:
@@ -18,6 +24,11 @@ def test_heavy_planning_routes_claude_tier() -> None:
 
 def test_what_if_is_heavy() -> None:
     assert route_chat_tier("What if I move to Waterloo and pay $1400 rent?") == "heavy"
+
+
+def test_leak_and_tax_are_heavy() -> None:
+    assert route_chat_tier("Help me recover this FX markup leak") == "heavy"
+    assert route_chat_tier("How do student taxes work for my co-op?") == "heavy"
 
 
 def test_resolve_heavy_prefers_anthropic(monkeypatch) -> None:
@@ -56,6 +67,33 @@ def test_resolve_basic_uses_groq_8b(monkeypatch) -> None:
     provider, model = resolve_chat_backend("basic")
     assert provider == "groq"
     assert model == "llama-3.1-8b-instant"
+
+
+def test_utility_backend_is_basic(monkeypatch) -> None:
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "privacy_mode", False)
+    monkeypatch.setattr(settings, "llm_routing_enabled", True)
+    monkeypatch.setattr(settings, "groq_api_key", "g-test")
+    monkeypatch.setattr(settings, "anthropic_api_key", "sk-test")
+    monkeypatch.setattr(settings, "groq_model", "llama-3.1-8b-instant")
+    provider, model = resolve_utility_backend()
+    assert provider == "groq"
+    assert model == "llama-3.1-8b-instant"
+
+
+def test_routing_manifest_shows_claude_when_configured(monkeypatch) -> None:
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "privacy_mode", False)
+    monkeypatch.setattr(settings, "llm_routing_enabled", True)
+    monkeypatch.setattr(settings, "groq_api_key", "g-test")
+    monkeypatch.setattr(settings, "anthropic_api_key", "sk-test")
+    monkeypatch.setattr(settings, "anthropic_model", "claude-sonnet-4-6")
+    monkeypatch.setattr(settings, "groq_model", "llama-3.1-8b-instant")
+    m = routing_manifest()
+    assert m["claude_configured"] is True
+    assert m["heavy"]["provider"] == "anthropic"  # type: ignore[index]
 
 
 def test_privacy_mode_forces_ollama(monkeypatch) -> None:

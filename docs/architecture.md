@@ -12,7 +12,8 @@ flowchart LR
     Web[FinSight Web — Next.js]
     API[FinSight API — FastAPI]
     SB[(Supabase Postgres + Auth)]
-    Groq[Groq LLM]
+    Groq[Groq Llama basic]
+    Claude[Claude Sonnet heavy]
     Voyage[Voyage Embeddings]
     Plaid[Plaid — optional]
     BoC[Bank of Canada Valet]
@@ -20,6 +21,7 @@ flowchart LR
     User --> Web --> API
     API --> SB
     API --> Groq
+    API --> Claude
     API --> Voyage
     API -.-> Plaid
     API --> BoC
@@ -54,11 +56,14 @@ Production uses Voyage. Ollama is **not** a prerequisite.
 ## Data flow (chat)
 
 1. User message → JWT scoped to `user_id`
-2. LangGraph ReAct loop selects tools (SQL aggregates, search, leaks, planning, `calculate`)
-3. Tool results get `evidence_id`s; draft answer tags amounts as `[[$412.30|ev_17]]`
-4. Numeric guardrail verifies amounts; on failure, regenerate once or strip
-5. Persist messages + evidence in `chat_sessions.messages_json`
-6. Frontend renders clickable chips → evidence drawer
+2. **Tier router** (`agent/routing.py`): basic → Groq Llama 8B; heavy → Claude Sonnet (or Groq 70B fallback)
+3. LangGraph ReAct loop selects tools (SQL aggregates, search, leaks, planning, `calculate`)
+4. Tool results get `evidence_id`s; draft answer tags amounts as `[[$412.30|ev_17]]`
+5. Numeric guardrail verifies amounts; on failure, regenerate once or strip
+6. Persist messages + evidence in `chat_sessions.messages_json`
+7. Frontend renders clickable chips → evidence drawer
+
+See [ADR 0005](./adr/0005-model-routing.md).
 
 ## Migrations (Alembic)
 

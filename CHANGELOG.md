@@ -15,11 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hybrid search (tsvector + pgvector RRF), structured filters, semantic cache
 - Security: RLS policies, PII redaction, audit log, threat model
 - Docs split into `/docs` with ADRs, metrics.json single source of truth
+- **Multi-tier LLM routing:** Groq Llama 8B (basic) + Claude Sonnet (heavy); Groq 70B fallback
 
 ### Changed
 - MIT license clarified (redistribution permitted per MIT terms)
 - Embedding docs corrected to Voyage `vector(1024)`
 - Ollama documented as optional offline fallback only
+- ADR 0005 updated from 8B/70B-only to Llama basic / Claude heavy
 
 ## [1.5.1] - 2026-07-01
 
