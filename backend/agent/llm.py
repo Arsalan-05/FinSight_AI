@@ -601,6 +601,17 @@ def _memory_prompt(current_summary: str, recent: list[str]) -> str:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
+def resolve_llm_fallback() -> list[str]:
+    """LLM fallback chain: Groq → Claude (Anthropic) → Ollama.
+
+    Privacy mode forces Ollama only (no cloud). Otherwise returns the preferred
+    order; callers may skip providers that lack API keys.
+    """
+    if settings.privacy_mode:
+        return ["ollama"]
+    return ["groq", "anthropic", "ollama"]
+
+
 def llm_runtime_available() -> bool:
     """True when the configured provider can answer chat requests."""
     provider = settings.effective_llm_provider

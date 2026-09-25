@@ -154,6 +154,7 @@ async def _stream_reply(
             "session_id": session_id,
             "content": result.reply,
             "citations": result.citations,
+            "evidence": result.evidence,
         }
     )
 

@@ -35,7 +35,10 @@ class TestChatEndpoint:
         assert token_events
         assert done_events
         assert done_events[0]["session_id"] == "chat-test-1"
-        assert "94.75" in done_events[0]["content"]
+        # Numeric guardrail strips unverified $ amounts when no tool output grounded them.
+        content = done_events[0]["content"]
+        assert "dining" in content.lower()
+        assert "94.75" not in content or "ev_" in content
 
     @patch("agent.graph.call_llm")
     def test_chat_generates_session_id_when_missing(self, mock_llm: MagicMock, client) -> None:

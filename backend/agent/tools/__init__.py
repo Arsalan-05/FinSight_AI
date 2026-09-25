@@ -8,6 +8,7 @@ from langchain_core.tools import StructuredTool
 from sqlalchemy.orm import Session
 
 from agent.tools.aggregator import aggregate_spending
+from agent.tools.calculate import calculate
 from agent.tools.dates import last_month_range, resolve_aggregate_dates
 from agent.tools.summarize import is_empty_aggregate, summarize_aggregate
 from agent.tools.web_search import search_web
@@ -16,6 +17,9 @@ from insights.runway import analyze_cash_runway
 from insights.service import build_all_insights
 from insights.tfsa import tfsa_contribution_status
 from mcp.registry import MCP_TOOL_DEFINITIONS, execute_mcp_tool
+from planning.forecast import run_cash_forecast
+from planning.osap import plan_osap
+from planning.registered import optimize_registered
 from rag.retriever import retrieve
 
 CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
@@ -149,6 +153,138 @@ CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "Estimate cash runway in months from recent spending (student/co-op friendly)."
         ),
         "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "calculate",
+        "description": (
+            "Safely evaluate a simple arithmetic expression (+, -, *, /, parentheses). "
+            "Use for ALL mental math — never compute sums, differences, or percentages yourself."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "type": "string",
+                    "description": "Arithmetic expression, e.g. '(412.30 + 88.50) * 0.13'.",
+                },
+            },
+            "required": ["expression"],
+        },
+    },
+    {
+        "name": "run_registered_optimizer",
+        "description": (
+            "Optimize FHSA/TFSA/RRSP contribution allocation with a year-by-year projection. "
+            "Use for Canadian registered-account planning questions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "income": {
+                    "type": "number",
+                    "description": "Annual earned income in CAD.",
+                },
+                "age": {"type": "integer", "description": "Current age."},
+                "first_time_buyer": {
+                    "type": "boolean",
+                    "description": "Whether the user is a first-time home buyer (FHSA eligible).",
+                    "default": False,
+                },
+                "horizon": {
+                    "type": "integer",
+                    "description": "Projection horizon in years (default 5).",
+                    "default": 5,
+                },
+                "annual_contribution": {
+                    "type": "number",
+                    "description": "Dollars available to contribute each year.",
+                    "default": 0,
+                },
+                "existing_room": {
+                    "type": "object",
+                    "description": "Unused room: tfsa, rrsp, fhsa, fhsa_lifetime_contributed.",
+                },
+                "tax_year": {
+                    "type": "integer",
+                    "description": "Starting calendar year for CRA limits (default 2026).",
+                    "default": 2026,
+                },
+            },
+            "required": ["income", "age"],
+        },
+    },
+    {
+        "name": "run_osap_plan",
+        "description": (
+            "Compare OSAP / student loan repayment: standard vs accelerated amortization "
+            "and the effect of extra monthly payments."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "principal": {
+                    "type": "number",
+                    "description": "Outstanding loan balance in CAD.",
+                },
+                "annual_rate": {
+                    "type": "number",
+                    "description": "Optional annual interest rate override (e.g. 0.055).",
+                },
+                "standard_years": {
+                    "type": "number",
+                    "description": "Standard amortization years (default from rules).",
+                },
+                "accelerated_years": {
+                    "type": "number",
+                    "description": "Accelerated amortization years.",
+                },
+                "extra_monthly": {
+                    "type": "number",
+                    "description": "Extra dollars paid each month on top of standard payment.",
+                    "default": 0,
+                },
+                "tax_year": {
+                    "type": "integer",
+                    "description": "Year for default OSAP parameters (default 2026).",
+                    "default": 2026,
+                },
+            },
+            "required": ["principal"],
+        },
+    },
+    {
+        "name": "run_cash_forecast",
+        "description": (
+            "Monte Carlo cash forecast: P10/P50/P90 ending balances and probability of ruin. "
+            "Educational estimate only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "starting_balance": {"type": "number"},
+                "monthly_income_mean": {"type": "number"},
+                "monthly_expense_mean": {"type": "number"},
+                "monthly_income_std": {"type": "number", "default": 0},
+                "monthly_expense_std": {"type": "number", "default": 0},
+                "months": {"type": "integer", "default": 12},
+                "n_sims": {
+                    "type": "integer",
+                    "description": "Number of simulations (default 5000).",
+                    "default": 5000,
+                },
+                "seed": {"type": "integer", "description": "Optional RNG seed."},
+                "ruin_threshold": {
+                    "type": "number",
+                    "description": "Balance below which a path counts as ruin (default 0).",
+                    "default": 0,
+                },
+            },
+            "required": [
+                "starting_balance",
+                "monthly_income_mean",
+                "monthly_expense_mean",
+            ],
+        },
     },
 ]
 
@@ -322,6 +458,61 @@ def execute_tool(
 
     if name == "get_cash_runway":
         return json.dumps(analyze_cash_runway(db, account_ids=account_ids))
+
+    if name == "calculate":
+        expression = str(args.get("expression", ""))
+        return json.dumps(calculate(expression))
+
+    if name == "run_registered_optimizer":
+        try:
+            room = args.get("existing_room")
+            result = optimize_registered(
+                income=float(args.get("income", 0)),
+                age=int(args.get("age", 0)),
+                first_time_buyer=bool(args.get("first_time_buyer", False)),
+                horizon=int(args.get("horizon") or 5),
+                existing_room=room if isinstance(room, dict) else None,
+                annual_contribution=float(args.get("annual_contribution") or 0),
+                tax_year=int(args.get("tax_year") or 2026),
+            )
+            return json.dumps(result)
+        except (TypeError, ValueError, FileNotFoundError) as exc:
+            return json.dumps({"error": str(exc)})
+
+    if name == "run_osap_plan":
+        try:
+            rate = args.get("annual_rate")
+            std_y = args.get("standard_years")
+            accel_y = args.get("accelerated_years")
+            result = plan_osap(
+                principal=float(args.get("principal", 0)),
+                annual_rate=float(rate) if rate is not None else None,
+                standard_years=float(std_y) if std_y is not None else None,
+                accelerated_years=float(accel_y) if accel_y is not None else None,
+                extra_monthly=float(args.get("extra_monthly") or 0),
+                tax_year=int(args.get("tax_year") or 2026),
+            )
+            return json.dumps(result)
+        except (TypeError, ValueError, FileNotFoundError) as exc:
+            return json.dumps({"error": str(exc)})
+
+    if name == "run_cash_forecast":
+        try:
+            seed = args.get("seed")
+            result = run_cash_forecast(
+                starting_balance=float(args.get("starting_balance", 0)),
+                monthly_income_mean=float(args.get("monthly_income_mean", 0)),
+                monthly_income_std=float(args.get("monthly_income_std") or 0),
+                monthly_expense_mean=float(args.get("monthly_expense_mean", 0)),
+                monthly_expense_std=float(args.get("monthly_expense_std") or 0),
+                months=int(args.get("months") or 12),
+                n_sims=int(args.get("n_sims") or 5000),
+                seed=int(seed) if seed is not None else None,
+                ruin_threshold=float(args.get("ruin_threshold") or 0),
+            )
+            return json.dumps(result)
+        except (TypeError, ValueError) as exc:
+            return json.dumps({"error": str(exc)})
 
     if name in {"convert_currency", "get_market_quote", "get_exchange_rates"}:
         return execute_mcp_tool(name, args)
