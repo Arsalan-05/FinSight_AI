@@ -91,8 +91,9 @@ CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "category": {
                     "type": "string",
                     "description": (
-                        "Canonical category: Dining, Groceries, Transport, "
-                        "Subscriptions, Utilities, Rent, Income, Transfers, Bank Fees. "
+                        "Canonical category: Dining, Groceries, Transport, Housing, "
+                        "Shopping, Subscriptions, Utilities, Healthcare, Entertainment, "
+                        "Education, Income, Transfers, Bank Fees, Savings. "
                         "Synonyms (restaurants, eating out, takeout) map to Dining. "
                         "OMIT for all-categories — never pass 'none'."
                     ),
