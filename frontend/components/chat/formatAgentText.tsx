@@ -85,10 +85,11 @@ function splitEvidenceTags(
         type="button"
         className="evidence-chip"
         onClick={() => onEvidenceClick?.(seg.evidenceId)}
-        title={`View evidence ${seg.evidenceId}`}
+        title="See where this number comes from"
+        aria-label={`$${seg.amount} — see where this number comes from`}
       >
         {`$${seg.amount}`}
-        <span className="evidence-chip-id">{seg.evidenceId}</span>
+        <span className="evidence-chip-id" aria-hidden="true">ⓘ</span>
       </button>,
     );
   }
