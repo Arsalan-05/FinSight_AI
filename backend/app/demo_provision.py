@@ -18,6 +18,12 @@ def ensure_user_has_data(db: Session, user: User) -> bool:
     """Ensure the user has accounts and transactions (clone demo or inline seed)."""
     if db.query(Account).filter(Account.user_id == user.id).count() > 0:
         return False
+    # Overview fires /dashboard and /auth/sync together; lock the user row so only
+    # one request provisions (otherwise both clone the demo data).
+    db.query(User).filter(User.id == user.id).with_for_update().one()
+    if db.query(Account).filter(Account.user_id == user.id).count() > 0:
+        db.commit()
+        return False
     if _clone_from_demo_user(db, user):
         return True
     return provision_starter_data(db, user)
