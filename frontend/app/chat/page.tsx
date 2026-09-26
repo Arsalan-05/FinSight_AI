@@ -20,6 +20,7 @@ import { ChatHistorySidebar } from "@/components/chat/ChatHistorySidebar";
 import { FollowUpChips } from "@/components/chat/FollowUpChips";
 import { FormatAgentText } from "@/components/chat/formatAgentText";
 import { EvidenceDrawer } from "@/components/evidence/EvidenceDrawer";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useChatStream } from "@/contexts/ChatStreamContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -29,6 +30,7 @@ import { extractFollowUpSuggestions } from "@/lib/chat-suggestions";
 import {
   clearSessionId,
   ensureSessionRecovery,
+  forgetSession,
   hydrateSessionState,
   loadSessionId,
   resolveLocalSessionView,
@@ -435,18 +437,34 @@ function ChatPageContent() {
     inputRef.current?.focus();
   };
 
-  const handleDeleteSession = async (id: string) => {
-    if (viewSessionId === id || sidebarActiveId === id) {
-      clearSessionId();
-      void applyView("");
-    }
+  const [pendingDelete, setPendingDelete] = useState<ChatSessionSummary | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const requestDeleteSession = (id: string) => {
+    const s = sessions.find((row) => row.id === id);
+    setPendingDelete(
+      s ?? { id, title: "this conversation", pinned: false, updated_at: null, message_count: 0 },
+    );
+  };
+
+  const confirmDeleteSession = async () => {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+    setDeleting(true);
     try {
       await api.deleteChatSession(id);
+      forgetSession(id);
+      if (viewSessionId === id || sidebarActiveId === id) {
+        clearSessionId();
+        void applyView("");
+      }
       toast("Conversation deleted");
       void refreshSessions(true);
+      setPendingDelete(null);
     } catch {
-      if (viewSessionId === id) void applyView(id, { refresh: true });
       toast("Could not delete conversation", "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -517,7 +535,7 @@ function ChatPageContent() {
           onRenameCommit={(id) => void commitRename(id)}
           onRenameCancel={() => setRenamingId(null)}
           onTogglePin={(s) => void handleTogglePin(s)}
-          onDelete={(id) => void handleDeleteSession(id)}
+          onDelete={requestDeleteSession}
         />
 
         <div className="chat-main">
@@ -712,6 +730,22 @@ function ChatPageContent() {
         evidenceId={selectedEvidenceId}
         evidence={selectedEvidence}
         onClose={() => setEvidenceOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this conversation?"
+        message={
+          <>
+            <span className="font-medium text-[var(--foreground)]">
+              “{pendingDelete?.title || "Untitled conversation"}”
+            </span>{" "}
+            will be permanently deleted. This can&apos;t be undone.
+          </>
+        }
+        busy={deleting}
+        onConfirm={() => void confirmDeleteSession()}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   );

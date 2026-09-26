@@ -80,12 +80,36 @@ function pendingFromApiMessages(
   return isActivelyStreaming(sessionId);
 }
 
+/** Sessions deleted in this tab — never resurrect them from in-memory state. */
+const deletedSessionIds = new Set<string>();
+
+/** Drop every local trace of a session after it is deleted on the server. */
+export function forgetSession(sessionId: string) {
+  if (!sessionId) return;
+  deletedSessionIds.add(sessionId);
+  stopSessionRecovery(sessionId);
+  clearChatDraft(sessionId);
+  for (const [key, state] of [...states.entries()]) {
+    if (key === sessionId || state.sessionId === sessionId || sessionMigrations.get(key) === sessionId) {
+      abortControllers.get(key)?.abort();
+      abortControllers.delete(key);
+      states.delete(key);
+      clearChatDraft(key);
+    }
+  }
+  for (const [provisional, real] of [...sessionMigrations.entries()]) {
+    if (real === sessionId) sessionMigrations.delete(provisional);
+  }
+  if (loadSessionId() === sessionId) clearSessionId();
+  notify();
+}
+
 export function buildOptimisticSessionEntries(): ChatSessionSummary[] {
   const byId = new Map<string, ChatSessionSummary>();
 
   for (const [key, state] of states.entries()) {
     const id = state.sessionId || (key.startsWith("new:") ? "" : key);
-    if (!id || id.startsWith("new:")) continue;
+    if (!id || id.startsWith("new:") || deletedSessionIds.has(id)) continue;
 
     const firstUser = state.messages.find((m) => m.role === "user" && m.content.trim());
     const title = firstUser?.content.trim().slice(0, 80) || "New conversation";
@@ -110,10 +134,12 @@ export function mergeSessionSummaries(
   const merged = new Map<string, ChatSessionSummary>();
 
   for (const row of remote) {
+    if (deletedSessionIds.has(row.id)) continue;
     merged.set(row.id, row);
   }
 
   for (const row of local) {
+    if (deletedSessionIds.has(row.id)) continue;
     const existing = merged.get(row.id);
     if (!existing) {
       merged.set(row.id, row);
