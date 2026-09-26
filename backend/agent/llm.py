@@ -708,13 +708,35 @@ def call_llm(
                     model=settings.groq_model,
                 )
             raise ValueError("ANTHROPIC_API_KEY is required for Claude heavy tier")
-        return _call_anthropic(
-            messages,
-            memory_summary,
-            key,
-            user_intelligence=user_intelligence,
-            model=resolved_model,
-        )
+        try:
+            return _call_anthropic(
+                messages,
+                memory_summary,
+                key,
+                user_intelligence=user_intelligence,
+                model=resolved_model,
+            )
+        except Exception as exc:
+            if not settings.groq_api_key:
+                raise
+            import logging
+
+            import anthropic
+
+            from agent.routing import disable_anthropic
+
+            if isinstance(exc, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)):
+                disable_anthropic(f"Anthropic rejected the API key: {exc}")
+            logging.getLogger(__name__).warning(
+                "Claude failed (%s); falling back to Groq %s", exc, settings.groq_heavy_model
+            )
+            return _call_groq(
+                messages,
+                memory_summary,
+                settings.groq_api_key,
+                user_intelligence=user_intelligence,
+                model=settings.groq_heavy_model,
+            )
     if resolved_provider == "groq":
         key = api_key or settings.groq_api_key
         if not key:
@@ -728,8 +750,10 @@ def call_llm(
                 model=resolved_model,
             )
         except RuntimeError as exc:
+            from agent.routing import anthropic_usable
+
             # Retired model IDs / outages → Claude if configured
-            if settings.anthropic_api_key and (
+            if anthropic_usable() and (
                 "does not exist" in str(exc)
                 or "model_not_found" in str(exc).lower()
                 or " 404" in str(exc)

@@ -81,6 +81,19 @@ def route_chat_tier(question: str) -> ChatTier:
     return "basic"
 
 
+_anthropic_disabled_reason: str | None = None
+
+
+def disable_anthropic(reason: str) -> None:
+    """Stop routing to Claude for this process (e.g. invalid API key)."""
+    global _anthropic_disabled_reason
+    _anthropic_disabled_reason = reason
+
+
+def anthropic_usable() -> bool:
+    return bool(settings.anthropic_api_key) and _anthropic_disabled_reason is None
+
+
 def resolve_chat_backend(tier: ChatTier) -> tuple[str, str]:
     """Pick ``(provider, model)`` for a tier.
 
@@ -101,16 +114,16 @@ def resolve_chat_backend(tier: ChatTier) -> tuple[str, str]:
         return "ollama", settings.ollama_model
 
     if tier == "heavy":
-        if settings.anthropic_api_key:
+        if anthropic_usable():
             return "anthropic", settings.anthropic_model
         if settings.groq_api_key:
             return "groq", settings.groq_heavy_model
         return "ollama", settings.ollama_model
 
-    # basic — always prefer fast Llama; Claude only if Groq missing
+    # basic — always prefer fast Groq; Claude only if Groq missing
     if settings.groq_api_key:
         return "groq", settings.groq_model
-    if settings.anthropic_api_key:
+    if anthropic_usable():
         return "anthropic", settings.anthropic_model
     return "ollama", settings.ollama_model
 
@@ -140,6 +153,7 @@ def routing_manifest() -> dict[str, object]:
             "role": "Planning, comparisons, advice, leaks, tax, what-if",
         },
         "claude_configured": bool(settings.anthropic_api_key),
+        "claude_disabled_reason": _anthropic_disabled_reason,
         "fallback_without_claude": f"groq/{settings.groq_heavy_model}",
     }
 
