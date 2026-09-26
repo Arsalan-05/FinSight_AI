@@ -227,6 +227,8 @@ def run_agent(
 
         final_messages = result["messages"]
         memory_summary = result.get("memory_summary", session.memory_summary or "")
+        # Claude may have been disabled mid-turn (bad key) and replaced by Groq.
+        chat_provider, chat_model = resolve_chat_backend(chat_tier)
 
         if update_memory and llm_runtime_available() and _should_update_memory(final_messages):
             try:

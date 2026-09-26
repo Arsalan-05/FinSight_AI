@@ -154,7 +154,13 @@ async def _stream_reply(
         elif isinstance(exc, (RuntimeError, ValueError)):
             yield _sse({"type": "error", "message": str(exc)})
         else:
-            yield _sse({"type": "error", "message": "Agent failed to generate a response."})
+            yield _sse(
+                {
+                    "type": "error",
+                    "message": f"Agent failed to generate a response ({type(exc).__name__}). "
+                    "Please try again.",
+                }
+            )
         return
 
     result = result_holder[0]
