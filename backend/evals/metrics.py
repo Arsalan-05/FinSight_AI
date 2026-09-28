@@ -1,4 +1,4 @@
-"""Evaluation metrics for Phase 1 harness (no LLM dependency)."""
+"""Evaluation metrics for the eval harness (no LLM dependency)."""
 
 from __future__ import annotations
 

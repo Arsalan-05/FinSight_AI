@@ -1,4 +1,4 @@
-"""Multi-tier chat routing: basic (Llama/Groq) vs heavy (Claude)."""
+"""Multi-tier chat routing: basic (Groq) vs heavy (Claude)."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ _HEAVY_PATTERNS = (
     r"\bproject(?:ion|ed)?\b",
     r"\boptimiz(?:e|ation)\b",
     r"\bmulti[\s-]?step\b",
-    # Narrow: bare "should I cut back?" stays on fast Llama; invest/compare → Claude
+    # Narrow: bare "should I cut back?" stays on the fast Groq tier; invest/compare → Claude
     r"\bshould i (invest|contribute|open|switch|move|compare|prioriti[sz]e)\b",
     r"\btrade[\s-]?off\b",
     r"\badvise\b",
@@ -83,7 +83,7 @@ def route_model(question: str) -> str:
 
 
 def route_chat_tier(question: str) -> ChatTier:
-    """Classify a user question as ``basic`` (Llama) or ``heavy`` (Claude)."""
+    """Classify a user question as ``basic`` (Groq) or ``heavy`` (Claude)."""
     text = (question or "").strip()
     if not text:
         return "basic"
@@ -112,8 +112,8 @@ def anthropic_usable() -> bool:
 def resolve_chat_backend(tier: ChatTier) -> tuple[str, str]:
     """Pick ``(provider, model)`` for a tier.
 
-    - basic → Groq Llama 8B (fast/cheap)
-    - heavy → Claude Sonnet when ``ANTHROPIC_API_KEY`` is set; else Groq 70B; else Ollama
+    - basic → Groq ``GROQ_MODEL`` (fast/cheap)
+    - heavy → Claude when ``ANTHROPIC_API_KEY`` is set; else ``GROQ_HEAVY_MODEL``; else Ollama
     - privacy_mode → Ollama only
     """
     if settings.privacy_mode:

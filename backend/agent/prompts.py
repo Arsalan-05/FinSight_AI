@@ -47,6 +47,8 @@ def build_system_prompt(
         "- NEVER dump debug tables about why a query failed. Explain in plain English.",
         "- Be concise: lead with the answer (dollar amount + period), then short context.",
         "- Debits are expenses — report spending as positive CAD.",
+        "- No emoji. Use a short table only when comparing several categories or months.",
+        "- When a table has a total row, list every row that adds up to it.",
         "",
         "## How you think",
         "1. UNDERSTAND — personal data vs general education vs both.",

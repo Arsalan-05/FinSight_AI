@@ -1,5 +1,5 @@
 /**
- * Playwright smoke stubs — 10 critical flows (Phase 10).
+ * Playwright smoke stubs — 10 critical flows.
  *
  * Documentation-only until `@playwright/test` is installed. Mirror rows in
  * `docs/e2e-checklist.md`. When ready:

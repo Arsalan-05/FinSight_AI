@@ -1,1 +1,1 @@
-"""FinSight AI evaluation harness (Phase 1)."""
+"""FinSight AI evaluation harness."""

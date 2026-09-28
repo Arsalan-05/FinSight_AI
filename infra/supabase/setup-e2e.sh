@@ -60,7 +60,7 @@ echo "==> Seeding Canadian demo data..."
 uv run python scripts/seed.py
 
 echo ""
-echo "✅ Supabase setup complete!"
+echo "Supabase setup complete."
 echo "   Tables: users, accounts, transactions, transaction_embeddings, chat_sessions"
 echo "   Demo user: demo@finsight.ai"
 echo ""

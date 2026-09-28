@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     groq_heavy_model: str = "openai/gpt-oss-120b"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-6"
-    # basic (Llama) + heavy (Claude) routing for chat — see agent/routing.py / ADR 0005
+    # basic (Groq) + heavy (Claude) routing for chat — see agent/routing.py / ADR 0005
     llm_routing_enabled: bool = True
     voyage_api_key: str = ""
     # Best free Voyage tier: 200M tokens/account — https://docs.voyageai.com/docs/pricing
@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     # Set PRIVACY_MODE=true for air-gapped / PIPEDA-sensitive demos.
     privacy_mode: bool = False
 
-    # Beta invite-only access (comma-separated emails; empty = open)
+    # Invite-only access (comma-separated emails; empty = open)
     beta_allowed_emails: str = ""
 
     # SMTP for weekly digest emails (optional)

@@ -225,7 +225,7 @@ _MALFORMED_GROQ_FN_RE = re.compile(
 
 
 def _parse_groq_failed_tool_generation(text: str) -> list[dict[str, Any]]:
-    """Salvage tool calls when Groq rejects llama's XML-style function markup."""
+    """Salvage tool calls when Groq rejects XML-style function markup from the model."""
     tool_calls: list[dict[str, Any]] = []
     for match in _MALFORMED_GROQ_FN_RE.finditer(text.strip()):
         name = match.group(1)
@@ -675,7 +675,7 @@ def call_llm(
 ) -> AIMessage:
     """Call an LLM provider.
 
-    When ``tier`` is set (``basic`` / ``heavy``), routing picks Llama vs Claude.
+    When ``tier`` is set (``basic`` / ``heavy``), routing picks Groq vs Claude.
     Explicit ``provider`` + ``model`` override routing.
     """
     from agent.routing import ChatTier, resolve_chat_backend, route_chat_tier

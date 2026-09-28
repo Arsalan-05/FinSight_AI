@@ -1,5 +1,5 @@
 /**
- * FinSight AI — k6 load script (Phase 8 scaffolding)
+ * FinSight AI — k6 load script
  *
  * Usage:
  *   k6 run infra/load/chat.js

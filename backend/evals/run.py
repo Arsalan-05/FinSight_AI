@@ -347,9 +347,8 @@ def run_eval(
     fixture_summary = summarize_fixture(transactions, planted_leaks)
 
     if not dry_run:
-        # Live LLM path reserved for later phases; Phase 1 ships dry-run first.
         print(
-            "Live LLM eval is not wired in Phase 1 — falling back to --dry-run helpers.",
+            "Live LLM eval is not wired up; falling back to --dry-run helpers.",
             file=sys.stderr,
         )
         dry_run = True
@@ -393,7 +392,7 @@ def run_eval(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="FinSight AI Phase 1 eval runner")
+    parser = argparse.ArgumentParser(description="FinSight AI eval runner")
     parser.add_argument(
         "--model",
         default="groq-8b",

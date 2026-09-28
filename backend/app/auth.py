@@ -25,7 +25,7 @@ def _check_beta_access(email: str) -> None:
     if email.lower() not in allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="FinSight is in invite-only beta. Contact support for access.",
+            detail="FinSight is invite-only. Ask the owner for access.",
         )
 
 

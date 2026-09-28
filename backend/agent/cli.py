@@ -5,7 +5,7 @@ Usage:
     uv run python -m agent.cli --session my-session "What about last month?"
 
 Requires Groq (basic) + optional Anthropic (heavy) + Voyage:
-    GROQ_API_KEY=...        # console.groq.com — Llama basic tier
+    GROQ_API_KEY=...        # console.groq.com — basic chat tier
     ANTHROPIC_API_KEY=...   # console.anthropic.com — Claude heavy tier (optional)
     VOYAGE_API_KEY=...      # dash.voyageai.com (200M free tokens)
 """

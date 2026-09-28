@@ -19,7 +19,7 @@ from agent.tools import execute_tool
 
 StatusCallback = Callable[[str, str], None]
 
-# Cap ReAct tool rounds (security.md / Phase 6).
+# Cap ReAct tool rounds (see docs/security.md).
 MAX_TOOL_LOOPS = 6
 
 # Light per-tool arg constraints (type / range only — not full JSON Schema).
