@@ -457,7 +457,20 @@ export async function recoverSessionFromApi(
       stopSessionRecovery(sessionId);
     }
     return state;
-  } catch {
+  } catch (e) {
+    const key = findStateKey(sessionId);
+    const msg = e instanceof Error ? e.message : "";
+    if (live?.loading && key && !abortControllers.has(key) && msg.startsWith("API 404")) {
+      // The dropped request never reached the server, so no reply is coming.
+      setState(key, {
+        loading: false,
+        agentStatus: null,
+        error: "Couldn't reach the advisor. Send your message again.",
+      });
+      clearChatDraft(sessionId);
+      stopSessionRecovery(sessionId);
+      return states.get(key) ?? null;
+    }
     return live ?? null;
   }
 }
@@ -526,6 +539,13 @@ export function stopChatStream(sessionId: string) {
     }
   }
   stopSessionRecovery(sessionId);
+}
+
+/** Safari "Load failed" / Chrome "Failed to fetch" / proxy resets — not an agent error. */
+function isDroppedConnection(message: string): boolean {
+  return /load failed|failed to fetch|networkerror|network request failed|network connection was lost|terminated|err_http2|body stream|input stream/i.test(
+    message,
+  );
 }
 
 export async function sendChatMessage(
@@ -670,8 +690,11 @@ export async function sendChatMessage(
         }
       }
     } catch (e) {
-      if (!controller.signal.aborted) {
-        const msg = e instanceof Error ? e.message : "Chat failed";
+      const msg = e instanceof Error ? e.message : "Chat failed";
+      if (!controller.signal.aborted && isDroppedConnection(msg)) {
+        // The server keeps working and saves the reply — finish via recovery polling.
+        setState(activeKey, { agentStatus: "Reconnecting — your answer is still being written…" });
+      } else if (!controller.signal.aborted) {
         const st = states.get(activeKey);
         if (st) {
           const assistant = st.messages.find((m) => m.id === assistantId);
