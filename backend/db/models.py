@@ -226,7 +226,7 @@ class AuditLog(Base):
 
 
 class EvalRun(Base):
-    """Optional persisted eval run (file-based results remain primary for now)."""
+    """Persisted eval run summary; the runner also writes JSON files under evals/results."""
 
     __tablename__ = "eval_runs"
 

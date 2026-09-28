@@ -205,7 +205,7 @@ def detect_forgotten_subscriptions(
                     "occurrences": len(group),
                     "last_date": latest.transaction_date.isoformat(),
                     "related_activity_count": 0,
-                    "still_using": None,  # user toggle placeholder
+                    "still_using": None,  # set via PATCH /leaks/{id}
                     "transaction_ids": [getattr(t, "id", None) for t in group],
                 },
                 "fingerprint": f"forgotten:{key}",

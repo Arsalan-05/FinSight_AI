@@ -124,3 +124,23 @@ class TestRefusalAccuracy:
 
     def test_missed_refuse(self) -> None:
         assert refusal_accuracy(should_refuse=True, did_refuse=False) is False
+
+
+def test_hallucination_metric_matches_production_guardrail() -> None:
+    tool = [json.dumps({"merchant": "Amazon", "total": -2068.76})]
+    result = hallucinated_number_rate("Amazon totals $2068.76 CAD.", tool)
+    assert result["rate"] == 0.0
+
+
+def test_gate_failures_flag_regressions() -> None:
+    from evals.run import gate_failures
+
+    passing = {
+        "answer_numeric_acc": 1.0,
+        "tool_exact_acc": 1.0,
+        "refusal_acc": 1.0,
+        "hallucinated_number_rate": 0.0,
+    }
+    assert gate_failures(passing) == []
+    failing = {**passing, "answer_numeric_acc": 0.9, "hallucinated_number_rate": 0.05}
+    assert len(gate_failures(failing)) == 2

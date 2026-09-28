@@ -144,7 +144,7 @@ def _macro_f1(y_true: Sequence[str], y_pred: Sequence[str]) -> tuple[float, dict
 def train_and_evaluate(
     examples: Sequence[tuple[str, str, str | None]] | None = None,
 ) -> CategorizerMetrics:
-    """Train on a tiny synthetic set and return placeholder metrics.
+    """Train on a small synthetic set and report hold-out accuracy and macro-F1.
 
     Each example is ``(label, description, merchant)``.
     """

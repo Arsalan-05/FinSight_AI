@@ -9,7 +9,7 @@ from ingest.dedupe import find_duplicates, match_score
 from ingest.jobs import clear_jobs, enqueue, get_job
 from ingest.merchants import normalize_merchant
 from ingest.pdf.detect import detect_bank
-from ingest.pdf.extract import extract_with_pdfplumber
+from ingest.pdf.extract import extract_statement_text
 from ingest.pdf.reconcile import reconcile
 from rag.filters import parse_query_filters
 from rag.retriever import rrf_fuse
@@ -111,7 +111,7 @@ class TestPdfDetectAndReconcile:
         2026-01-10 PAYROLL ACME 500.00
         Closing Balance: 1447.70
         """
-        extracted = extract_with_pdfplumber(text)
+        extracted = extract_statement_text(text)
         assert extracted["bank"] == "rbc"
         assert len(extracted["transactions"]) >= 2
         result = reconcile(

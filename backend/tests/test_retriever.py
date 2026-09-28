@@ -106,7 +106,6 @@ class TestRetrieve:
 
         with (
             patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]),
-            patch("rag.retriever._has_tsvector_column", return_value=False),
             patch("rag.retriever.semantic_cache") as mock_cache,
         ):
             mock_cache.get.return_value = None
@@ -127,7 +126,6 @@ class TestRetrieve:
 
         with (
             patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]),
-            patch("rag.retriever._has_tsvector_column", return_value=False),
         ):
             results = retrieve("coffee", mock_db, k=5, use_cache=False, use_rerank=False)
 
@@ -145,7 +143,6 @@ class TestRetrieve:
 
         with (
             patch("rag.retriever.embed_texts", return_value=[_FAKE_VECTOR]) as mock_embed,
-            patch("rag.retriever._has_tsvector_column", return_value=False),
         ):
             retrieve("subscriptions last month", mock_db, k=3, use_cache=False, use_rerank=False)
 

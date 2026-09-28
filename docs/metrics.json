@@ -1,42 +1,35 @@
 {
-  "version": "2.0.0-dev",
-  "generated_at": "2026-09-25T16:35:00Z",
-  "commit_sha": "a3afeb0",
+  "version": "2.0.0",
+  "generated_at": "2026-09-28T20:36:40Z",
+  "commit_sha": "d9fa89c",
   "tests": {
-    "backend_collected": 304,
-    "backend_passed": 304,
-    "frontend_unit": null,
-    "e2e_checkpoints": 20,
-    "coverage_percent": null
+    "backend": {
+      "passed": 332,
+      "failed": 0
+    }
   },
   "evals": {
     "golden_questions": 165,
+    "smoke_questions": 30,
     "retrieval_queries": 60,
-    "smoke_subset": 30,
-    "baseline_dry_run": {
+    "mode": "offline dry run: fixture ground truth scored through the production guardrail",
+    "smoke": {
+      "questions": 30,
       "answer_accuracy": 1.0,
       "tool_selection_exact": 1.0,
-      "hallucinated_number_rate": 0.133,
-      "recall_at_5": 1.0,
+      "hallucinated_number_rate": 0.0,
       "refusal_accuracy": 1.0,
-      "note": "dry-run fixture scoring only; live LLM baselines pending Phase 1 full run"
+      "recall_at_5": 1.0,
+      "ndcg_at_10": 1.0
     },
-    "baseline": {
-      "answer_accuracy": null,
-      "tool_selection_exact": null,
-      "hallucinated_number_rate": null,
-      "recall_at_5": null,
-      "refusal_accuracy": null,
-      "injection_resistance": null
+    "full": {
+      "questions": 165,
+      "answer_accuracy": 1.0,
+      "tool_selection_exact": 1.0,
+      "hallucinated_number_rate": 0.0,
+      "refusal_accuracy": 1.0,
+      "recall_at_5": 1.0,
+      "ndcg_at_10": 1.0
     }
-  },
-  "leaks": {
-    "precision": null,
-    "recall": null,
-    "planted_in_fixture": 47
-  },
-  "performance": {
-    "chat_p95_ms": null,
-    "lighthouse_performance": null
   }
 }

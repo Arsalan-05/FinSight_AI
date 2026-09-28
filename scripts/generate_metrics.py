@@ -1,98 +1,84 @@
 #!/usr/bin/env python3
-"""Generate docs/metrics.json from local pytest collection and optional coverage.
+"""Regenerate docs/metrics.json from a real test run and the offline eval set.
 
-CI should run this after tests and commit or upload the artifact.
-Hardcoded counts in README/docs must be replaced by reading this file.
+Usage (from the repo root):  backend/.venv/bin/python scripts/generate_metrics.py
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-METRICS_PATH = ROOT / "docs" / "metrics.json"
 BACKEND = ROOT / "backend"
+METRICS_PATH = ROOT / "docs" / "metrics.json"
 
 
 def _git_sha() -> str:
     try:
-        return (
-            subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"],
-                cwd=ROOT,
-                stderr=subprocess.DEVNULL,
-            )
-            .decode()
-            .strip()
-        )
+        out = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT)
+        return out.decode().strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"
 
 
-def _collect_pytest() -> int:
-    try:
-        out = subprocess.check_output(
-            ["uv", "run", "pytest", "--collect-only", "-q"],
-            cwd=BACKEND,
-            stderr=subprocess.STDOUT,
-        ).decode()
-    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-        print(f"pytest collect failed: {exc}", file=sys.stderr)
-        return 0
-    for line in out.splitlines():
-        # e.g. "120 tests collected in 0.06s"
-        if "tests collected" in line:
-            return int(line.split()[0])
-    return 0
+def _pytest_counts() -> dict[str, int]:
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"],
+        cwd=BACKEND,
+        capture_output=True,
+        text=True,
+    )
+    tail = proc.stdout.strip().splitlines()[-1] if proc.stdout.strip() else ""
+    counts = {k: int(v) for v, k in re.findall(r"(\d+) (passed|failed|skipped|errors?)", tail)}
+    return {"passed": counts.get("passed", 0), "failed": counts.get("failed", 0)}
 
 
-def _count_golden() -> int:
-    path = BACKEND / "evals" / "golden.jsonl"
-    if not path.exists():
-        return 0
+def _line_count(path: Path) -> int:
     return sum(1 for line in path.read_text().splitlines() if line.strip())
 
 
-def _count_retrieval() -> int:
-    path = BACKEND / "evals" / "retrieval.jsonl"
-    if not path.exists():
-        return 0
-    return sum(1 for line in path.read_text().splitlines() if line.strip())
+def _eval(subset: str) -> dict[str, float]:
+    sys.path.insert(0, str(BACKEND))
+    from evals.run import run_eval
+
+    s = run_eval(model="dry-run", subset=subset, dry_run=True)
+    retrieval = s.get("retrieval") or {}
+    return {
+        "questions": s["n_questions"],
+        "answer_accuracy": s["answer_numeric_acc"],
+        "tool_selection_exact": s["tool_exact_acc"],
+        "hallucinated_number_rate": s["hallucinated_number_rate"],
+        "refusal_accuracy": s["refusal_acc"],
+        "recall_at_5": retrieval.get("recall@5"),
+        "ndcg_at_10": retrieval.get("ndcg@10"),
+    }
 
 
 def main() -> None:
-    existing: dict = {}
-    if METRICS_PATH.exists():
-        existing = json.loads(METRICS_PATH.read_text())
-
-    collected = _collect_pytest()
+    version = tomllib.loads((BACKEND / "pyproject.toml").read_text())["project"]["version"]
+    evals_dir = BACKEND / "evals"
     metrics = {
-        "version": existing.get("version", "2.0.0-dev"),
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "version": version,
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "commit_sha": _git_sha(),
-        "tests": {
-            **existing.get("tests", {}),
-            "backend_collected": collected,
-            "e2e_checkpoints": existing.get("tests", {}).get("e2e_checkpoints", 20),
-        },
+        "tests": {"backend": _pytest_counts()},
         "evals": {
-            **existing.get("evals", {}),
-            "golden_questions": _count_golden() or existing.get("evals", {}).get("golden_questions", 0),
-            "retrieval_queries": _count_retrieval()
-            or existing.get("evals", {}).get("retrieval_queries", 0),
-            "smoke_subset": existing.get("evals", {}).get("smoke_subset", 30),
-            "baseline": existing.get("evals", {}).get("baseline", {}),
+            "golden_questions": _line_count(evals_dir / "golden.jsonl"),
+            "smoke_questions": _line_count(evals_dir / "smoke.jsonl"),
+            "retrieval_queries": _line_count(evals_dir / "retrieval.jsonl"),
+            "mode": "offline dry run: fixture ground truth scored through the production guardrail",
+            "smoke": _eval("smoke"),
+            "full": _eval("full"),
         },
-        "leaks": existing.get("leaks", {}),
-        "performance": existing.get("performance", {}),
     }
-    METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
     METRICS_PATH.write_text(json.dumps(metrics, indent=2) + "\n")
-    print(f"Wrote {METRICS_PATH} (tests={collected})")
+    print(f"Wrote {METRICS_PATH}")
 
 
 if __name__ == "__main__":

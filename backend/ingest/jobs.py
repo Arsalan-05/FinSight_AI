@@ -1,4 +1,4 @@
-"""Simple in-process ingest job queue (arq/celery optional later)."""
+"""In-process ingest job queue for CSV uploads."""
 
 from __future__ import annotations
 

@@ -391,6 +391,25 @@ def run_eval(
     return summary
 
 
+# The build and CI fail when a run falls below these floors.
+GATES: dict[str, tuple[str, float]] = {
+    "answer_numeric_acc": (">=", 0.97),
+    "tool_exact_acc": (">=", 0.97),
+    "refusal_acc": (">=", 1.0),
+    "hallucinated_number_rate": ("<=", 0.0),
+}
+
+
+def gate_failures(summary: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    for key, (op, bound) in GATES.items():
+        value = float(summary.get(key) or 0.0)
+        ok = value >= bound if op == ">=" else value <= bound
+        if not ok:
+            failures.append(f"{key}={value:.3f} (needs {op} {bound})")
+    return failures
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="FinSight AI eval runner")
     parser.add_argument(
@@ -419,7 +438,10 @@ def main(argv: list[str] | None = None) -> int:
         json.dump(summary, fh, indent=2, default=str)
     _print_summary(summary)
     print(f"Wrote {out_path}")
-    return 0
+    failures = gate_failures(summary)
+    for failure in failures:
+        print(f"GATE FAILED: {failure}", file=sys.stderr)
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":

@@ -6,7 +6,6 @@ import logging
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -39,18 +38,6 @@ def rrf_fuse(
     if limit is not None:
         return ordered[:limit]
     return ordered
-
-
-def _has_tsvector_column(db: Session) -> bool:
-    """Return True if transactions expose a Postgres tsvector search column."""
-    try:
-        bind = db.get_bind()
-        if bind.dialect.name != "postgresql":
-            return False
-        mapper = sa_inspect(Transaction)
-        return any(col.key in {"search_vector", "tsv", "fts"} for col in mapper.columns)
-    except Exception:
-        return False
 
 
 def _apply_filters(q: Any, filters: QueryFilters) -> Any:
@@ -147,10 +134,10 @@ def retrieve(
     use_cache: bool = True,
     use_rerank: bool = True,
 ) -> list[Transaction]:
-    """Return top-k transactions for *query* via hybrid RRF (+ filters/rerank).
+    """Return top-k transactions for *query*.
 
-    When a Postgres ``tsvector`` column is absent (current default), fuses
-    keyword ILIKE ranking with vector cosine ranking in Python via RRF.
+    Keyword (ILIKE) and vector (cosine) rankings are fused with reciprocal rank
+    fusion, date/amount filters apply in SQL first, then a token-overlap rerank.
     """
     filters = parse_query_filters(query)
     search_text = filters.cleaned_query or query
@@ -169,11 +156,6 @@ def retrieve(
             return []
 
     fetch_n = max(k * 4, 20)
-
-    if _has_tsvector_column(db):
-        # Future: SQL tsvector + pgvector RRF. Fall through to Python hybrid for now
-        # until a search_vector column is migrated.
-        logger.debug("tsvector column present but SQL RRF not wired; using Python hybrid")
 
     vector_ids = _vector_search(
         db, query_vector, account_ids=account_ids, filters=filters, limit=fetch_n

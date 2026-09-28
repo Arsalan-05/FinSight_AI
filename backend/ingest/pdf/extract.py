@@ -1,4 +1,4 @@
-"""Extract transactions from statement text (pdfplumber stub) or vision (optional)."""
+"""Parse transactions and balances from bank statement text (e.g. text copied out of a PDF)."""
 
 from __future__ import annotations
 
@@ -79,28 +79,24 @@ def _parse_tx_line(line: str) -> NormalizedTx | None:
     }
 
 
-def extract_with_pdfplumber(
+def extract_statement_text(
     source: str | bytes,
     *,
     bank: str | None = None,
 ) -> dict[str, Any]:
-    """Extract statement fields from text (pdfplumber stub).
+    """Parse statement text into normalized transactions plus opening/closing balances.
 
-    Accepts plain statement text or UTF-8 bytes. Real PDF bytes are not
-    parsed here — call with text extracted upstream, or use vision later.
+    Binary PDF bytes are rejected: extract the text layer first.
     """
     if isinstance(source, bytes):
-        # Non-text PDFs start with %PDF — leave for vision path.
         if source[:4] == b"%PDF":
             return {
                 "bank": bank or "unknown",
                 "opening": None,
                 "closing": None,
                 "transactions": [],
-                "errors": [
-                    "Binary PDF detected — use text extraction or extract_with_vision stub."
-                ],
-                "source": "pdfplumber_stub",
+                "errors": ["Binary PDF received; pass the statement's text instead."],
+                "source": "text",
             }
         text = source.decode("utf-8", errors="replace")
     else:
@@ -128,33 +124,5 @@ def extract_with_pdfplumber(
         "closing": closing,
         "transactions": txs,
         "errors": errors,
-        "source": "pdfplumber_stub",
+        "source": "text",
     }
-
-
-def extract_with_vision(
-    _source: bytes,
-    *,
-    bank: str | None = None,
-) -> dict[str, Any]:
-    """Optional vision/OCR path — stub for future multimodal extraction."""
-    return {
-        "bank": bank or "unknown",
-        "opening": None,
-        "closing": None,
-        "transactions": [],
-        "errors": ["Vision extraction not implemented yet."],
-        "source": "vision_stub",
-    }
-
-
-def extract_statement(
-    source: str | bytes,
-    *,
-    bank: str | None = None,
-    use_vision: bool = False,
-) -> dict[str, Any]:
-    """Route to pdfplumber text stub or optional vision stub."""
-    if use_vision and isinstance(source, bytes) and source[:4] == b"%PDF":
-        return extract_with_vision(source, bank=bank)
-    return extract_with_pdfplumber(source, bank=bank)

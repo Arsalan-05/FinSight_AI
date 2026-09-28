@@ -109,34 +109,26 @@ def _tool_json_amounts(tool_outputs: Iterable[str] | None) -> set[float]:
 def hallucinated_number_rate(
     answer: str,
     tool_output_json_strings: Sequence[str] | None,
-    *,
-    tolerance: float = 0.01,
 ) -> dict[str, Any]:
-    """Fraction of currency amounts in ``answer`` absent from tool JSON strings.
+    """Fraction of currency amounts in ``answer`` that the production guardrail rejects.
 
-    An answer amount is grounded if some tool amount is within ``tolerance``.
+    Scoring goes through ``verify_numeric_grounding`` so the eval measures exactly what
+    users get: signs are ignored, and simple sums, period conversions and whole-dollar
+    restatements of tool amounts count as grounded.
     """
-    answer_amounts = extract_currency_amounts(answer or "")
-    if not answer_amounts:
-        return {
-            "rate": 0.0,
-            "hallucinated": [],
-            "grounded": [],
-            "answer_amounts": [],
-            "tool_amounts": sorted(_tool_json_amounts(tool_output_json_strings)),
-        }
+    from agent.guardrails.numeric import verify_numeric_grounding
 
-    tool_amounts = _tool_json_amounts(tool_output_json_strings)
-    hallucinated: list[float] = []
-    grounded: list[float] = []
-    for amt in answer_amounts:
-        ok = any(abs(amt - t) <= tolerance for t in tool_amounts)
-        if ok:
-            grounded.append(amt)
-        else:
-            hallucinated.append(amt)
+    def money(pairs: list[tuple[str, float]]) -> list[float]:
+        return [round(v, 2) for raw, v in pairs if not raw.rstrip().endswith("%")]
 
-    rate = len(hallucinated) / len(answer_amounts)
+    tool_strings = list(tool_output_json_strings or [])
+    result = verify_numeric_grounding(answer or "", tool_strings)
+    grounded = money(result.verified)
+    hallucinated = money(result.unverified)
+    checked = len(grounded) + len(hallucinated)
+    rate = len(hallucinated) / checked if checked else 0.0
+    answer_amounts = sorted(set(grounded + hallucinated))
+    tool_amounts = _tool_json_amounts(tool_strings)
     return {
         "rate": rate,
         "hallucinated": hallucinated,

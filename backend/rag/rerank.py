@@ -1,4 +1,4 @@
-"""Optional rerank step — identity / simple boost now; Cohere later."""
+"""Rerank step: a small interface with a token-overlap booster as the default."""
 
 from __future__ import annotations
 
@@ -58,7 +58,6 @@ class SimpleBoostReranker:
         return boosted[:top_n]
 
 
-# Default stub used by retriever — swap for CohereReranker later.
 DEFAULT_RERANKER: Reranker = SimpleBoostReranker()
 
 
