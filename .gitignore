@@ -224,3 +224,7 @@ __marimo__/
 
 # Eval run artifacts (keep directory via .gitkeep)
 backend/evals/results/*.json
+
+# Local tool settings
+.claude/
+notes/
