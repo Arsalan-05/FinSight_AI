@@ -207,7 +207,7 @@ def build_weekly_brief(
                 ),
             }
         )
-    if runway.get("runway_months") is not None:
+    if runway.get("monthly_burn") is not None:
         sections.append(
             {
                 "id": "runway",

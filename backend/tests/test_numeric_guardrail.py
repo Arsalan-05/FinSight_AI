@@ -79,6 +79,23 @@ def test_prose_sources_ground_goal_amounts() -> None:
     assert result.ok
 
 
+def test_table_total_of_shown_rows_is_grounded() -> None:
+    tools = [json.dumps({"groups": [313.21, 115.42, 49.09, 27.86, 22.59]})]
+    answer = (
+        "| Dining | [[$313.21|ev_1]] |\n| Shopping | [[$115.42|ev_1]] |\n"
+        "| Groceries | [[$49.09|ev_1]] |\n| Transport | [[$27.86|ev_1]] |\n"
+        "| Subscriptions | [[$22.59|ev_1]] |\n| **Total** | **$528.17** |"
+    )
+    result = verify_numeric_grounding(answer, tools)
+    assert result.ok, result.unverified
+
+
+def test_total_of_unshown_amounts_is_not_grounded() -> None:
+    tools = [json.dumps({"groups": [313.21, 115.42, 49.09, 27.86, 22.59]})]
+    result = verify_numeric_grounding("All in, you spent $528.17.", tools)
+    assert not result.ok
+
+
 def test_strip_does_not_mangle_longer_amounts_or_tags() -> None:
     answer = "Miku was [[$186.40|ev_2]] — about $186.40 — versus $186 claimed."
     stripped = strip_unverified(answer, [("$186", 186.0)])

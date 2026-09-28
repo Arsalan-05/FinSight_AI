@@ -6,6 +6,7 @@ from datetime import date, timedelta
 
 from db.models import Transaction
 from insights.recurring import detect_recurring_charges
+from insights.runway import analyze_cash_runway
 from insights.tfsa import tfsa_contribution_status
 
 
@@ -76,3 +77,45 @@ def test_tfsa_status(db_session, client):
     status = tfsa_contribution_status(db_session, account_ids=[account["id"]])
     assert status["year"] == 2026
     assert "tfsa" in status
+
+
+def _add(db_session, account_id: str, days_ago: int, amount: float, category: str) -> None:
+    db_session.add(
+        Transaction(
+            account_id=account_id,
+            transaction_date=date.today() - timedelta(days=days_ago),
+            description=category,
+            amount=amount,
+            category=category,
+        )
+    )
+
+
+def test_runway_cash_flow_positive_has_no_countdown(db_session, client):
+    user = client.post("/users/", json={"email": "run1@example.com", "name": "Run"}).json()
+    account = _make_account(client, user["id"])
+    for month in range(3):
+        _add(db_session, account["id"], 5 + 30 * month, 3000.0, "Income")
+        _add(db_session, account["id"], 10 + 30 * month, -2000.0, "Housing")
+    _add(db_session, account["id"], 20, -1500.0, "Savings")
+    db_session.commit()
+
+    runway = analyze_cash_runway(db_session, account_ids=[account["id"]])
+    assert runway["cash_flow_positive"] is True
+    assert runway["runway_months"] is None
+    assert runway["monthly_burn"] == 2000.0
+
+
+def test_runway_divides_cash_on_hand_by_shortfall(db_session, client):
+    user = client.post("/users/", json={"email": "run2@example.com", "name": "Run"}).json()
+    account = _make_account(client, user["id"])
+    _add(db_session, account["id"], 400, 9000.0, "Income")
+    for month in range(3):
+        _add(db_session, account["id"], 5 + 30 * month, 1000.0, "Income")
+        _add(db_session, account["id"], 10 + 30 * month, -2000.0, "Housing")
+    db_session.commit()
+
+    runway = analyze_cash_runway(db_session, account_ids=[account["id"]])
+    assert runway["cash_on_hand"] == 6000.0
+    assert runway["net_monthly"] == -1000.0
+    assert runway["runway_months"] == 6.0

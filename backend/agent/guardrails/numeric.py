@@ -176,6 +176,19 @@ def _is_ratio(value: float, known: set[float]) -> bool:
     return False
 
 
+def _is_running_total(value: float, shown: list[float], *, whole: bool = False) -> bool:
+    """A total row: the sum of consecutive amounts the answer already showed and verified."""
+    target = _round_amount(abs(value))
+    tolerance = max(1.0, target * 0.005) if whole else 0.01
+    for end in range(len(shown), 1, -1):
+        running = 0.0
+        for start in range(end - 1, -1, -1):
+            running += abs(shown[start])
+            if end - start >= 2 and abs(running - target) <= tolerance:
+                return True
+    return False
+
+
 def verify_numeric_grounding(
     answer: str,
     tool_outputs: Iterable[str],
@@ -184,6 +197,7 @@ def verify_numeric_grounding(
     known = amounts_from_tool_outputs(tool_outputs)
     verified: list[tuple[str, float]] = []
     unverified: list[tuple[str, float]] = []
+    shown_currency: list[float] = []
 
     for raw, value in extract_amounts(answer):
         is_percent = raw.rstrip().endswith("%")
@@ -192,8 +206,11 @@ def verify_numeric_grounding(
             _is_known(value, known, whole=whole)
             or _is_simple_derivation(value, known, whole=whole)
             or (is_percent and _is_ratio(value, known))
+            or (not is_percent and _is_running_total(value, shown_currency, whole=whole))
         ):
             verified.append((raw, value))
+            if not is_percent:
+                shown_currency.append(value)
         else:
             unverified.append((raw, value))
 
