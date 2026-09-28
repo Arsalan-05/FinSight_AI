@@ -2,7 +2,7 @@
 
 Production runs on **Railway** (frontend + API) + **Supabase** (Postgres + Auth).
 
-Custom domain (e.g. `finsightai.ca`) should CNAME to Railway once purchased. Until then use the Railway URLs from the live environment checklist.
+Live URLs are listed in [`infra/RAILWAY-CHECKLIST.md`](../infra/RAILWAY-CHECKLIST.md). Both Railway services redeploy automatically on every push to `main`.
 
 ## Services
 
@@ -67,8 +67,10 @@ cd frontend && npm run dev
 
 Full guides: [`infra/railway/DEPLOY.md`](../infra/railway/DEPLOY.md) · [`infra/RAILWAY-CHECKLIST.md`](../infra/RAILWAY-CHECKLIST.md)
 
-## Staging → prod (v2.0)
+## Release flow
 
-CI: lint → types → tests → eval smoke → Docker build → Railway staging → smoke → promote.
+1. GitHub Actions (`ci.yml`) runs on every push: ruff, strict mypy, pytest and the eval smoke gate for the API; lint, type-check and a production build for the web app.
+2. Railway builds `backend/Dockerfile` (Python 3.11, `uv sync --frozen`) and `frontend/Dockerfile`, runs `alembic upgrade head` on API start, then swaps traffic.
+3. Check `GET /backend/health` and `GET /backend/capabilities` through the web host.
 
-Weekly keep-alive Action pings `/health` so free-tier projects do not pause.
+`security.yml` runs `pip-audit` and `npm audit` weekly. `keepalive.yml` pings `/health` on a schedule so the free Supabase project does not pause; it skips itself when the `FINSIGHT_HEALTH_URL` repository variable is unset.

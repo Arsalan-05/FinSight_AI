@@ -4,7 +4,7 @@ Live FinSight production URLs (Railway + Supabase).
 
 | Role | URL |
 |------|-----|
-| Frontend | `https://finsightai-production-43d0.up.railway.app` (custom domain TBD) |
+| Frontend | `https://finsightai-production-43d0.up.railway.app` |
 | API | `https://finsight-api-production-2aee.up.railway.app` |
 | Database + Auth | Supabase (project ref **not** published — use dashboard) |
 
@@ -60,12 +60,11 @@ Both `NEXT_PUBLIC_API_URL` and `API_PROXY_TARGET` must be set **before** the Doc
 
 Flow: Browser → `https://frontend/backend/...` → Next rewrite → Railway API. Same pattern as a single-service app.
 
-## C. Pre-public release
+## C. Secrets hygiene
 
-- [ ] Buy custom domain and point at Railway
-- [ ] Rotate every key that ever appeared in git history (Groq, Voyage, Supabase service role, Plaid)
-- [ ] Run `gitleaks detect` and `trufflehog` over full history
-- [ ] Confirm docs contain no project refs or secrets
+- Keys live only in Railway variables and the gitignored root `.env`.
+- The full git history is scanned for Groq, Anthropic, Voyage, Supabase and Plaid key patterns before each release tag.
+- Docs use placeholders; the Supabase project ref is not published.
 
 ## D. Health
 

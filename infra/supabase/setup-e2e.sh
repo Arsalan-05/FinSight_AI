@@ -61,7 +61,7 @@ uv run python scripts/seed.py
 
 echo ""
 echo "Supabase setup complete."
-echo "   Tables: users, accounts, transactions, transaction_embeddings, chat_sessions"
+echo "   Schema is at Alembic head."
 echo "   Demo user: demo@finsight.ai"
 echo ""
 echo "Next: restart backend so it picks up USE_SUPABASE_DB=true"

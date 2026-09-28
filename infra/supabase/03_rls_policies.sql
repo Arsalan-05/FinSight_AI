@@ -1,5 +1,5 @@
 -- Row Level Security (optional hardening for Supabase-hosted Postgres)
--- Run after 02_full_schema.sql when using Supabase Auth + direct table access.
+-- Run after `alembic upgrade head` when using Supabase Auth + direct table access.
 -- Note: the FastAPI backend connects as `postgres` (bypasses RLS). These policies
 -- protect data if PostgREST or Supabase client access is ever enabled.
 

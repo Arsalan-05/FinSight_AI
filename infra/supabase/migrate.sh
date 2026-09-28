@@ -16,4 +16,4 @@ export DATABASE_FALLBACK_ENABLED=false
 
 echo "Running Alembic migrations against: ${DATABASE_URL%%@*}@***"
 uv run python -m db.migrate
-echo "Done. Tables: users, accounts, transactions, chat_sessions, transaction_embeddings"
+echo "Done. Schema is at Alembic head."
