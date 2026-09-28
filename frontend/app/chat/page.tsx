@@ -166,49 +166,47 @@ function ChatPageContent() {
   }, []);
 
   const refreshConversation = useCallback(
-    async (id: string, opts?: { silent?: boolean }) => {
-      if (!authReady || !id || id.startsWith("new:")) return;
+    (id: string, opts?: { silent?: boolean }): Promise<void> => {
+      if (!authReady || !id || id.startsWith("new:")) return Promise.resolve();
 
       const live = getSessionState(id);
       if (live?.loading) {
         ensureSessionRecovery(id);
-        return;
+        return Promise.resolve();
       }
 
-      if (!opts?.silent) {
-        setConversationLoading(messages.length === 0);
-      }
-
-      try {
-        const detail = await Promise.race([
-          api.getChatSession(id),
-          new Promise<never>((_, reject) => {
-            window.setTimeout(
-              () => reject(new Error("Request timed out — the server may be waking up. Try again.")),
-              25_000,
-            );
-          }),
-        ]);
-        const hydrated = hydrateSessionState(
-          detail.id,
-          detail.messages.map((m) => newMessage(m.role, m.content)),
-          { replyPending: detail.reply_pending },
+      const showSpinner = !opts?.silent && messages.length === 0;
+      const timeout = new Promise<never>((_, reject) => {
+        window.setTimeout(
+          () => reject(new Error("Request timed out — the server may be waking up. Try again.")),
+          25_000,
         );
-        saveSessionId(detail.id);
-        setMessages(hydrated.messages);
-        setLoading(hydrated.loading);
-        setAgentStatus(hydrated.agentStatus);
-        if (hydrated.error) setError(hydrated.error);
-      } catch (e) {
-        const local = resolveLocalSessionView(id);
-        if (!local) {
+      });
+
+      return Promise.resolve()
+        .then(() => {
+          if (showSpinner) setConversationLoading(true);
+          return Promise.race([api.getChatSession(id), timeout]);
+        })
+        .then((detail) => {
+          const hydrated = hydrateSessionState(
+            detail.id,
+            detail.messages.map((m) => newMessage(m.role, m.content)),
+            { replyPending: detail.reply_pending },
+          );
+          saveSessionId(detail.id);
+          setMessages(hydrated.messages);
+          setLoading(hydrated.loading);
+          setAgentStatus(hydrated.agentStatus);
+          if (hydrated.error) setError(hydrated.error);
+        })
+        .catch((e: unknown) => {
+          if (resolveLocalSessionView(id)) return;
           const msg = e instanceof Error ? e.message : "Could not load chat";
           setError(msg);
           toast(msg, "error");
-        }
-      } finally {
-        setConversationLoading(false);
-      }
+        })
+        .finally(() => setConversationLoading(false));
     },
     [authReady, getSessionState, messages.length, toast],
   );
@@ -224,26 +222,9 @@ function ChatPageContent() {
   );
 
   useEffect(() => {
-    if (!viewSessionId) return;
-
-    if (viewSessionId.startsWith("new:")) {
-      const migrated = sessionMigrations.get(viewSessionId);
-      if (migrated) {
-        setViewSessionId(migrated);
-        saveSessionId(migrated);
-        return;
-      }
+    if (viewSessionId && getSessionState(viewSessionId)?.loading) {
+      ensureSessionRecovery(viewSessionId);
     }
-
-    const live = getSessionState(viewSessionId);
-    if (!live) return;
-
-    setMessages(live.messages);
-    setLoading(live.loading);
-    setAgentStatus(live.agentStatus);
-    if (live.error) setError(live.error);
-    else setError(null);
-    if (live.loading) ensureSessionRecovery(viewSessionId);
   }, [version, viewSessionId, getSessionState]);
 
   useEffect(() => {
@@ -267,8 +248,8 @@ function ChatPageContent() {
   const managerState = viewSessionId ? getSessionState(viewSessionId) : undefined;
   const displayMessages = managerState?.messages ?? messages;
   const displayLoading = managerState?.loading ?? loading;
-  const displayAgentStatus = managerState?.agentStatus ?? agentStatus;
-  const displayError = managerState?.error ?? error;
+  const displayAgentStatus = managerState ? managerState.agentStatus : agentStatus;
+  const displayError = managerState ? managerState.error : error;
 
   const evidenceById = useMemo(() => {
     const map = new Map<string, EvidenceItem>();
@@ -296,12 +277,12 @@ function ChatPageContent() {
       : [];
 
   useEffect(() => {
-    if (!displayLoading) {
-      setSlowHint(false);
-      return;
-    }
+    if (!displayLoading) return;
     const timer = window.setTimeout(() => setSlowHint(true), 12_000);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      setSlowHint(false);
+    };
   }, [displayLoading]);
 
   useEffect(() => {
@@ -323,13 +304,13 @@ function ChatPageContent() {
 
     if (searchParams.get("q")?.trim()) return;
 
+    // viewSessionId is initialised from the same saved id, so only the server copy is needed.
     const saved = loadSessionId();
     if (!saved || saved.startsWith("new:")) return;
 
     const local = resolveLocalSessionView(saved);
-    applyLocalView(saved);
     void refreshConversation(saved, { silent: Boolean(local) });
-  }, [authReady, searchParams, applyLocalView, refreshConversation]);
+  }, [authReady, searchParams, refreshConversation]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -403,16 +384,14 @@ function ChatPageContent() {
     const autoSend = searchParams.get("send") !== "0";
     const startNewChat = searchParams.get("new") !== "0";
 
-    if (startNewChat) {
-      clearSessionId();
-      void applyView("");
-    }
+    if (startNewChat) clearSessionId();
 
     router.replace("/chat", { scroll: false });
 
-    // Not cancelled on cleanup: applyView("") re-renders and would otherwise clear this
+    // Not cancelled on cleanup: the view reset re-renders and would otherwise clear this
     // timer after the query was already consumed, silently dropping the question.
     window.setTimeout(() => {
+      if (startNewChat) void applyView("");
       if (autoSend) {
         void sendMessageRef.current(q, { newSession: startNewChat });
       } else {

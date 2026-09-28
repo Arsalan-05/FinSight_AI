@@ -84,9 +84,12 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
     [sessions, sessionsFetchedAt],
   );
 
-  useEffect(() => {
-    setSessions((prev) => mergeSessionSummaries(prev, buildOptimisticSessionEntries()));
-  }, [version]);
+  // In-flight chats are merged at render time so they appear in the sidebar immediately.
+  const visibleSessions = useMemo(
+    () => mergeSessionSummaries(sessions, buildOptimisticSessionEntries()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- version tracks stream-manager state
+    [sessions, version],
+  );
 
   useEffect(() => {
     return subscribeComplete(() => {
@@ -114,7 +117,7 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       version,
-      sessions,
+      sessions: visibleSessions,
       sessionsLoading,
       getSessionState,
       pendingSessionIds: getPendingSessionIds(),
@@ -123,7 +126,15 @@ export function ChatStreamProvider({ children }: { children: ReactNode }) {
       sendMessage,
       stopSession,
     }),
-    [version, sessions, sessionsLoading, refreshSessions, invalidateSessions, sendMessage, stopSession],
+    [
+      version,
+      visibleSessions,
+      sessionsLoading,
+      refreshSessions,
+      invalidateSessions,
+      sendMessage,
+      stopSession,
+    ],
   );
 
   return <ChatStreamContext.Provider value={value}>{children}</ChatStreamContext.Provider>;

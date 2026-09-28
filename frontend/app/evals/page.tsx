@@ -30,19 +30,27 @@ export default function EvalsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(
+    () =>
+      api
+        .getEvalRuns()
+        .then((data) => {
+          setRuns(Array.isArray(data) ? data : []);
+          setError(null);
+        })
+        .catch((e: unknown) => {
+          setRuns([]);
+          setError(e instanceof Error ? e.message : "Failed to load eval runs");
+        })
+        .finally(() => setLoading(false)),
+    [],
+  );
+
+  const reload = () => {
     setLoading(true);
     setError(null);
-    try {
-      const data = await api.getEvalRuns();
-      setRuns(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setRuns([]);
-      setError(e instanceof Error ? e.message : "Failed to load eval runs");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    void load();
+  };
 
   useEffect(() => {
     if (!authReady) return;
@@ -59,7 +67,7 @@ export default function EvalsPage() {
         actions={
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={reload}
             disabled={loading}
             className="btn-ghost inline-flex items-center gap-2 px-3 py-2 text-sm"
           >
