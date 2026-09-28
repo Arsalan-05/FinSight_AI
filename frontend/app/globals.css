@@ -906,6 +906,73 @@ body {
 
 .agent-bubble li + li { margin-top: 0.25rem; }
 
+.agent-bubble ol {
+  margin-top: 0.5rem;
+  margin-left: 1.25rem;
+  list-style: decimal;
+}
+
+.agent-md h3 {
+  margin-top: 0.875rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--foreground);
+}
+
+.agent-md h4 {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.agent-md > :first-child { margin-top: 0; }
+
+.agent-md hr {
+  margin: 0.875rem 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.agent-md code {
+  border-radius: 0.3rem;
+  background: var(--surface-elevated);
+  padding: 0.05rem 0.3rem;
+  font-size: 0.8em;
+}
+
+.agent-md-table {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+}
+
+.agent-md-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.agent-md-table th {
+  background: var(--surface-elevated);
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.agent-md-table th,
+.agent-md-table td {
+  padding: 0.45rem 0.75rem;
+  white-space: nowrap;
+}
+
+.agent-md-table tbody tr + tr td { border-top: 1px solid var(--border); }
+
+.agent-md-table .evidence-chip { margin: 0; }
+
 .citation-chip {
   display: flex;
   align-items: center;
@@ -1159,6 +1226,11 @@ button, a, [role="button"] {
   font-size: 0.7rem;
   font-weight: 500;
   opacity: 0.6;
+}
+
+.evidence-chip-bare {
+  padding: 0.05rem 0.3rem;
+  gap: 0;
 }
 
 .evidence-drawer-backdrop {

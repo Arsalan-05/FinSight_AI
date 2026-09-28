@@ -29,6 +29,10 @@ const nextConfig = {
   // Critical with /backend proxy: do NOT 308 /backend/foo/ → /backend/foo
   // (that redirect drops Authorization and breaks Overview).
   skipTrailingSlashRedirect: true,
+  experimental: {
+    // Advisor SSE streams run 20–90s; the default rewrite proxy timeout cuts them off.
+    proxyTimeout: 300_000,
+  },
   async redirects() {
     return [
       {

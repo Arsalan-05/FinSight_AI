@@ -1,10 +1,17 @@
 /** Pure helpers for agent evidence tags: ``[[$412.30|ev_17]]``. */
 
+/**
+ * Also tolerates what models actually emit: a unit after the amount
+ * (``[[$3,955/mo|ev_3]]``) and bare references (``[[ev_2]]``).
+ */
 export const EVIDENCE_TAG_RE =
-  /\[\[\s*\$([\d,]+(?:\.\d+)?)\s*\|\s*(ev_\d+)\s*\]\]/gi;
+  /\[\[\s*(?:\$\s*([\d,]+(?:\.\d+)?)([^\]|]{0,16}?)\s*\|\s*)?(ev_\d+)\s*\]\]/gi;
 
 export type EvidenceTagMatch = {
+  /** Empty for bare ``[[ev_N]]`` references. */
   amount: string;
+  /** Unit text after the amount, e.g. ``/mo``. */
+  suffix: string;
   evidenceId: string;
   raw: string;
   index: number;
@@ -18,7 +25,8 @@ export function parseEvidenceTags(text: string): EvidenceTagMatch[] {
   while ((match = re.exec(text)) !== null) {
     out.push({
       amount: match[1] ?? "",
-      evidenceId: match[2] ?? "",
+      suffix: (match[2] ?? "").trim(),
+      evidenceId: match[3] ?? "",
       raw: match[0],
       index: match.index,
     });
@@ -28,7 +36,7 @@ export function parseEvidenceTags(text: string): EvidenceTagMatch[] {
 
 export type EvidenceSegment =
   | { type: "text"; value: string }
-  | { type: "evidence"; amount: string; evidenceId: string; raw: string };
+  | { type: "evidence"; amount: string; suffix: string; evidenceId: string; raw: string };
 
 /** Split *text* into plain text and evidence segments (order preserved). */
 export function splitEvidenceSegments(text: string): EvidenceSegment[] {
@@ -45,6 +53,7 @@ export function splitEvidenceSegments(text: string): EvidenceSegment[] {
     out.push({
       type: "evidence",
       amount: tag.amount,
+      suffix: tag.suffix,
       evidenceId: tag.evidenceId,
       raw: tag.raw,
     });
