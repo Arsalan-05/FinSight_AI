@@ -1,4 +1,4 @@
-"""CLI: ``python -m evals.run --model groq-8b --subset smoke|full``.
+"""CLI: ``python -m evals.run --model gpt-oss-20b --subset smoke|full``.
 
 Offline ``--dry-run`` scores fixture ground-truth helpers without an LLM.
 """
@@ -395,8 +395,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="FinSight AI eval runner")
     parser.add_argument(
         "--model",
-        default="groq-8b",
-        help="Model id label for the results file (default: groq-8b)",
+        default="gpt-oss-20b",
+        help="Model id label for the results file (default: gpt-oss-20b)",
     )
     parser.add_argument(
         "--subset",
@@ -414,7 +414,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = run_eval(model=args.model, subset=args.subset, dry_run=args.dry_run)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    out_path = RESULTS_DIR / f"{stamp}.json"
+    out_path = RESULTS_DIR / f"{stamp}-{args.subset}.json"
     with out_path.open("w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2, default=str)
     _print_summary(summary)

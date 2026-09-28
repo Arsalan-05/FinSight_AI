@@ -2,7 +2,22 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from db.models import AuditLog, User
+
+
+@pytest.fixture
+def eval_results(tmp_path, monkeypatch):
+    from app.routers import evals_api
+
+    (tmp_path / "20260928T120000Z-smoke.json").write_text(
+        json.dumps({"subset": "smoke", "dry_run": True, "n_questions": 22, "per_question": []})
+    )
+    monkeypatch.setattr(evals_api, "_RESULTS_DIR", tmp_path)
+    return tmp_path
 
 
 def test_security_headers_on_health(client) -> None:
@@ -14,23 +29,21 @@ def test_security_headers_on_health(client) -> None:
     assert "X-Request-ID" in r.headers
 
 
-def test_evals_list(client) -> None:
+def test_evals_list(client, eval_results) -> None:
     r = client.get("/evals/")
     assert r.status_code == 200
     data = r.json()
-    assert isinstance(data, list)
-    # Seeded results from Phase 6 harness should be present in repo
-    assert len(data) >= 1
-    assert "id" in data[0]
-    assert "file" in data[0]
+    assert len(data) == 1
+    assert data[0]["id"] == "20260928T120000Z-smoke"
+    assert data[0]["n_questions"] == 22
+    assert "per_question" not in data[0]
 
 
-def test_evals_get_one(client) -> None:
-    listing = client.get("/evals/").json()
-    run_id = listing[0]["id"]
-    r = client.get(f"/evals/{run_id}")
+def test_evals_get_one(client, eval_results) -> None:
+    r = client.get("/evals/20260928T120000Z-smoke")
     assert r.status_code == 200
-    assert r.json()["id"] == run_id
+    assert r.json()["subset"] == "smoke"
+    assert client.get("/evals/missing").status_code == 404
 
 
 def test_audit_list_for_user(client, db_session) -> None:

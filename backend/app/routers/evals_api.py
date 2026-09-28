@@ -67,7 +67,7 @@ def list_evals(
 
 @router.get("/{run_id}")
 def get_eval(run_id: str) -> dict[str, Any]:
-    """Return one eval result summary by filename stem (e.g. ``20260925T161414Z``)."""
+    """Return one eval result summary by filename stem (e.g. ``20260928T120000Z-smoke``)."""
     if "/" in run_id or "\\" in run_id or ".." in run_id:
         raise HTTPException(status_code=400, detail="Invalid run id")
     path = _RESULTS_DIR / f"{run_id}.json"
