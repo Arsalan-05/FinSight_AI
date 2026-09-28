@@ -33,24 +33,28 @@ export default function LeaksPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = useCallback(async (rescan = false) => {
+  const load = useCallback(
+    (rescan = false) =>
+      Promise.all([api.getLeaks(rescan), api.getLeaksSummary()])
+        .then(([list, sum]) => {
+          setFindings(list);
+          setSummary(sum);
+          setError(null);
+        })
+        .catch((e: unknown) => {
+          setFindings([]);
+          setSummary(null);
+          setError(e instanceof Error ? e.message : "Failed to load leaks");
+        })
+        .finally(() => setLoading(false)),
+    [],
+  );
+
+  const rescan = () => {
     setLoading(true);
     setError(null);
-    try {
-      const [list, sum] = await Promise.all([
-        api.getLeaks(rescan),
-        api.getLeaksSummary(),
-      ]);
-      setFindings(list);
-      setSummary(sum);
-    } catch (e) {
-      setFindings([]);
-      setSummary(null);
-      setError(e instanceof Error ? e.message : "Failed to load leaks");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    void load(true);
+  };
 
   useEffect(() => {
     if (!authReady) return;
@@ -81,7 +85,7 @@ export default function LeaksPage() {
         actions={
           <button
             type="button"
-            onClick={() => void load(true)}
+            onClick={rescan}
             disabled={loading}
             className="btn-ghost inline-flex items-center gap-2 px-3 py-2 text-sm"
           >

@@ -139,10 +139,10 @@ Upload / seed a transaction → confirm row in `transactions` → embedding row 
 
 **Frontend**
 
-- `frontend/middleware.ts` + `frontend/lib/supabase/*` — session refresh
+- `frontend/proxy.ts` + `frontend/lib/supabase/*` — session refresh
 - `frontend/app/login/page.tsx`, `frontend/app/auth/callback/route.ts`
 - `frontend/lib/api.ts`, `frontend/hooks/useAuthReady.ts` — Bearer token to API
-- `frontend/next.config.mjs` — `/backend` proxy (middleware skips it)
+- `frontend/next.config.mjs` — `/backend` proxy (proxy.ts skips it)
 
 **Trace exercise (critical)**
 
@@ -158,7 +158,7 @@ Google sign-in → Supabase session → frontend attaches `Authorization: Bearer
 
 **Exit checkpoint**
 
-- [ ] Draw auth sequence with 5 boxes: Browser, Next middleware, Supabase, FastAPI auth, Postgres.
+- [ ] Draw auth sequence with 5 boxes: Browser, Next proxy, Supabase, FastAPI auth, Postgres.
 - [ ] Name two security headers and why CSP matters for an AI chat UI.
 
 ---

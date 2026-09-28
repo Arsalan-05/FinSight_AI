@@ -37,17 +37,20 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
-  const load = useCallback(async () => {
-    const [notifications, brief, prefs] = await Promise.all([
-      api.getNotifications().catch(() => [] as AppNotification[]),
-      api.getWeeklyBrief().catch(() => null),
-      api.getAlertPreferences().catch(() => DEFAULT_ALERT_PREFS),
-    ]);
-    setItems(notifications);
-    setLiveAlerts(brief?.alerts ?? []);
-    setBriefHeadline(brief?.headline ?? null);
-    setAlertPrefs(prefs);
-  }, []);
+  const load = useCallback(
+    () =>
+      Promise.all([
+        api.getNotifications().catch(() => [] as AppNotification[]),
+        api.getWeeklyBrief().catch(() => null),
+        api.getAlertPreferences().catch(() => DEFAULT_ALERT_PREFS),
+      ]).then(([notifications, brief, prefs]) => {
+        setItems(notifications);
+        setLiveAlerts(brief?.alerts ?? []);
+        setBriefHeadline(brief?.headline ?? null);
+        setAlertPrefs(prefs);
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!authReady) return;

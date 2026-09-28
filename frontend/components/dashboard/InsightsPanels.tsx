@@ -17,32 +17,30 @@ export function WeeklyBriefPanel({
   initial?: WeeklyBrief | null;
 }) {
   const authReady = useAuthReady();
-  const [brief, setBrief] = useState<WeeklyBrief | null>(initial ?? null);
-  const [loading, setLoading] = useState(initial === undefined);
+  const [fetched, setFetched] = useState<WeeklyBrief | null>(null);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (initial !== undefined) {
-      setBrief(initial);
-      setLoading(false);
-      return;
-    }
-    if (!authReady) return;
+    if (initial !== undefined || !authReady) return;
     let active = true;
     api
       .getWeeklyBrief()
       .then((data) => {
-        if (active) setBrief(data);
+        if (active) setFetched(data);
       })
       .catch(() => {
-        if (active) setBrief(null);
+        if (active) setFetched(null);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) setFetching(false);
       });
     return () => {
       active = false;
     };
   }, [authReady, initial]);
+
+  const brief = initial !== undefined ? initial : fetched;
+  const loading = initial === undefined && fetching;
 
   if (!authReady || loading) {
     return <div className="panel h-40 shimmer rounded-2xl" />;
@@ -96,32 +94,30 @@ export function SpendAlertsPanel({
   initial?: WeeklyBrief["alerts"] | null;
 }) {
   const authReady = useAuthReady();
-  const [alerts, setAlerts] = useState<WeeklyBrief["alerts"]>(initial ?? []);
-  const [loading, setLoading] = useState(initial === undefined);
+  const [fetched, setFetched] = useState<WeeklyBrief["alerts"]>([]);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (initial !== undefined) {
-      setAlerts(initial ?? []);
-      setLoading(false);
-      return;
-    }
-    if (!authReady) return;
+    if (initial !== undefined || !authReady) return;
     let active = true;
     api
       .getWeeklyBrief()
       .then((data) => {
-        if (active) setAlerts(data.alerts);
+        if (active) setFetched(data.alerts);
       })
       .catch(() => {
-        if (active) setAlerts([]);
+        if (active) setFetched([]);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) setFetching(false);
       });
     return () => {
       active = false;
     };
   }, [authReady, initial]);
+
+  const alerts = initial !== undefined ? (initial ?? []) : fetched;
+  const loading = initial === undefined && fetching;
 
   if (!authReady || loading || alerts.length === 0) return null;
 
@@ -162,25 +158,23 @@ export function TfsaRoomCard({
   initial?: WeeklyBrief["tfsa"] | null;
 }) {
   const authReady = useAuthReady();
-  const [tfsa, setTfsa] = useState<WeeklyBrief["tfsa"] | null>(initial ?? null);
+  const [fetched, setFetched] = useState<WeeklyBrief["tfsa"] | null>(null);
 
   useEffect(() => {
-    if (initial !== undefined) {
-      setTfsa(initial);
-      return;
-    }
-    if (!authReady) return;
+    if (initial !== undefined || !authReady) return;
     let active = true;
     api
       .getWeeklyBrief()
       .then((data) => {
-        if (active && data.tfsa) setTfsa(data.tfsa);
+        if (active && data.tfsa) setFetched(data.tfsa);
       })
       .catch(() => {});
     return () => {
       active = false;
     };
   }, [authReady, initial]);
+
+  const tfsa = initial !== undefined ? initial : fetched;
 
   if (!authReady || !tfsa) return null;
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { FlaskConical, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSearchParams } from "next/navigation";
 
 export const DEMO_STORAGE_KEY = "finsight-demo-mode";
 
@@ -15,36 +15,24 @@ function readDemoFlag(): boolean {
   }
 }
 
+const noopSubscribe = () => () => {};
+
 export function DemoBanner() {
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [visible, setVisible] = useState(false);
+  const demoParam = searchParams.get("demo");
+  const storedFlag = useSyncExternalStore(noopSubscribe, readDemoFlag, () => false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const fromQuery = searchParams.get("demo") === "1";
-    if (fromQuery) {
-      try {
-        localStorage.setItem(DEMO_STORAGE_KEY, "1");
-      } catch {
-        /* ignore */
-      }
-      setVisible(true);
-      setDismissed(false);
-      return;
+    try {
+      if (demoParam === "1") localStorage.setItem(DEMO_STORAGE_KEY, "1");
+      else if (demoParam === "0") localStorage.removeItem(DEMO_STORAGE_KEY);
+    } catch {
+      /* private mode — banner still follows the query param */
     }
-    if (searchParams.get("demo") === "0") {
-      try {
-        localStorage.removeItem(DEMO_STORAGE_KEY);
-      } catch {
-        /* ignore */
-      }
-      setVisible(false);
-      return;
-    }
-    setVisible(readDemoFlag());
-  }, [searchParams, pathname]);
+  }, [demoParam]);
 
+  const visible = demoParam === "1" || (demoParam !== "0" && storedFlag);
   if (!visible || dismissed) return null;
 
   return (

@@ -21,7 +21,7 @@ export async function createClient() {
             cookieStore.set(name, value, options),
           );
         } catch {
-          // setAll can fail in Server Components — middleware handles refresh
+          // setAll can fail in Server Components — proxy.ts handles refresh
         }
       },
     },
