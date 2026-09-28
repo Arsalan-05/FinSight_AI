@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from unittest.mock import patch
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import HumanMessage
 
 from agent.tools.web_search import search_web
 from agent.user_profile import build_data_profile, profile_narrative, update_learned_profile
@@ -72,10 +72,13 @@ class TestUserProfile:
         assert "Groceries" in text
         assert "cost-conscious" in text
 
-    @patch("agent.llm.call_llm_plain", return_value=(
-        '{"learned_summary":"Wants to cut dining.",'
-        '"preferences":["budget meals"],"risk_flags":["dining"]}'
-    ))
+    @patch(
+        "agent.llm.call_llm_plain",
+        return_value=(
+            '{"learned_summary":"Wants to cut dining.",'
+            '"preferences":["budget meals"],"risk_flags":["dining"]}'
+        ),
+    )
     def test_update_learned_profile(self, mock_llm: object) -> None:
         updated = update_learned_profile(
             [HumanMessage(content="How do I spend less on food?")],

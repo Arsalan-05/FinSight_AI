@@ -30,9 +30,7 @@ def export_user_data(db: Session, user: User) -> dict[str, Any]:
         else []
     )
     sessions = db.query(ChatSession).filter(ChatSession.user_id == user.id).all()
-    connections = (
-        db.query(BankConnection).filter(BankConnection.user_id == user.id).all()
-    )
+    connections = db.query(BankConnection).filter(BankConnection.user_id == user.id).all()
     budgets = db.query(Budget).filter(Budget.user_id == user.id).all()
 
     return {
@@ -101,9 +99,7 @@ def export_user_data(db: Session, user: User) -> dict[str, Any]:
 
 def delete_user_and_data(db: Session, user: User) -> None:
     """Hard-delete user and all associated financial data."""
-    connections = (
-        db.query(BankConnection).filter(BankConnection.user_id == user.id).all()
-    )
+    connections = db.query(BankConnection).filter(BankConnection.user_id == user.id).all()
     if plaid_configured():
         for conn in connections:
             if conn.status != "active":
@@ -113,9 +109,7 @@ def delete_user_and_data(db: Session, user: User) -> None:
             except Exception:
                 pass
 
-    account_ids = [
-        a.id for a in db.query(Account.id).filter(Account.user_id == user.id).all()
-    ]
+    account_ids = [a.id for a in db.query(Account.id).filter(Account.user_id == user.id).all()]
     if account_ids:
         db.query(Transaction).filter(Transaction.account_id.in_(account_ids)).delete(
             synchronize_session=False
@@ -124,12 +118,8 @@ def delete_user_and_data(db: Session, user: User) -> None:
     db.query(BankConnection).filter(BankConnection.user_id == user.id).delete(
         synchronize_session=False
     )
-    db.query(ChatSession).filter(ChatSession.user_id == user.id).delete(
-        synchronize_session=False
-    )
-    db.query(Notification).filter(Notification.user_id == user.id).delete(
-        synchronize_session=False
-    )
+    db.query(ChatSession).filter(ChatSession.user_id == user.id).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.user_id == user.id).delete(synchronize_session=False)
     db.query(Budget).filter(Budget.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()

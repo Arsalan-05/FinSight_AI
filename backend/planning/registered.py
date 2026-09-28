@@ -34,8 +34,7 @@ class ExistingRoom:
             rrsp=float(data.get("rrsp", 0) or 0),
             fhsa=float(data.get("fhsa", 0) or 0),
             fhsa_lifetime_contributed=float(
-                data.get("fhsa_lifetime_contributed", data.get("fhsa_lifetime_used", 0))
-                or 0
+                data.get("fhsa_lifetime_contributed", data.get("fhsa_lifetime_used", 0)) or 0
             ),
         )
 
@@ -250,9 +249,7 @@ def optimize_registered(
             ["rrsp", "tfsa"] if start_mtr >= _RRSP_MTR_THRESHOLD else ["tfsa", "rrsp"]
         )
     else:
-        priority = (
-            ["rrsp", "tfsa"] if start_mtr >= _RRSP_MTR_THRESHOLD else ["tfsa", "rrsp"]
-        )
+        priority = ["rrsp", "tfsa"] if start_mtr >= _RRSP_MTR_THRESHOLD else ["tfsa", "rrsp"]
 
     return {
         "tax_year": tax_year,

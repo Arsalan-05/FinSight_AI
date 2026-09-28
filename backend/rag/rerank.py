@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol, Sequence
+from typing import Any, Protocol
 
 
 @dataclass
@@ -18,8 +19,9 @@ class RankedItem:
 class Reranker(Protocol):
     """Interface for Cohere / cross-encoder rerankers."""
 
-    def rerank(self, query: str, items: Sequence[RankedItem], *, top_n: int) -> list[RankedItem]:
-        ...
+    def rerank(
+        self, query: str, items: Sequence[RankedItem], *, top_n: int
+    ) -> list[RankedItem]: ...
 
 
 class IdentityReranker:

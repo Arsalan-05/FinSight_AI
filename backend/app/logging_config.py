@@ -13,13 +13,13 @@ class RequestIdFilter(logging.Filter):
     """Inject request_id from contextvars onto every log record."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        if not hasattr(record, "request_id") or not record.request_id:  # type: ignore[attr-defined]
+        if not hasattr(record, "request_id") or not record.request_id:
             try:
                 from app.middleware.request_id import request_id_ctx
 
-                record.request_id = request_id_ctx.get("")  # type: ignore[attr-defined]
+                record.request_id = request_id_ctx.get("")
             except Exception:
-                record.request_id = ""  # type: ignore[attr-defined]
+                record.request_id = ""
         return True
 
 
@@ -57,9 +57,7 @@ def configure_logging(*, environment: str, log_level: str) -> None:
     if environment == "production":
         handler.setFormatter(JsonFormatter())
     else:
-        handler.setFormatter(
-            TextFormatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-        )
+        handler.setFormatter(TextFormatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
     root.addHandler(handler)
 
     for noisy in ("httpx", "httpcore", "urllib3", "uvicorn.access"):

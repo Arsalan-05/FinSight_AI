@@ -24,8 +24,7 @@ def summarize_aggregate(result: dict[str, Any]) -> str:
         )
     if cat and cat_span.get("earliest") and cat_span.get("latest"):
         coverage_hint += (
-            f" For {cat}, activity exists from {cat_span['earliest']} "
-            f"to {cat_span['latest']}."
+            f" For {cat}, activity exists from {cat_span['earliest']} to {cat_span['latest']}."
         )
 
     if result.get("group_by") == "none":
@@ -38,8 +37,7 @@ def summarize_aggregate(result: dict[str, Any]) -> str:
                 msg += " Broader lookup also found nothing matching this filter."
             elif coverage_hint:
                 msg += (
-                    coverage_hint
-                    + " Tell the user clearly: zero in the asked window, "
+                    coverage_hint + " Tell the user clearly: zero in the asked window, "
                     "then offer the nearest month that has data "
                     "(re-query with that month's dates or period=all)."
                 )

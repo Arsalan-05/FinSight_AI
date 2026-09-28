@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Sequence
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Optional
+
 
 def _merchant_key(tx: Any) -> str:
     merchant = (getattr(tx, "merchant", None) or "").strip().lower()
@@ -16,7 +18,9 @@ def _merchant_key(tx: Any) -> str:
 
 
 def _display(tx: Any) -> str:
-    return (getattr(tx, "merchant", None) or getattr(tx, "description", "")[:40] or "Unknown").strip()
+    return (
+        getattr(tx, "merchant", None) or getattr(tx, "description", "")[:40] or "Unknown"
+    ).strip()
 
 
 def _group_recurring(
@@ -24,9 +28,9 @@ def _group_recurring(
     *,
     min_occurrences: int = 2,
     amount_tolerance: float = 0.20,
-) -> Dict[str, List[Any]]:
+) -> dict[str, list[Any]]:
     """Bucket debit txs by merchant; keep those that look recurring (similar amounts)."""
-    buckets: Dict[str, List[Any]] = defaultdict(list)
+    buckets: dict[str, list[Any]] = defaultdict(list)
     for tx in transactions:
         if float(getattr(tx, "amount", 0) or 0) >= 0:
             continue
@@ -35,7 +39,7 @@ def _group_recurring(
             continue
         buckets[key].append(tx)
 
-    recurring: Dict[str, List[Any]] = {}
+    recurring: dict[str, list[Any]] = {}
     for key, group in buckets.items():
         if len(group) < min_occurrences:
             continue
@@ -56,16 +60,16 @@ def detect_price_creep(
     transactions: Sequence[Any],
     *,
     min_increase_cad: float = 0.50,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Alert when a recurring merchant's charge amount increases over time.
 
     Example message: "+$2.00/mo since March."
     """
-    findings: List[Dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
     for key, group in _group_recurring(transactions).items():
         # Chronological unique amounts (collapse same-day duplicates)
-        series: List[Tuple[date, float, Any]] = []
+        series: list[tuple[date, float, Any]] = []
         for tx in group:
             amt = round(abs(float(tx.amount)), 2)
             series.append((tx.transaction_date, amt, tx))
@@ -137,7 +141,7 @@ def detect_forgotten_subscriptions(
     *,
     lookback_days: int = 180,
     related_activity_window_days: int = 90,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Recurring charges with no related non-subscription activity heuristic.
 
@@ -149,22 +153,19 @@ def detect_forgotten_subscriptions(
     recent = [
         tx
         for tx in transactions
-        if getattr(tx, "transaction_date") >= since
-        and float(getattr(tx, "amount", 0) or 0) < 0
+        if getattr(tx, "transaction_date") >= since and float(getattr(tx, "amount", 0) or 0) < 0
     ]
     recurring = _group_recurring(recent, min_occurrences=2, amount_tolerance=0.15)
-    findings: List[Dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
 
     # Index all txs for related-activity scan
-    all_debits = [
-        tx for tx in transactions if float(getattr(tx, "amount", 0) or 0) < 0
-    ]
+    all_debits = [tx for tx in transactions if float(getattr(tx, "amount", 0) or 0) < 0]
 
     for key, group in recurring.items():
         tokens = _tokens(key)
         if not tokens:
             continue
-        recurring_ids: Set[Any] = {getattr(t, "id", None) for t in group}
+        recurring_ids: set[Any] = {getattr(t, "id", None) for t in group}
         latest = group[-1]
         window_start = date.today() - timedelta(days=related_activity_window_days)
 
@@ -213,7 +214,7 @@ def detect_forgotten_subscriptions(
     return findings
 
 
-def _tokens(merchant_key: str) -> List[str]:
+def _tokens(merchant_key: str) -> list[str]:
     stop = {
         "the",
         "and",

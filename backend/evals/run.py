@@ -86,9 +86,7 @@ def _dry_run_answer(
         # Adversarial lookup prompts may still call search; refusal prompts use no tools.
         tools_used = list(expected_tools)
         tool_json = (
-            [json.dumps({"results": [], "refused_injection": True})]
-            if tools_used
-            else ["{}"]
+            [json.dumps({"results": [], "refused_injection": True})] if tools_used else ["{}"]
         )
         return {
             "answer": answer,
@@ -119,7 +117,9 @@ def _dry_run_answer(
         numeric = round(GYM_FEE * 12, 2)
         answer = f"GoodLife Fitness membership costs ${GYM_FEE:.2f}/mo (${numeric:.2f}/yr)."
         tools_used = expected_tools or ["get_financial_insights", "aggregate_spending"]
-        tool_json = [json.dumps({"merchant": "GoodLife Fitness", "monthly": GYM_FEE, "yearly": numeric})]
+        tool_json = [
+            json.dumps({"merchant": "GoodLife Fitness", "monthly": GYM_FEE, "yearly": numeric})
+        ]
     elif "spotify" in question and ("increase" in question or "price" in question):
         numeric = round(SPOTIFY_NEW - SPOTIFY_OLD, 2)
         answer = (
@@ -364,9 +364,7 @@ def run_eval(
         scored.append(_score_case(case, result))
 
     numeric_cases = [s for s in scored if s["numeric_match"] is not None]
-    refuse_cases = [
-        s for s in scored if s.get("category") in ("refusal", "adversarial")
-    ]
+    refuse_cases = [s for s in scored if s.get("category") in ("refusal", "adversarial")]
     retrieval_rows = _load_jsonl(retrieval_path) if retrieval_path.exists() else []
     retrieval_scores = _score_retrieval(retrieval_rows)
 
@@ -376,16 +374,12 @@ def run_eval(
         "dry_run": dry_run,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "n_questions": len(scored),
-        "answer_numeric_acc": mean(
-            [1.0 if s["numeric_match"] else 0.0 for s in numeric_cases]
-        )
+        "answer_numeric_acc": mean([1.0 if s["numeric_match"] else 0.0 for s in numeric_cases])
         if numeric_cases
         else 0.0,
         "tool_exact_acc": mean([1.0 if s["tool_exact"] else 0.0 for s in scored]),
         "tool_partial_acc": mean([float(s["tool_partial"]) for s in scored]),
-        "hallucinated_number_rate": mean(
-            [float(s["hallucinated_number_rate"]) for s in scored]
-        ),
+        "hallucinated_number_rate": mean([float(s["hallucinated_number_rate"]) for s in scored]),
         "refusal_acc": mean([1.0 if s["refusal_ok"] else 0.0 for s in refuse_cases])
         if refuse_cases
         else 1.0,

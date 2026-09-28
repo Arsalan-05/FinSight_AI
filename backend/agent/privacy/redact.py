@@ -4,16 +4,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, Match
+from re import Match
 
 # Placeholders: [EMAIL_1], [PHONE_1], [ACCOUNT_1], [ETRANSFER_1]
-_PLACEHOLDER_RE = re.compile(
-    r"\[(EMAIL|PHONE|ACCOUNT|ETRANSFER)_(\d+)\]"
-)
+_PLACEHOLDER_RE = re.compile(r"\[(EMAIL|PHONE|ACCOUNT|ETRANSFER)_(\d+)\]")
 
-_EMAIL_RE = re.compile(
-    r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"
-)
+_EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")
 
 _PHONE_RE = re.compile(
     r"(?<!\d)"
@@ -22,9 +18,7 @@ _PHONE_RE = re.compile(
     r"(?!\d)"
 )
 
-_ACCOUNT_RE = re.compile(
-    r"(?<!\d)(?:\d[ \-]?){7,18}\d(?!\d)"
-)
+_ACCOUNT_RE = re.compile(r"(?<!\d)(?:\d[ \-]?){7,18}\d(?!\d)")
 
 # Prefix (group 1) + recipient name (group 2); stop before currency/amount
 _ETRANSFER_RE = re.compile(
@@ -39,7 +33,7 @@ _ETRANSFER_RE = re.compile(
 class RedactionMap:
     """Maps placeholders back to original PII for trusted rehydration."""
 
-    mapping: Dict[str, str] = field(default_factory=dict)
+    mapping: dict[str, str] = field(default_factory=dict)
 
     def remember(self, kind: str, value: str) -> str:
         for placeholder, original in self.mapping.items():

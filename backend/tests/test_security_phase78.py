@@ -80,7 +80,7 @@ def test_export_sanitizes_formula_description(client, db_session) -> None:
         id="tx-csv",
         account_id=account.id,
         transaction_date=date(2026, 6, 1),
-        description="=HYPERLINK(\"http://evil\")",
+        description='=HYPERLINK("http://evil")',
         amount=-5.0,
         category="Dining",
     )

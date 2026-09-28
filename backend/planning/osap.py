@@ -112,9 +112,7 @@ def plan_osap(
     rules = load_rules(tax_year)
     rate = float(annual_rate if annual_rate is not None else rules.osap.interest_rate)
     std_years = float(
-        standard_years
-        if standard_years is not None
-        else rules.osap.standard_amortization_years
+        standard_years if standard_years is not None else rules.osap.standard_amortization_years
     )
     if accelerated_years is None:
         accelerated_years = max(2.0, std_years / 2.0)
@@ -130,9 +128,7 @@ def plan_osap(
     interest_saved_vs_standard = round(
         standard["total_interest"] - accelerated["total_interest"], 2
     )
-    interest_saved_extra = round(
-        standard["total_interest"] - with_extra["total_interest"], 2
-    )
+    interest_saved_extra = round(standard["total_interest"] - with_extra["total_interest"], 2)
     months_saved_extra = standard["months"] - with_extra["months"]
 
     return {
@@ -168,9 +164,7 @@ def interest_only_first_month(principal: float, annual_rate: float) -> float:
     return round(principal * (annual_rate / 12.0), 2)
 
 
-def payment_formula_terms(
-    principal: float, annual_rate: float, years: float
-) -> dict[str, float]:
+def payment_formula_terms(principal: float, annual_rate: float, years: float) -> dict[str, float]:
     """Expose intermediate terms for unit tests."""
     n = int(round(years * 12))
     r = annual_rate / 12.0
@@ -185,4 +179,3 @@ def payment_formula_terms(
         "payment": round(payment, 2),
         "raw_payment": payment,
     }
-

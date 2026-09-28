@@ -116,9 +116,7 @@ def post_registered_optimizer(body: RegisteredRequest) -> dict[str, Any]:
             age=body.age,
             first_time_buyer=body.first_time_buyer,
             horizon=body.horizon,
-            existing_room=(
-                body.existing_room.model_dump() if body.existing_room else None
-            ),
+            existing_room=(body.existing_room.model_dump() if body.existing_room else None),
             annual_contribution=body.annual_contribution,
             tax_year=body.tax_year,
             growth_rate=body.growth_rate,

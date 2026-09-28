@@ -53,7 +53,7 @@ def test_dashboard_aggregates(client, db_session) -> None:
         },
     )
     # last month debit
-    last_month = (today.replace(day=1) - timedelta(days=1))
+    last_month = today.replace(day=1) - timedelta(days=1)
     client.post(
         "/transactions/",
         json={

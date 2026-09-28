@@ -110,9 +110,7 @@ def test_category_alias_restaurants_to_dining(db_session) -> None:
     user = User(email="alias@test.com", name="Alias")
     db_session.add(user)
     db_session.flush()
-    account = Account(
-        user_id=user.id, name="Checking", institution="RBC", account_type="checking"
-    )
+    account = Account(user_id=user.id, name="Checking", institution="RBC", account_type="checking")
     db_session.add(account)
     db_session.flush()
     db_session.add(

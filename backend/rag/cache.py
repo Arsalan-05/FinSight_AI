@@ -43,7 +43,9 @@ class SemanticCache:
     against stored query vectors for that user.
     """
 
-    def __init__(self, *, similarity_threshold: float = 0.97, max_entries_per_user: int = 64) -> None:
+    def __init__(
+        self, *, similarity_threshold: float = 0.97, max_entries_per_user: int = 64
+    ) -> None:
         self.similarity_threshold = similarity_threshold
         self.max_entries_per_user = max_entries_per_user
         self._store: dict[str, dict[str, CacheEntry]] = {}
@@ -89,9 +91,11 @@ class SemanticCache:
     ) -> None:
         with self._lock:
             bucket = self._store.setdefault(user_key, {})
-            fp = _fingerprint(query_vector) if query_vector else hashlib.sha256(
-                query_text.encode()
-            ).hexdigest()[:24]
+            fp = (
+                _fingerprint(query_vector)
+                if query_vector
+                else hashlib.sha256(query_text.encode()).hexdigest()[:24]
+            )
             bucket[fp] = CacheEntry(
                 query_vector=list(query_vector),
                 query_text=query_text,

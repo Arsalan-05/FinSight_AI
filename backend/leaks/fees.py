@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from datetime import date
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Optional
 
 # Ordered most-specific first so NSF beats generic "fee"
-_FEE_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
+_FEE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     (
         "nsf",
         re.compile(
@@ -67,15 +68,15 @@ def detect_fees(
     transactions: Sequence[Any],
     *,
     year: Optional[int] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Classify fee transactions and sum yearly total.
 
     Returns per-fee findings plus aggregate yearly_total_cad.
     """
     target_year = year or date.today().year
-    items: List[Dict[str, Any]] = []
-    by_type: Dict[str, float] = {}
+    items: list[dict[str, Any]] = []
+    by_type: dict[str, float] = {}
     yearly_total = 0.0
 
     for tx in transactions:

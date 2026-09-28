@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
 _TAG_RE = re.compile(
     r"\[\[\s*\$(?P<amount>[\d,]+(?:\.\d+)?)\s*\|\s*(?P<eid>ev_\d+)\s*\]\]",
     re.IGNORECASE,

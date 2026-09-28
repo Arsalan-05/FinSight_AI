@@ -98,9 +98,7 @@ def build_data_profile(
         .all()
     )
 
-    largest = (
-        debits.order_by(Transaction.amount.asc()).limit(5).all()
-    )
+    largest = debits.order_by(Transaction.amount.asc()).limit(5).all()
 
     months_active = max(1.0, window_days / 30.0)
     avg_monthly_spend = abs(spend_total) / months_active
@@ -160,12 +158,8 @@ def profile_narrative(data_profile: dict[str, Any], learned: dict[str, Any]) -> 
             f"- Linked data spans {data_profile['data_from']} → {data_profile['data_to']} "
             "(if the user asks about a month outside this range, say so clearly)."
         )
-    lines.append(
-        f"- Avg monthly spend: ${data_profile.get('avg_monthly_spend_cad', 0):,.2f} CAD"
-    )
-    lines.append(
-        f"- Avg monthly income: ${data_profile.get('avg_monthly_income_cad', 0):,.2f} CAD"
-    )
+    lines.append(f"- Avg monthly spend: ${data_profile.get('avg_monthly_spend_cad', 0):,.2f} CAD")
+    lines.append(f"- Avg monthly income: ${data_profile.get('avg_monthly_income_cad', 0):,.2f} CAD")
     if data_profile.get("top_categories"):
         cats = ", ".join(
             f"{c['category']} (${c['total_spend_cad']:,.0f})"

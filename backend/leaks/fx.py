@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from datetime import date
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Optional
 
 from leaks.boc import RateDict, nearest_rate
 
@@ -27,7 +28,7 @@ _FOREIGN_HINT_RE = re.compile(
 TxLike = Any  # Transaction ORM or duck-typed object with amount/date/description
 
 
-def parse_foreign_amount(description: str) -> Optional[Tuple[str, float]]:
+def parse_foreign_amount(description: str) -> Optional[tuple[str, float]]:
     """Extract (currency_code, foreign_amount) from a transaction description."""
     if not description:
         return None
@@ -56,7 +57,7 @@ def detect_fx_markup(
     year: Optional[int] = None,
     min_markup_cad: float = 0.25,
     min_markup_pct: float = 0.5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Compare implied FX rate (CAD ÷ foreign) to BoC rates.
 
@@ -64,8 +65,8 @@ def detect_fx_markup(
     Transactions with foreign-currency hints but no parseable amount are
     flagged as unverifiable (amount_cad=0, not counted in yearly total).
     """
-    items: List[Dict[str, Any]] = []
-    unverifiable: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
+    unverifiable: list[dict[str, Any]] = []
     yearly_total = 0.0
     target_year = year or date.today().year
 
@@ -90,8 +91,7 @@ def detect_fx_markup(
                         "status": "open",
                         "title": "Unverifiable FX purchase",
                         "message": (
-                            "Foreign currency mentioned but amount missing — "
-                            "cannot compute markup."
+                            "Foreign currency mentioned but amount missing — cannot compute markup."
                         ),
                         "evidence": {
                             "transaction_id": tx_id,
@@ -183,9 +183,9 @@ def detect_fx_markup(
     }
 
 
-def findings_from_fx_result(result: Dict[str, Any]) -> List[Dict[str, Any]]:
+def findings_from_fx_result(result: dict[str, Any]) -> list[dict[str, Any]]:
     """Flatten detector output into FindingDict list (including unverifiable)."""
-    out: List[Dict[str, Any]] = list(result.get("items") or [])
+    out: list[dict[str, Any]] = list(result.get("items") or [])
     out.extend(result.get("unverifiable") or [])
     # Attach summary finding when there is a yearly total
     yearly = float(result.get("yearly_total_cad") or 0)
@@ -203,9 +203,7 @@ def findings_from_fx_result(result: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "evidence": {
                     "kind": "yearly_summary",
                     "year": result.get("year"),
-                    "transaction_ids": [
-                        i["evidence"]["transaction_id"] for i in result["items"]
-                    ],
+                    "transaction_ids": [i["evidence"]["transaction_id"] for i in result["items"]],
                     "per_tx_count": len(result["items"]),
                     "no_fx_fee_card_savings_cad": yearly,
                 },

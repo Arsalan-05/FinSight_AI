@@ -5,8 +5,9 @@ from __future__ import annotations
 import random
 import uuid
 from calendar import monthrange
+from collections.abc import Mapping
 from datetime import date, timedelta
-from typing import Any, Mapping
+from typing import Any
 
 # Fixed window so evals are reproducible across machines / CI.
 FIXTURE_YEAR = 2025
@@ -64,8 +65,7 @@ def build_fixture_transactions(
     td = account_ids.get(ACCOUNT_TD) or account_ids.get("credit")
     if not rbc or not td:
         raise ValueError(
-            "account_ids must include 'rbc_checking'/'td_credit' "
-            "(or 'checking'/'credit' aliases)"
+            "account_ids must include 'rbc_checking'/'td_credit' (or 'checking'/'credit' aliases)"
         )
 
     rng = random.Random(RNG_SEED)
@@ -151,10 +151,11 @@ def build_fixture_transactions(
             )
 
         # Rent via Interac (RBC checking)
+        rent_day = _clamp_day(FIXTURE_YEAR, month, 3)
         rent = add(
             account_id=rbc,
-            d=_clamp_day(FIXTURE_YEAR, month, 3),
-            description=f"INTERAC E-TRANSFER SENT - RENT {_clamp_day(FIXTURE_YEAR, month, 3).strftime('%b').upper()}",
+            d=rent_day,
+            description=f"INTERAC E-TRANSFER SENT - RENT {rent_day.strftime('%b').upper()}",
             amount=-RENT_CAD,
             category="Housing",
             merchant="Landlord",

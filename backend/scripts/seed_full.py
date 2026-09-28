@@ -50,13 +50,37 @@ _FREQUENT = [
     # merchant, account, category, description, low band, high band, gap days
     ("No Frills", "chq", "Groceries", "NO FRILLS #3412 TORONTO ON", (18, 38), (62, 98), (5, 9)),
     ("Loblaws", "visa", "Groceries", "LOBLAWS #1088 TORONTO ON", (12, 28), (48, 78), (9, 15)),
-    ("Tim Hortons", "chq", "Dining", "TIM HORTONS #2217 NORTH YORK", (3.2, 5.8), (9.5, 15.9), (2, 6)),
-    ("Starbucks", "visa", "Dining", "STARBUCKS #4471 YORK UNIVERSITY", (4.9, 7.2), (11.5, 18.4), (8, 15)),
+    (
+        "Tim Hortons",
+        "chq",
+        "Dining",
+        "TIM HORTONS #2217 NORTH YORK",
+        (3.2, 5.8),
+        (9.5, 15.9),
+        (2, 6),
+    ),
+    (
+        "Starbucks",
+        "visa",
+        "Dining",
+        "STARBUCKS #4471 YORK UNIVERSITY",
+        (4.9, 7.2),
+        (11.5, 18.4),
+        (8, 15),
+    ),
     ("Uber Eats", "visa", "Dining", "UBER* EATS TORONTO ON", (17, 25), (38, 58), (8, 14)),
     ("McDonald's", "chq", "Dining", "MCDONALD'S #40512 NORTH YORK", (6, 9.5), (15, 22), (9, 16)),
     ("Uber", "visa", "Transport", "UBER* TRIP TORONTO ON", (9, 14), (24, 39), (10, 17)),
     ("Amazon.ca", "visa", "Shopping", "AMAZON.CA*MK2J81 AMAZON.CA", (12, 28), (55, 120), (9, 15)),
-    ("Shoppers Drug Mart", "chq", "Healthcare", "SHOPPERS DRUG MART #1297", (6, 15), (32, 58), (10, 17)),
+    (
+        "Shoppers Drug Mart",
+        "chq",
+        "Healthcare",
+        "SHOPPERS DRUG MART #1297",
+        (6, 15),
+        (32, 58),
+        (10, 17),
+    ),
     ("Dollarama", "chq", "Shopping", "DOLLARAMA #845 TORONTO ON", (4.5, 8), (16, 28), (12, 18)),
 ]
 
@@ -139,27 +163,69 @@ def build_transactions(today: date, fx_rates: dict) -> list[SeedTx]:
     spotify_raise = months[-7]
     rogers_raise = months[-4]
     for i, ms in enumerate(months):
-        b.add(ms, "chq", "INTERAC E-TRANSFER - RENT TO K. PATEL (LANDLORD)", -1150.00,
-              "Housing", "Landlord Rent (e-Transfer)")
-        b.add(ms, "chq", "PRESTO MONTHLY PASS - TTC POST-SECONDARY", -128.15,
-              "Transport", "PRESTO Monthly Pass")
-        b.add(_on(ms, 7), "visa", "SPOTIFY P3F9A2 STOCKHOLM",
-              -12.99 if ms >= spotify_raise else -11.99, "Subscriptions", "Spotify")
-        b.add(_on(ms, 12), "visa", "APPLE.COM/BILL ICLOUD+ 50GB", -3.99,
-              "Subscriptions", "Apple iCloud+")
-        b.add(_on(ms, 18), "visa", "ROGERS WIRELESS PAD",
-              -71.19 if ms >= rogers_raise else -65.54, "Utilities", "Rogers Wireless")
+        b.add(
+            ms,
+            "chq",
+            "INTERAC E-TRANSFER - RENT TO K. PATEL (LANDLORD)",
+            -1150.00,
+            "Housing",
+            "Landlord Rent (e-Transfer)",
+        )
+        b.add(
+            ms,
+            "chq",
+            "PRESTO MONTHLY PASS - TTC POST-SECONDARY",
+            -128.15,
+            "Transport",
+            "PRESTO Monthly Pass",
+        )
+        b.add(
+            _on(ms, 7),
+            "visa",
+            "SPOTIFY P3F9A2 STOCKHOLM",
+            -12.99 if ms >= spotify_raise else -11.99,
+            "Subscriptions",
+            "Spotify",
+        )
+        b.add(
+            _on(ms, 12),
+            "visa",
+            "APPLE.COM/BILL ICLOUD+ 50GB",
+            -3.99,
+            "Subscriptions",
+            "Apple iCloud+",
+        )
+        b.add(
+            _on(ms, 18),
+            "visa",
+            "ROGERS WIRELESS PAD",
+            -71.19 if ms >= rogers_raise else -65.54,
+            "Utilities",
+            "Rogers Wireless",
+        )
         # Planted leak: gym membership with no other gym activity.
         if i >= 2:
-            b.add(_on(ms, 15), "chq", "GOODLIFE FITNESS CLUBS MEMBERSHIP", -54.99,
-                  "Subscriptions", "GoodLife Fitness")
+            b.add(
+                _on(ms, 15),
+                "chq",
+                "GOODLIFE FITNESS CLUBS MEMBERSHIP",
+                -54.99,
+                "Subscriptions",
+                "GoodLife Fitness",
+            )
         # Planted leak: streaming service signed up for and forgotten.
         if i >= len(months) - 8:
             b.add(_on(ms, 22), "visa", "CRAVE BELL MEDIA", -22.59, "Subscriptions", "Crave")
         # Monthly savings sweep into the high-interest account.
         label = ms.strftime("%b %Y")
-        b.add(_on(ms, 16), "chq", "TRANSFER TO RBC HIGH INTEREST ESAVINGS", -200.00,
-              "Transfers", f"RBC HISA Transfer ({label})")
+        b.add(
+            _on(ms, 16),
+            "chq",
+            "TRANSFER TO RBC HIGH INTEREST ESAVINGS",
+            -200.00,
+            "Transfers",
+            f"RBC HISA Transfer ({label})",
+        )
         b.add(_on(ms, 16), "hisa", "TRANSFER FROM RBC CHEQUING", 200.00, "Transfers")
 
     # HISA interest (3.5%/yr on a growing balance)
@@ -188,27 +254,54 @@ def build_transactions(today: date, fx_rates: dict) -> list[SeedTx]:
     for ms in months:
         if ms.month in (9, 1):
             b.add(_on(ms, 3), "chq", "OSAP DISBURSEMENT - NSLSC", rng.uniform(3900, 4300), "Income")
-            b.add(_on(ms, 8), "chq", "YORK UNIVERSITY TUITION PAYMENT", -tuition,
-                  "Education", "York University")
+            b.add(
+                _on(ms, 8),
+                "chq",
+                "YORK UNIVERSITY TUITION PAYMENT",
+                -tuition,
+                "Education",
+                "York University",
+            )
             tuition -= rng.uniform(15, 330)  # never higher than last term
-            b.add(_on(ms, 10), "chq", "YORK U BOOKSTORE", -textbooks[min(term, 3)],
-                  "Education", "York U Bookstore")
+            b.add(
+                _on(ms, 10),
+                "chq",
+                "YORK U BOOKSTORE",
+                -textbooks[min(term, 3)],
+                "Education",
+                "York U Bookstore",
+            )
             term += 1
     for ms in months[1::2]:
         b.add(_on(ms, 20), "chq", "INTERAC E-TRANSFER FROM AMIR ALI", 300.00, "Transfers")
 
     # ── TFSA: contributions land as credits in the TFSA account ─────────────────
     tfsa_dates = [(date(today.year - 1, 10, 15), 1500.00)]
-    tfsa_dates += [(date(today.year, 1, 15), 1000.00), (date(today.year, 4, 20), 2500.00),
-                   (date(today.year, 8, 5), 2000.00)]
+    tfsa_dates += [
+        (date(today.year, 1, 15), 1000.00),
+        (date(today.year, 4, 20), 2500.00),
+        (date(today.year, 8, 5), 2000.00),
+    ]
     for d, amt in tfsa_dates:
         if start <= d <= today:
-            b.add(d, "chq", "TRANSFER TO WEALTHSIMPLE TFSA", -amt, "Savings",
-                  f"Wealthsimple TFSA Contribution ({d:%b %Y})")
+            b.add(
+                d,
+                "chq",
+                "TRANSFER TO WEALTHSIMPLE TFSA",
+                -amt,
+                "Savings",
+                f"Wealthsimple TFSA Contribution ({d:%b %Y})",
+            )
             b.add(d, "tfsa", "TFSA CONTRIBUTION FROM RBC CHEQUING", amt, "Savings")
     for ms in months:
         if ms.month in (3, 6, 9, 12):
-            b.add(_on(ms, 28), "tfsa", "DIVIDEND XEQT ISHARES CORE EQUITY", rng.uniform(8, 25), "Income")
+            b.add(
+                _on(ms, 28),
+                "tfsa",
+                "DIVIDEND XEQT ISHARES CORE EQUITY",
+                rng.uniform(8, 25),
+                "Income",
+            )
 
     # ── Everyday spending ───────────────────────────────────────────────────────
     next_visit = {m[0]: start + timedelta(days=rng.randint(0, m[6][1])) for m in _FREQUENT}
@@ -233,19 +326,39 @@ def build_transactions(today: date, fx_rates: dict) -> list[SeedTx]:
         d += timedelta(days=1)
 
     # ── Related activity so real subscriptions aren't flagged as forgotten ──────
-    b.add(today - timedelta(days=40), "chq", "PRESTO FARE UP EXPRESS PEARSON", -12.35,
-          "Transport", "UP Express")
-    b.add(today - timedelta(days=35), "visa", "APPLE STORE EATON CENTRE", -35.03,
-          "Shopping", "Apple Store Eaton Centre")
-    b.add(today - timedelta(days=37), "visa", "TICKETMASTER *SPOTIFY FAN PRESALE", -148.40,
-          "Entertainment", "Ticketmaster")
+    b.add(
+        today - timedelta(days=40),
+        "chq",
+        "PRESTO FARE UP EXPRESS PEARSON",
+        -12.35,
+        "Transport",
+        "UP Express",
+    )
+    b.add(
+        today - timedelta(days=35),
+        "visa",
+        "APPLE STORE EATON CENTRE",
+        -35.03,
+        "Shopping",
+        "Apple Store Eaton Centre",
+    )
+    b.add(
+        today - timedelta(days=37),
+        "visa",
+        "TICKETMASTER *SPOTIFY FAN PRESALE",
+        -148.40,
+        "Entertainment",
+        "Ticketmaster",
+    )
 
     # ── NYC trip (FX charges on the Visa, roaming, foreign ATM) ────────────────
     trip = today - timedelta(days=78)
     b.add(trip, "visa", "ROGERS ROAMING PASS - USA", -14.69, "Utilities", "Rogers Roaming")
 
     # ── Planted money leaks (current calendar year) ─────────────────────────────
-    def fx_charge(days_ago: int, desc: str, code: str, foreign: float, cat: str, merchant: str) -> None:
+    def fx_charge(
+        days_ago: int, desc: str, code: str, foreign: float, cat: str, merchant: str
+    ) -> None:
         when = b.ago(days_ago)
         rate = nearest_rate(fx_rates, when, f"{code}CAD") or 1.37
         cad = round(foreign * rate * 1.025, 2)  # 2.5% card FX markup
@@ -260,12 +373,22 @@ def build_transactions(today: date, fx_rates: dict) -> list[SeedTx]:
     fx_charge(77, "JOES PIZZA NEW YORK", "USD", 14.75, "Dining", "Joe's Pizza NYC")
     fx_charge(76, "MTA NYCT OMNY NEW YORK", "USD", 34.00, "Transport", "MTA New York")
     fx_charge(20, "STEAMGAMES.COM", "USD", 19.99, "Entertainment", "Steam")
-    b.add(b.ago(162), "visa", "FOREIGN EXCHANGE PURCHASE - PAYPAL *ALIEXPRESS", -38.17,
-          "Shopping", "AliExpress")
+    b.add(
+        b.ago(162),
+        "visa",
+        "FOREIGN EXCHANGE PURCHASE - PAYPAL *ALIEXPRESS",
+        -38.17,
+        "Shopping",
+        "AliExpress",
+    )
 
     # Duplicate charges (same merchant, same amount, within 72h)
-    b.add(today - timedelta(days=43), "visa", "UBER* EATS TORONTO ON", -34.87, "Dining", "Uber Eats")
-    b.add(today - timedelta(days=43), "visa", "UBER* EATS TORONTO ON", -34.87, "Dining", "Uber Eats")
+    b.add(
+        today - timedelta(days=43), "visa", "UBER* EATS TORONTO ON", -34.87, "Dining", "Uber Eats"
+    )
+    b.add(
+        today - timedelta(days=43), "visa", "UBER* EATS TORONTO ON", -34.87, "Dining", "Uber Eats"
+    )
     b.add(b.ago(130), "visa", "AMAZON.CA*R72KD1 AMAZON.CA", -64.99, "Shopping", "Amazon.ca")
     b.add(b.ago(129), "visa", "AMAZON.CA*R72KD1 AMAZON.CA", -64.99, "Shopping", "Amazon.ca")
 
@@ -278,10 +401,26 @@ def build_transactions(today: date, fx_rates: dict) -> list[SeedTx]:
     b.add(b.ago(27), "chq", "MONTHLY FEE - PAPER STATEMENT", -2.00, "Bank Fees")
 
     # ── This week: a splurge (weekly spike, big-dinner anomaly, over Dining budget) ─
-    b.add(today - timedelta(days=3), "visa", "MIKU TORONTO BAY ST", -186.40, "Dining", "Miku Toronto")
-    b.add(today - timedelta(days=2), "visa", "SPORT CHEK EATON CENTRE", -89.99, "Shopping", "Sport Chek")
+    b.add(
+        today - timedelta(days=3), "visa", "MIKU TORONTO BAY ST", -186.40, "Dining", "Miku Toronto"
+    )
+    b.add(
+        today - timedelta(days=2),
+        "visa",
+        "SPORT CHEK EATON CENTRE",
+        -89.99,
+        "Shopping",
+        "Sport Chek",
+    )
     b.add(today - timedelta(days=1), "visa", "UBER* EATS TORONTO ON", -41.23, "Dining", "Uber Eats")
-    b.add(today - timedelta(days=4), "chq", "PAI NORTHERN THAI KITCHEN", -47.80, "Dining", "Pai Northern Thai")
+    b.add(
+        today - timedelta(days=4),
+        "chq",
+        "PAI NORTHERN THAI KITCHEN",
+        -47.80,
+        "Dining",
+        "Pai Northern Thai",
+    )
     # First-time merchant with no merchant name on file
     b.add(today - timedelta(days=13), "chq", "SQ *KENSINGTON VINTAGE MARKET", -64.00, "Shopping")
 
@@ -318,7 +457,9 @@ def _check(report: dict) -> list[str]:
     if creep != _EXPECTED_CREEP:
         problems.append(f"price creep: expected {sorted(_EXPECTED_CREEP)}, got {sorted(creep)}")
     if forgotten != _EXPECTED_FORGOTTEN:
-        problems.append(f"forgotten: expected {sorted(_EXPECTED_FORGOTTEN)}, got {sorted(forgotten)}")
+        problems.append(
+            f"forgotten: expected {sorted(_EXPECTED_FORGOTTEN)}, got {sorted(forgotten)}"
+        )
     if len(report["duplicates"]) != 2:
         problems.append(f"duplicates: expected 2, got {report['duplicates']}")
     return problems
@@ -362,45 +503,95 @@ def _user_settings(user, today: date) -> None:
             "current_amount": current,
             "deadline": deadline.isoformat(),
             "notes": notes,
-            "created_at": (datetime.combine(today, datetime.min.time())
-                           - timedelta(days=created_days)).isoformat(),
+            "created_at": (
+                datetime.combine(today, datetime.min.time()) - timedelta(days=created_days)
+            ).isoformat(),
             "status": status,
             "updated_at": now,
         }
 
-    user.goals_json = json.dumps([
-        goal("iPhone 17 Pro", 1599.00, 450.00, today + timedelta(days=80),
-             "Pay cash, no financing", created_days=30),
-        goal("Emergency fund (3 months rent)", 3450.00, 1850.00, today + timedelta(days=210)),
-        goal("Montreal trip with friends", 800.00, 220.00, today + timedelta(days=250)),
-        goal("Max out TFSA this year", 7000.00, 5500.00, date(today.year, 12, 31),
-             "Wealthsimple, XEQT", created_days=260),
-        goal("New laptop for school", 1400.00, 1400.00, today - timedelta(days=60),
-             "Bought a MacBook Air", status="completed", created_days=300),
-    ])
+    user.goals_json = json.dumps(
+        [
+            goal(
+                "iPhone 17 Pro",
+                1599.00,
+                450.00,
+                today + timedelta(days=80),
+                "Pay cash, no financing",
+                created_days=30,
+            ),
+            goal("Emergency fund (3 months rent)", 3450.00, 1850.00, today + timedelta(days=210)),
+            goal("Montreal trip with friends", 800.00, 220.00, today + timedelta(days=250)),
+            goal(
+                "Max out TFSA this year",
+                7000.00,
+                5500.00,
+                date(today.year, 12, 31),
+                "Wealthsimple, XEQT",
+                created_days=260,
+            ),
+            goal(
+                "New laptop for school",
+                1400.00,
+                1400.00,
+                today - timedelta(days=60),
+                "Bought a MacBook Air",
+                status="completed",
+                created_days=300,
+            ),
+        ]
+    )
     user.alert_prefs_json = json.dumps({"spend_alerts": True, "email_digest": False})
-    user.category_rules_json = json.dumps([
-        {"id": str(uuid.uuid4()), "match": "merchant_contains", "value": "uber eats", "category": "Dining"},
-        {"id": str(uuid.uuid4()), "match": "merchant_contains", "value": "presto", "category": "Transport"},
-        {"id": str(uuid.uuid4()), "match": "merchant_contains", "value": "goodlife", "category": "Subscriptions"},
-    ])
-    user.agent_profile_json = json.dumps({
-        "learned_summary": (
-            "Second-year York University CS student in Toronto. Pays $1,150/mo rent, "
-            "funds school with OSAP and a part-time Indigo job, and interned at Shopify "
-            "over the summer. Saving for an iPhone and building an emergency fund."
-        ),
-        "preferences": ["Prefers concrete weekly savings targets", "Uses Wealthsimple for the TFSA"],
-        "risk_flags": ["Dining and Uber Eats creep up during exam season"],
-        "updated_at": today.isoformat(),
-    })
+    user.category_rules_json = json.dumps(
+        [
+            {
+                "id": str(uuid.uuid4()),
+                "match": "merchant_contains",
+                "value": "uber eats",
+                "category": "Dining",
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "match": "merchant_contains",
+                "value": "presto",
+                "category": "Transport",
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "match": "merchant_contains",
+                "value": "goodlife",
+                "category": "Subscriptions",
+            },
+        ]
+    )
+    user.agent_profile_json = json.dumps(
+        {
+            "learned_summary": (
+                "Second-year York University CS student in Toronto. Pays $1,150/mo rent, "
+                "funds school with OSAP and a part-time Indigo job, and interned at Shopify "
+                "over the summer. Saving for an iPhone and building an emergency fund."
+            ),
+            "preferences": [
+                "Prefers concrete weekly savings targets",
+                "Uses Wealthsimple for the TFSA",
+            ],
+            "risk_flags": ["Dining and Uber Eats creep up during exam season"],
+            "updated_at": today.isoformat(),
+        }
+    )
 
 
 def _budgets(db, user) -> None:
     from db.models import Budget
 
-    for category, limit in [("Dining", 150), ("Groceries", 350), ("Shopping", 200),
-                            ("Transport", 180), ("Entertainment", 80), ("Subscriptions", 110)]:
+    for category, limit in [
+        ("Dining", 150),
+        ("Groceries", 350),
+        ("Shopping", 200),
+        ("Transport", 180),
+        ("Entertainment", 80),
+        ("Subscriptions", 110),
+    ]:
         db.add(Budget(user_id=user.id, category=category, monthly_limit=limit))
 
 
@@ -408,17 +599,40 @@ def _notifications(db, user) -> None:
     from db.models import Notification
 
     for kind, severity, title, body, read in [
-        ("weekly_brief", "info", "Your weekly brief is ready",
-         "Spending is up this week. Open the brief to see what changed.", False),
-        ("leak_found", "warning", "New money leaks found",
-         "We found duplicate charges, bank fees and two subscriptions you may have forgotten.", False),
-        ("tfsa", "info", "TFSA room update",
-         "You've contributed $5,500 to your TFSA this year. $1,500 of room left.", False),
-        ("welcome", "info", "Welcome to FinSight",
-         "Your accounts are connected. Ask the advisor anything about your money.", True),
+        (
+            "weekly_brief",
+            "info",
+            "Your weekly brief is ready",
+            "Spending is up this week. Open the brief to see what changed.",
+            False,
+        ),
+        (
+            "leak_found",
+            "warning",
+            "New money leaks found",
+            "We found duplicate charges, bank fees and two subscriptions you may have forgotten.",
+            False,
+        ),
+        (
+            "tfsa",
+            "info",
+            "TFSA room update",
+            "You've contributed $5,500 to your TFSA this year. $1,500 of room left.",
+            False,
+        ),
+        (
+            "welcome",
+            "info",
+            "Welcome to FinSight",
+            "Your accounts are connected. Ask the advisor anything about your money.",
+            True,
+        ),
     ]:
-        db.add(Notification(user_id=user.id, kind=kind, severity=severity,
-                            title=title, body=body, read=read))
+        db.add(
+            Notification(
+                user_id=user.id, kind=kind, severity=severity, title=title, body=body, read=read
+            )
+        )
 
 
 def _embed(db, transactions, batch_size: int = 120) -> int:
@@ -454,7 +668,7 @@ def main() -> None:
     args = parser.parse_args()
 
     from db.base import SessionLocal
-    from db.models import Account, LeakFinding, Transaction, User
+    from db.models import Account, Transaction, User
     from leaks.boc import get_rate_dict
 
     today = date.today()
@@ -463,8 +677,10 @@ def main() -> None:
     txs = build_transactions(today, fx_rates)
 
     report = validate(txs, fx_rates, today)
-    print(f"Generated {len(txs)} transactions "
-          f"({txs[0].transaction_date} → {txs[-1].transaction_date})")
+    print(
+        f"Generated {len(txs)} transactions "
+        f"({txs[0].transaction_date} → {txs[-1].transaction_date})"
+    )
     print("By category:", dict(Counter(t.category for t in txs).most_common()))
     for kind, titles in report.items():
         print(f"  {kind}: {len(titles)} → {titles}")
@@ -484,14 +700,30 @@ def main() -> None:
     _wipe(db, user)
 
     accounts = {
-        "chq": Account(user_id=user.id, name="RBC Advantage Banking for Students",
-                       institution="RBC Royal Bank", account_type="checking"),
-        "visa": Account(user_id=user.id, name="Simplii Cash Back Visa",
-                        institution="Simplii Financial", account_type="credit"),
-        "hisa": Account(user_id=user.id, name="RBC High Interest eSavings",
-                        institution="RBC Royal Bank", account_type="savings"),
-        "tfsa": Account(user_id=user.id, name="Wealthsimple TFSA",
-                        institution="Wealthsimple", account_type="savings"),
+        "chq": Account(
+            user_id=user.id,
+            name="RBC Advantage Banking for Students",
+            institution="RBC Royal Bank",
+            account_type="checking",
+        ),
+        "visa": Account(
+            user_id=user.id,
+            name="Simplii Cash Back Visa",
+            institution="Simplii Financial",
+            account_type="credit",
+        ),
+        "hisa": Account(
+            user_id=user.id,
+            name="RBC High Interest eSavings",
+            institution="RBC Royal Bank",
+            account_type="savings",
+        ),
+        "tfsa": Account(
+            user_id=user.id,
+            name="Wealthsimple TFSA",
+            institution="Wealthsimple",
+            account_type="savings",
+        ),
     }
     db.add_all(accounts.values())
     db.flush()
@@ -531,9 +763,12 @@ def main() -> None:
 
     if not args.no_embed:
         print("Embedding transactions for semantic search …")
-        fresh = db.query(Transaction).filter(
-            Transaction.account_id.in_([a.id for a in accounts.values()])
-        ).order_by(Transaction.transaction_date.desc()).all()
+        fresh = (
+            db.query(Transaction)
+            .filter(Transaction.account_id.in_([a.id for a in accounts.values()]))
+            .order_by(Transaction.transaction_date.desc())
+            .all()
+        )
         _embed(db, fresh)
 
     _report(db, user)
@@ -554,7 +789,10 @@ def _report(db, user) -> None:
     tfsa = tfsa_contribution_status(db, account_ids=ids)
     print("TFSA:", {k: tfsa["tfsa"].get(k) for k in ("estimated_contributions", "remaining_room")})
     runway = analyze_cash_runway(db, account_ids=ids)
-    print("Runway:", {k: runway.get(k) for k in ("monthly_burn", "monthly_income_estimate", "runway_months")})
+    print(
+        "Runway:",
+        {k: runway.get(k) for k in ("monthly_burn", "monthly_income_estimate", "runway_months")},
+    )
     print("Anomalies:", [a["message"] for a in detect_anomalies(db, account_ids=ids)])
     brief = build_weekly_brief(db, account_ids=ids)
     print("Weekly brief headline:", brief.get("headline"))

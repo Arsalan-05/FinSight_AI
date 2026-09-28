@@ -10,12 +10,8 @@ from ingest.pdf.detect import detect_bank
 
 NormalizedTx = dict[str, Any]
 
-_AMOUNT = re.compile(
-    r"(?P<sign>-)?\$?\s*(?P<num>\d{1,3}(?:,\d{3})*(?:\.\d{2})|\d+\.\d{2})"
-)
-_DATE = re.compile(
-    r"(?P<d>\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2}-\w{3}-\d{2,4})"
-)
+_AMOUNT = re.compile(r"(?P<sign>-)?\$?\s*(?P<num>\d{1,3}(?:,\d{3})*(?:\.\d{2})|\d+\.\d{2})")
+_DATE = re.compile(r"(?P<d>\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2}-\w{3}-\d{2,4})")
 _BALANCE_LINE = re.compile(
     r"(?P<label>opening|closing|beginning|ending)\s+(?:balance)?\s*:?\s*"
     r"(?P<sign>-)?\$?\s*(?P<num>[\d,]+\.\d{2})",

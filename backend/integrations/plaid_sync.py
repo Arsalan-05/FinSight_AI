@@ -80,15 +80,11 @@ def _category_from_plaid(plaid_tx: dict[str, Any]) -> str:
     return "Uncategorized"
 
 
-def _fields_from_plaid(
-    plaid_tx: dict[str, Any], account_type: str
-) -> dict[str, Any]:
+def _fields_from_plaid(plaid_tx: dict[str, Any], account_type: str) -> dict[str, Any]:
     raw_amount = float(plaid_tx.get("amount", 0))
     return {
         "transaction_date": date.fromisoformat(str(plaid_tx.get("date"))[:10]),
-        "description": plaid_tx.get("name")
-        or plaid_tx.get("merchant_name")
-        or "Transaction",
+        "description": plaid_tx.get("name") or plaid_tx.get("merchant_name") or "Transaction",
         "amount": _plaid_amount_to_finsight(raw_amount, account_type),
         "category": _category_from_plaid(plaid_tx),
         "merchant": plaid_tx.get("merchant_name"),
@@ -182,9 +178,7 @@ def sync_connection(db: Session, connection: BankConnection) -> dict[str, Any]:
             ext_id = plaid_tx.get("transaction_id")
             if ext_id:
                 exists = (
-                    db.query(Transaction)
-                    .filter(Transaction.plaid_transaction_id == ext_id)
-                    .first()
+                    db.query(Transaction).filter(Transaction.plaid_transaction_id == ext_id).first()
                 )
                 if exists:
                     continue
@@ -200,9 +194,7 @@ def sync_connection(db: Session, connection: BankConnection) -> dict[str, Any]:
             if not ext_id:
                 continue
             existing = (
-                db.query(Transaction)
-                .filter(Transaction.plaid_transaction_id == ext_id)
-                .first()
+                db.query(Transaction).filter(Transaction.plaid_transaction_id == ext_id).first()
             )
             if not existing:
                 continue
@@ -219,9 +211,7 @@ def sync_connection(db: Session, connection: BankConnection) -> dict[str, Any]:
             if not ext_id:
                 continue
             existing = (
-                db.query(Transaction)
-                .filter(Transaction.plaid_transaction_id == ext_id)
-                .first()
+                db.query(Transaction).filter(Transaction.plaid_transaction_id == ext_id).first()
             )
             if existing:
                 db.delete(existing)

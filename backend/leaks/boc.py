@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -20,8 +20,8 @@ _BOC_SERIES = "FXUSDCAD,FXEURCAD,FXGBPCAD"
 _BOC_URL = f"https://www.bankofcanada.ca/valet/observations/{_BOC_SERIES}/json"
 _SAMPLE_PATH = Path(__file__).resolve().parent / "data" / "boc_sample_rates.json"
 
-RateKey = Tuple[date, str]
-RateDict = Dict[RateKey, float]
+RateKey = tuple[date, str]
+RateDict = dict[RateKey, float]
 
 
 def load_offline_rates() -> RateDict:

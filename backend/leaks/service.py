@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from typing import Any, Dict, List, TypedDict
+from typing import Any, TypedDict
 
 from sqlalchemy.orm import Session
 
@@ -23,15 +23,13 @@ class FindingDict(TypedDict, total=False):
     status: str
     title: str
     message: str
-    evidence: Dict[str, Any]
+    evidence: dict[str, Any]
     fingerprint: str
     id: str
 
 
-def _load_transactions(db: Session, user_id: str) -> List[Transaction]:
-    account_ids = [
-        a.id for a in db.query(Account.id).filter(Account.user_id == user_id).all()
-    ]
+def _load_transactions(db: Session, user_id: str) -> list[Transaction]:
+    account_ids = [a.id for a in db.query(Account.id).filter(Account.user_id == user_id).all()]
     if not account_ids:
         return []
     return (
@@ -42,7 +40,7 @@ def _load_transactions(db: Session, user_id: str) -> List[Transaction]:
     )
 
 
-def scan_all_leaks(db: Session, user_id: str) -> List[FindingDict]:
+def scan_all_leaks(db: Session, user_id: str) -> list[FindingDict]:
     """
     Run every detector for `user_id` and return merged FindingDict list.
 
@@ -67,7 +65,7 @@ def scan_all_leaks(db: Session, user_id: str) -> List[FindingDict]:
     creep = detect_price_creep(txs)
     forgotten = detect_forgotten_subscriptions(txs)
 
-    merged: List[FindingDict] = []
+    merged: list[FindingDict] = []
     for block in (fx_findings, dup_findings, fee_result["findings"], creep, forgotten):
         for item in block:
             merged.append(item)  # type: ignore[arg-type]
@@ -77,17 +75,15 @@ def scan_all_leaks(db: Session, user_id: str) -> List[FindingDict]:
 def upsert_findings(
     db: Session,
     user_id: str,
-    findings: List[FindingDict],
-) -> List[LeakFinding]:
+    findings: list[FindingDict],
+) -> list[LeakFinding]:
     """
     Persist findings keyed by fingerprint in evidence_json.
 
     Preserves dismissed/resolved status; updates amount/evidence for open rows.
     """
-    existing = (
-        db.query(LeakFinding).filter(LeakFinding.user_id == user_id).all()
-    )
-    by_fp: Dict[str, LeakFinding] = {}
+    existing = db.query(LeakFinding).filter(LeakFinding.user_id == user_id).all()
+    by_fp: dict[str, LeakFinding] = {}
     for row in existing:
         try:
             ev = json.loads(row.evidence_json or "{}")
@@ -97,7 +93,7 @@ def upsert_findings(
         if fp:
             by_fp[str(fp)] = row
 
-    results: List[LeakFinding] = []
+    results: list[LeakFinding] = []
     for finding in findings:
         fp = str(finding.get("fingerprint") or _fallback_fingerprint(finding))
         evidence = dict(finding.get("evidence") or {})
@@ -139,7 +135,7 @@ def _fallback_fingerprint(finding: FindingDict) -> str:
     return f"{finding.get('type')}:{tx}:{finding.get('amount_cad')}"
 
 
-def money_recovered_summary(db: Session, user_id: str) -> Dict[str, Any]:
+def money_recovered_summary(db: Session, user_id: str) -> dict[str, Any]:
     """Dashboard card: total found, total resolved, open count."""
     rows = db.query(LeakFinding).filter(LeakFinding.user_id == user_id).all()
     total_found = sum(float(r.amount_cad) for r in rows if r.status != "dismissed")
@@ -153,7 +149,7 @@ def money_recovered_summary(db: Session, user_id: str) -> Dict[str, Any]:
     }
 
 
-def finding_to_dict(row: LeakFinding) -> Dict[str, Any]:
+def finding_to_dict(row: LeakFinding) -> dict[str, Any]:
     try:
         evidence = json.loads(row.evidence_json or "{}")
     except json.JSONDecodeError:

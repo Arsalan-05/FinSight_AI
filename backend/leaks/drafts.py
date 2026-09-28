@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional
-
+from collections.abc import Mapping
+from typing import Any, Optional
 
 _CANCELLATION = """\
 Subject: Cancellation request — {merchant}
@@ -93,7 +93,7 @@ def build_draft(
     user_name: str = "Account Holder",
     account_email: str = "",
     institution: str = "my bank",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fill a draft template from evidence dict only (deterministic, no LLM).
 
@@ -116,7 +116,9 @@ def build_draft(
     }
 
     fields = {
-        "merchant": _fmt(evidence.get("merchant") or evidence.get("description"), "Service Provider"),
+        "merchant": _fmt(
+            evidence.get("merchant") or evidence.get("description"), "Service Provider"
+        ),
         "amount": _fmt(
             evidence.get("amount")
             or evidence.get("increase_cad")
@@ -124,13 +126,18 @@ def build_draft(
             or evidence.get("markup_cad"),
             "0.00",
         ),
-        "last_date": _fmt(evidence.get("last_date") or evidence.get("date") or evidence.get("since")),
+        "last_date": _fmt(
+            evidence.get("last_date") or evidence.get("date") or evidence.get("since")
+        ),
         "transaction_ids": _fmt(evidence.get("transaction_ids") or evidence.get("transaction_id")),
-        "transaction_id": _fmt(evidence.get("transaction_id") or (
-            (evidence.get("transaction_ids") or [None])[0]
-            if isinstance(evidence.get("transaction_ids"), list)
-            else evidence.get("transaction_ids")
-        )),
+        "transaction_id": _fmt(
+            evidence.get("transaction_id")
+            or (
+                (evidence.get("transaction_ids") or [None])[0]
+                if isinstance(evidence.get("transaction_ids"), list)
+                else evidence.get("transaction_ids")
+            )
+        ),
         "dates": _fmt(evidence.get("dates")),
         "hours_apart": _fmt(evidence.get("hours_apart"), "72"),
         "description": _fmt(evidence.get("description")),

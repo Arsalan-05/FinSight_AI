@@ -363,10 +363,7 @@ def test_plan_osap_extra_payments_reduce_interest() -> None:
         tax_year=2026,
     )
     assert extra["with_extra_payments"]["months"] < base["standard"]["months"]
-    assert (
-        extra["with_extra_payments"]["total_interest"]
-        < base["standard"]["total_interest"]
-    )
+    assert extra["with_extra_payments"]["total_interest"] < base["standard"]["total_interest"]
     assert extra["with_extra_payments"]["interest_saved_vs_standard"] > 0
 
 
@@ -412,9 +409,7 @@ def test_plan_osap_uses_yaml_defaults() -> None:
 
 def test_tuition_credit_ontario_hand() -> None:
     # $10,000 tuition × 5.05% = $505 (Ontario lowest rate)
-    result = estimate_tuition_credit(
-        eligible_tuition=10000, province="ontario", tax_year=2026
-    )
+    result = estimate_tuition_credit(eligible_tuition=10000, province="ontario", tax_year=2026)
     assert "ESTIMATE" in result["label"]
     assert result["federal_credit_estimate"] == 0.0
     assert result["provincial_credit_rate"] == 0.0505

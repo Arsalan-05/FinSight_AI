@@ -55,7 +55,9 @@ def list_budgets(
     return [_budget_with_spend(db, b) for b in budgets]
 
 
-@router.post("", response_model=BudgetOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+@router.post(
+    "", response_model=BudgetOut, status_code=status.HTTP_201_CREATED, include_in_schema=False
+)
 @router.post("/", response_model=BudgetOut, status_code=status.HTTP_201_CREATED)
 def create_budget(
     payload: BudgetCreate,

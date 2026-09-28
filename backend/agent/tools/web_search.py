@@ -105,9 +105,7 @@ def _search_duckduckgo(query: str, max_results: int) -> list[dict[str, Any]]:
 
     if not results:
         # Instant-answer API fallback for factual queries
-        instant_url = (
-            f"https://api.duckduckgo.com/?q={quote_plus(query)}&format=json&no_html=1"
-        )
+        instant_url = f"https://api.duckduckgo.com/?q={quote_plus(query)}&format=json&no_html=1"
         try:
             with urlopen(
                 Request(instant_url, headers={"User-Agent": _USER_AGENT}),

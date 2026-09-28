@@ -60,7 +60,9 @@ _AMOUNT_EXACT = re.compile(
     r"|\b(?:exactly|of)\s+\$?(\d+(?:\.\d{1,2})?)\b",
     re.I,
 )
-_AMOUNT_OVER = re.compile(r"\b(?:over|above|more\s+than|greater\s+than)\s+\$?(\d+(?:\.\d{1,2})?)", re.I)
+_AMOUNT_OVER = re.compile(
+    r"\b(?:over|above|more\s+than|greater\s+than)\s+\$?(\d+(?:\.\d{1,2})?)", re.I
+)
 _AMOUNT_UNDER = re.compile(
     r"\b(?:under|below|less\s+than|fewer\s+than)\s+\$?(\d+(?:\.\d{1,2})?)", re.I
 )

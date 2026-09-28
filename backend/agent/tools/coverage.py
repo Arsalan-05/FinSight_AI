@@ -79,9 +79,7 @@ def attach_coverage(
     """Annotate aggregate result with available data span for the model."""
     span = transaction_date_span(db, account_ids=account_ids, category=None)
     cat_span = (
-        transaction_date_span(db, account_ids=account_ids, category=category)
-        if category
-        else span
+        transaction_date_span(db, account_ids=account_ids, category=category) if category else span
     )
     result["data_coverage"] = {
         "all_transactions": span,

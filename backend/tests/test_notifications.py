@@ -17,9 +17,7 @@ def test_budget_alert_creates_notification(db_session):
         account_type="credit",
     )
     db_session.add_all([user, account])
-    db_session.add(
-        Budget(id="bud-n", user_id=user.id, category="Dining", monthly_limit=50)
-    )
+    db_session.add(Budget(id="bud-n", user_id=user.id, category="Dining", monthly_limit=50))
     db_session.add(
         Transaction(
             id="tx-n",
@@ -52,9 +50,7 @@ def test_budget_alerts_respect_prefs(db_session):
         account_type="credit",
     )
     db_session.add_all([user, account])
-    db_session.add(
-        Budget(id="bud-n2", user_id=user.id, category="Dining", monthly_limit=10)
-    )
+    db_session.add(Budget(id="bud-n2", user_id=user.id, category="Dining", monthly_limit=10))
     db_session.add(
         Transaction(
             id="tx-n2",

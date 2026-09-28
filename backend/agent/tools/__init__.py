@@ -130,9 +130,7 @@ CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": (
-                        "Search query — be specific (e.g. '2026 TFSA limit Canada')."
-                    ),
+                    "description": ("Search query — be specific (e.g. '2026 TFSA limit Canada')."),
                 },
                 "max_results": {
                     "type": "integer",
@@ -455,9 +453,7 @@ def execute_tool(
                 result["broadened"] = True
                 result["auto_retried"] = True
 
-        return _finalize_aggregate(
-            result, db, account_ids=account_ids, category=category
-        )
+        return _finalize_aggregate(result, db, account_ids=account_ids, category=category)
 
     if name == "get_financial_insights":
         return json.dumps(build_all_insights(db, account_ids=account_ids))

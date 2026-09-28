@@ -6,7 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from db.models import Transaction, TransactionEmbedding
-from rag.embedder import build_content, embed_texts, embeddings_runtime_available, voyage_error_message
+from rag.embedder import (
+    build_content,
+    embed_texts,
+    embeddings_runtime_available,
+    voyage_error_message,
+)
 
 logger = logging.getLogger(__name__)
 

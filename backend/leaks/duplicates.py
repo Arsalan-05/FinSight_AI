@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Optional
 
 
 def _merchant_key(tx: Any) -> str:
@@ -30,23 +31,21 @@ def detect_duplicates(
     *,
     recurring_merchants: Optional[Sequence[str]] = None,
     window_hours: int = 72,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Flag pairs with same merchant + same amount within `window_hours`.
 
     Merchants in `recurring_merchants` (case-insensitive) are excluded.
     Confidence rises when amounts match exactly and the gap is smaller.
     """
-    exclude: Set[str] = {m.strip().lower() for m in (recurring_merchants or []) if m}
+    exclude: set[str] = {m.strip().lower() for m in (recurring_merchants or []) if m}
     debits = [
-        tx
-        for tx in transactions
-        if float(getattr(tx, "amount", 0) or 0) < 0 and _merchant_key(tx)
+        tx for tx in transactions if float(getattr(tx, "amount", 0) or 0) < 0 and _merchant_key(tx)
     ]
     debits.sort(key=lambda t: (_merchant_key(t), _as_datetime(t), _amount_key(t)))
 
-    findings: List[Dict[str, Any]] = []
-    seen_pairs: Set[frozenset] = set()
+    findings: list[dict[str, Any]] = []
+    seen_pairs: set[frozenset[Any]] = set()
     window = timedelta(hours=window_hours)
 
     for i, a in enumerate(debits):
@@ -111,8 +110,7 @@ def detect_duplicates(
                             getattr(b, "description", ""),
                         ],
                     },
-                    "fingerprint": "duplicate:"
-                    + ":".join(sorted(str(x) for x in pair_ids)),
+                    "fingerprint": "duplicate:" + ":".join(sorted(str(x) for x in pair_ids)),
                 }
             )
 
@@ -121,4 +119,6 @@ def detect_duplicates(
 
 
 def _display_merchant(tx: Any) -> str:
-    return (getattr(tx, "merchant", None) or getattr(tx, "description", "")[:40] or "Unknown").strip()
+    return (
+        getattr(tx, "merchant", None) or getattr(tx, "description", "")[:40] or "Unknown"
+    ).strip()

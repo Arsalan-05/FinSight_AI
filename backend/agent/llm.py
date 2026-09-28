@@ -183,9 +183,7 @@ def _call_ollama(
     url = f"{settings.ollama_base_url.rstrip('/')}/api/chat"
     payload = {
         "model": settings.ollama_model,
-        "messages": [
-            {"role": "system", "content": _system_text(memory_summary, user_intelligence)}
-        ]
+        "messages": [{"role": "system", "content": _system_text(memory_summary, user_intelligence)}]
         + _to_ollama_messages(messages),
         "tools": _ollama_tools(),
         "stream": False,
@@ -509,8 +507,7 @@ def _call_groq(
                     return AIMessage(content="", tool_calls=salvaged)
 
                 retry_system = (
-                    system
-                    + "\n\nAnswer the user's question directly in clear prose. "
+                    system + "\n\nAnswer the user's question directly in clear prose. "
                     "Do not call any tools on this turn."
                 )
                 retry = _groq_post(
@@ -659,10 +656,7 @@ def chat_unavailable_message() -> str:
             "(console.groq.com → API Keys) and redeploy."
         )
     if provider == "anthropic":
-        return (
-            "Advisor is unavailable — add ANTHROPIC_API_KEY on Railway "
-            "(Variables) and redeploy."
-        )
+        return "Advisor is unavailable — add ANTHROPIC_API_KEY on Railway (Variables) and redeploy."
     return (
         "Advisor needs a free GROQ_API_KEY (console.groq.com) on Mac and Railway. "
         "Semantic search uses Voyage voyage-4-large (dash.voyageai.com)."
@@ -769,9 +763,7 @@ def call_llm(
             ):
                 import logging
 
-                logging.getLogger(__name__).warning(
-                    "Groq failed (%s); falling back to Claude", exc
-                )
+                logging.getLogger(__name__).warning("Groq failed (%s); falling back to Claude", exc)
                 return _call_anthropic(
                     messages,
                     memory_summary,
@@ -816,13 +808,13 @@ def call_llm_plain(prompt: str, *, max_tokens: int = 400) -> str:
         key = settings.anthropic_api_key
         if not key:
             raise ValueError("ANTHROPIC_API_KEY is required for Claude utility calls")
-        client = anthropic.Anthropic(api_key=key)
-        response = client.messages.create(
+        claude = anthropic.Anthropic(api_key=key)
+        message = claude.messages.create(
             model=model or settings.anthropic_model or ANTHROPIC_MODEL,
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        parts = [b.text for b in response.content if b.type == "text"]
+        parts = [b.text for b in message.content if b.type == "text"]
         return "\n".join(parts).strip()
     if provider == "groq":
         key = settings.groq_api_key

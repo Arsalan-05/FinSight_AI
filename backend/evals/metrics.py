@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Any, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 # Currency-like amounts: $12.34, CAD 12.34, 12.34 CAD, plain 1,234.56 with $ nearby
 _CURRENCY_RE = re.compile(
