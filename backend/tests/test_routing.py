@@ -22,9 +22,21 @@ def test_heavy_planning_routes_claude_tier() -> None:
     assert route_model(q) == "70b"
 
 
-def test_spend_cutback_stays_basic() -> None:
-    """Common spend Q&A should stay on fast Llama, not Claude."""
-    assert route_chat_tier("Based on my spending, where should I cut back?") == "basic"
+def test_coaching_prompts_route_heavy() -> None:
+    """Overview / alert / goal prompts need judgment — the small model answers them poorly."""
+    for q in (
+        "Based on my spending, where should I cut back?",
+        "Summarize my weekly spending and highlight anything I should act on.",
+        "Help me understand this spend alert: Unusual charge. $186.40 is 9.7× your usual Dining spend",
+        "How am I tracking toward my goal: iPhone 17 Pro?",
+        "Help me understand this spend alert: Low cash runway.",
+    ):
+        assert route_chat_tier(q) == "heavy", q
+
+
+def test_simple_lookups_stay_basic() -> None:
+    assert route_chat_tier("How much did I spend at Uber Eats in August?") == "basic"
+    assert route_chat_tier("What did I spend on groceries last month?") == "basic"
 
 
 def test_should_i_invest_is_heavy() -> None:

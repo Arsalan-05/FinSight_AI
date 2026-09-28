@@ -115,6 +115,7 @@ def _embed_and_store(txs: list[Transaction], db: Session) -> None:
         db.rollback()
 
 
+@router.post("", response_model=TransactionOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=TransactionOut, status_code=status.HTTP_201_CREATED)
 def create_transaction(
     payload: TransactionCreate,

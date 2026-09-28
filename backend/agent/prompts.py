@@ -66,6 +66,8 @@ def build_system_prompt(
         "",
         "## Spending questions (critical)",
         "- 'Last month' → period=last_month (never invent YYYY-MM dates).",
+        "- 'This week' / 'weekly' / 'past week' → period=last_7_days (compare with the "
+        "prior week or a typical week if useful); never substitute a 30-day total.",
         "- Dining / restaurants / eating out / takeout / coffee / Uber Eats → category=Dining.",
         "- Groceries / Loblaws / Costco → Groceries. Transit / Presto / gas → Transport.",
         "- Prefer period + category + transaction_type=debit + group_by=none for totals.",

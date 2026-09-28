@@ -117,9 +117,13 @@ async def _stream_reply(
             logger.exception("Chat agent failed")
             error_holder.append(exc)
 
-    _ensure_session_title(db, session_id, message, user_id)
     yield _sse({"type": "session", "session_id": session_id})
     yield _sse({"type": "status", "phase": "start", "detail": "Connecting to your data"})
+    try:
+        await asyncio.to_thread(_ensure_session_title, db, session_id, message, user_id)
+    except PermissionError:
+        yield _sse({"type": "error", "message": "You do not have access to this chat session."})
+        return
 
     task = asyncio.create_task(asyncio.to_thread(run))
 
@@ -205,7 +209,8 @@ async def chat(
         stream,
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            # no-transform stops the Next.js /backend proxy from gzip-buffering SSE events.
+            "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },

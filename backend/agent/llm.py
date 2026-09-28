@@ -403,6 +403,11 @@ def _groq_post(
         wait = _groq_rate_limit_wait(error_body)
         if wait is None or attempt == 2:
             return response
+        from agent.routing import anthropic_usable
+
+        # Claude fallback beats sleeping out Groq's free-tier window.
+        if anthropic_usable() and wait > 2.0:
+            return response
         time.sleep(wait)
     return response
 

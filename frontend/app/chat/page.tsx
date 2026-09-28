@@ -192,6 +192,7 @@ function ChatPageContent() {
         const hydrated = hydrateSessionState(
           detail.id,
           detail.messages.map((m) => newMessage(m.role, m.content)),
+          { replyPending: detail.reply_pending },
         );
         saveSessionId(detail.id);
         setMessages(hydrated.messages);
@@ -339,21 +340,18 @@ function ChatPageContent() {
       const message = (text ?? input).trim();
       if (!message) return;
 
-      const isNew = Boolean(options?.newSession);
+      let isNew = Boolean(options?.newSession);
       let activeId = "";
       if (!isNew && viewSessionId) {
-        if (viewSessionId.startsWith("new:")) {
-          const migrated = sessionMigrations.get(viewSessionId);
-          if (migrated) {
-            activeId = migrated;
-          } else if (getSessionState(viewSessionId)?.loading) {
-            return;
-          }
-        } else {
-          activeId = viewSessionId;
-        }
+        activeId = viewSessionId.startsWith("new:")
+          ? (sessionMigrations.get(viewSessionId) ?? "")
+          : viewSessionId;
       }
-      if (activeId && getSessionState(activeId)?.loading) return;
+      // Never drop a question: if this chat is still answering, run it as its own chat.
+      if (activeId && getSessionState(activeId)?.loading) {
+        isNew = true;
+        activeId = "";
+      }
 
       setInput("");
       setError(null);
@@ -371,9 +369,7 @@ function ChatPageContent() {
       });
 
       setViewSessionId(streamKey);
-      if (!streamKey.startsWith("new:")) {
-        saveSessionId(streamKey);
-      }
+      saveSessionId(streamKey);
 
       const live = getSessionState(streamKey);
       if (live) {
@@ -386,6 +382,10 @@ function ChatPageContent() {
     },
     [input, viewSessionId, messages, sendStream, getSessionState],
   );
+  const sendMessageRef = useRef(sendMessage);
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
 
   useEffect(() => {
     if (!authReady || sessionsLoading) return;
@@ -410,17 +410,17 @@ function ChatPageContent() {
 
     router.replace("/chat", { scroll: false });
 
-    const timer = window.setTimeout(() => {
+    // Not cancelled on cleanup: applyView("") re-renders and would otherwise clear this
+    // timer after the query was already consumed, silently dropping the question.
+    window.setTimeout(() => {
       if (autoSend) {
-        void sendMessage(q, { newSession: startNewChat });
+        void sendMessageRef.current(q, { newSession: startNewChat });
       } else {
         setInput(q);
         inputRef.current?.focus();
       }
     }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [authReady, sessionsLoading, searchParams, router, sendMessage, applyView]);
+  }, [authReady, sessionsLoading, searchParams, router, applyView]);
 
   const handleStop = () => {
     if (!viewSessionId) return;

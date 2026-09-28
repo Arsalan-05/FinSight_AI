@@ -61,6 +61,8 @@ function assistantContentLength(messages: ChatMessage[]): number {
 function shouldPreferLiveState(live: SessionChatState, apiMessages: ChatMessage[]): boolean {
   if (live.loading) return true;
   if (live.messages.length > apiMessages.length) return true;
+  // Keep the real stream error instead of the generic "didn't finish" from the saved user turn.
+  if (live.error && live.messages.length >= apiMessages.length) return true;
   return assistantContentLength(live.messages) > assistantContentLength(apiMessages);
 }
 
@@ -75,9 +77,10 @@ function isActivelyStreaming(sessionId: string): boolean {
 function pendingFromApiMessages(
   sessionId: string,
   messages: Array<{ role: string; content?: string }>,
+  replyPending?: boolean,
 ): boolean {
   if (!sessionLooksPending(messages)) return false;
-  return isActivelyStreaming(sessionId);
+  return Boolean(replyPending) || isActivelyStreaming(sessionId);
 }
 
 /** Sessions deleted in this tab — never resurrect them from in-memory state. */
@@ -410,11 +413,30 @@ export async function recoverSessionFromApi(
       newMessage(m.role as ChatMessage["role"], m.content),
     );
 
+    const liveKey = findStateKey(sessionId);
+    if (
+      live?.loading &&
+      liveKey &&
+      !abortControllers.has(liveKey) &&
+      sessionLooksPending(detail.messages) &&
+      !detail.reply_pending
+    ) {
+      // No stream in this tab and the server stopped working on it — the turn failed.
+      setState(liveKey, {
+        loading: false,
+        agentStatus: null,
+        error: "The last reply didn't finish. Send your message again to continue.",
+      });
+      clearChatDraft(sessionId);
+      stopSessionRecovery(sessionId);
+      return states.get(liveKey) ?? null;
+    }
+
     if (live && shouldPreferLiveState(live, messages)) {
       return live;
     }
 
-    const pending = pendingFromApiMessages(sessionId, detail.messages);
+    const pending = pendingFromApiMessages(sessionId, detail.messages, detail.reply_pending);
     const state: SessionChatState = {
       sessionId: detail.id,
       messages,
@@ -515,11 +537,15 @@ export async function sendChatMessage(
   },
 ): Promise<string> {
   const existingId = options?.newSession ? "" : (options?.sessionId ?? "");
-  const streamKey = existingId || `new:${crypto.randomUUID()}`;
+  // Client-minted id: the chat is a real, addressable session (sidebar, concurrency) before
+  // the server answers. The API creates the row on first use.
+  const sessionId = existingId || crypto.randomUUID();
+  const streamKey = sessionId;
 
   if (states.get(streamKey)?.loading) {
     return streamKey;
   }
+  deletedSessionIds.delete(sessionId);
 
   const userMsg = newMessage("user", message);
   const assistantId = crypto.randomUUID();
@@ -529,7 +555,7 @@ export async function sendChatMessage(
     [];
 
   const initial: SessionChatState = {
-    sessionId: existingId,
+    sessionId,
     messages: [
       ...prior,
       userMsg,
@@ -547,7 +573,7 @@ export async function sendChatMessage(
   abortControllers.set(streamKey, controller);
 
   let activeKey = streamKey;
-  let activeSessionId = existingId;
+  let activeSessionId = sessionId;
   let statusIdx = 0;
   let lastEventAt = Date.now();
   let gotLiveStatus = false;
@@ -580,18 +606,13 @@ export async function sendChatMessage(
       let citations: TransactionCitation[] = [];
       let evidence: EvidenceItem[] = [];
 
-      for await (const event of api.chatStream(
-        message,
-        existingId || undefined,
-        controller.signal,
-      )) {
+      for await (const event of api.chatStream(message, sessionId, controller.signal)) {
         lastEventAt = Date.now();
         if (event.type === "session") {
           activeSessionId = event.session_id;
           if (activeKey !== activeSessionId) {
             activeKey = migrateState(activeKey, activeSessionId);
           }
-          saveSessionId(activeSessionId);
         } else if (event.type === "status") {
           gotLiveStatus = true;
           setState(activeKey, { agentStatus: event.detail || event.phase });
@@ -618,7 +639,7 @@ export async function sendChatMessage(
               ? event.provider === "anthropic"
                 ? `Claude · ${event.model}`
                 : event.provider === "groq"
-                  ? `Llama · ${event.model}`
+                  ? `Groq · ${event.model}`
                   : `${event.provider} · ${event.model}`
               : null;
           const st = states.get(activeKey);
@@ -641,7 +662,6 @@ export async function sendChatMessage(
               error: null,
             });
           }
-          saveSessionId(activeSessionId);
           clearChatDraft(activeSessionId);
           stopSessionRecovery(activeSessionId);
           notifyComplete(activeSessionId);
@@ -696,6 +716,7 @@ export async function sendChatMessage(
 export function hydrateSessionState(
   sessionId: string,
   messages: ChatMessage[],
+  opts?: { replyPending?: boolean },
 ): SessionChatState {
   const live = getSessionState(sessionId);
   if (live?.loading) {
@@ -719,6 +740,7 @@ export function hydrateSessionState(
   const pending = pendingFromApiMessages(
     sessionId,
     messages.map((m) => ({ role: m.role, content: m.content })),
+    opts?.replyPending,
   );
   const stalePending = !pending && sessionLooksPending(
     messages.map((m) => ({ role: m.role, content: m.content })),

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-Period = str  # last_month | this_month | last_30_days | all
+Period = str  # last_month | this_month | last_30_days | last_7_days | all
 
 
 def last_month_range(today: date | None = None) -> tuple[date, date]:
@@ -24,6 +24,11 @@ def last_30_days_range(today: date | None = None) -> tuple[date, date]:
     return today - timedelta(days=30), today
 
 
+def last_7_days_range(today: date | None = None) -> tuple[date, date]:
+    today = today or date.today()
+    return today - timedelta(days=6), today
+
+
 def resolve_period(period: str | None) -> tuple[date | None, date | None]:
     """Map a relative period label to concrete start/end dates."""
     if not period or period == "all":
@@ -34,6 +39,8 @@ def resolve_period(period: str | None) -> tuple[date | None, date | None]:
         return this_month_range()
     if period == "last_30_days":
         return last_30_days_range()
+    if period == "last_7_days":
+        return last_7_days_range()
     return None, None
 
 
