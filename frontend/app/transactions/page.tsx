@@ -152,11 +152,18 @@ export default function TransactionsPage() {
 
   const handleCategoryChange = async (id: string, category: string) => {
     try {
-      await api.updateTransaction(id, { category });
-      setTransactions((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, category } : t)),
-      );
-      toast("Category updated");
+      const { recategorized } = await api.updateTransaction(id, { category });
+      if (recategorized > 0) {
+        toast(
+          `Category updated. ${recategorized} other transaction${recategorized > 1 ? "s" : ""} from this merchant moved to ${category}`,
+        );
+        loadData();
+      } else {
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, category } : t)),
+        );
+        toast("Category updated");
+      }
     } catch {
       toast("Could not update category", "error");
     }

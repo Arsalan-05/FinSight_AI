@@ -13,12 +13,19 @@ from app.category_rules import (
     add_rule,
     apply_rules_to_user_transactions,
     delete_rule,
+    learn_from_correction,
     load_rules,
     resolve_category,
 )
 from app.config import settings
 from app.dependencies import get_db
-from app.schemas import TransactionCreate, TransactionListOut, TransactionOut, TransactionUpdate
+from app.schemas import (
+    TransactionCreate,
+    TransactionListOut,
+    TransactionOut,
+    TransactionUpdate,
+    TransactionUpdateOut,
+)
 from app.scoping import assert_account_owned, scope_transactions
 from db.models import Transaction, TransactionEmbedding, User
 from ingest.bank_csv import detect_and_parse_csv, guess_merchant
@@ -298,34 +305,46 @@ def get_transaction(
     return tx
 
 
-@router.patch("/{transaction_id}", response_model=TransactionOut)
+@router.patch("/{transaction_id}", response_model=TransactionUpdateOut)
 def update_transaction(
     transaction_id: str,
     payload: TransactionUpdate,
+    learn: bool = Query(
+        True,
+        description="Remember a category change for this merchant and apply it to history",
+    ),
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
-) -> Transaction:
+) -> TransactionUpdateOut:
     q = scope_transactions(db.query(Transaction), db, current_user)
     tx = q.filter(Transaction.id == transaction_id).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
     data = payload.model_dump(exclude_unset=True)
     if not data:
-        return tx
+        return TransactionUpdateOut.model_validate(tx)
     notes_changed = "notes" in data and data["notes"] != tx.notes
+    category_changed = "category" in data and data["category"] != tx.category
     for key, value in data.items():
         setattr(tx, key, value)
     db.commit()
     db.refresh(tx)
     _embed_and_store([tx], db)
-    if notes_changed:
+
+    recategorized = 0
+    if category_changed and learn and current_user:
+        recategorized = learn_from_correction(db, current_user, tx)
+        db.refresh(tx)
+    if notes_changed or category_changed:
         user_id = current_user.id if current_user else None
         semantic_cache.invalidate(cache_user_key(user_id, [tx.account_id]))
     if current_user:
         from notifications.alerts import check_budget_alerts
 
         check_budget_alerts(db, current_user)
-    return tx
+    out = TransactionUpdateOut.model_validate(tx)
+    out.recategorized = recategorized
+    return out
 
 
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)

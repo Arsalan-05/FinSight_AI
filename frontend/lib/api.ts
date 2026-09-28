@@ -225,7 +225,7 @@ export const api = {
   updateTransaction: (
     id: string,
     data: { category?: string; merchant?: string; notes?: string; description?: string },
-  ): Promise<Transaction> =>
+  ): Promise<Transaction & { recategorized: number }> =>
     request(`/transactions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
   exportMyData: (): Promise<Record<string, unknown>> => request("/auth/me/export"),

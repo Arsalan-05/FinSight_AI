@@ -110,7 +110,7 @@ window.FINSIGHT_APP_URL = "https://finsightai-production-43d0.up.railway.app";
 
 Env copy paste: [RAILWAY-CHECKLIST.md](../RAILWAY-CHECKLIST.md)
 
-## 7. Invite-only beta
+## 7. Invite-only access
 
 Set `BETA_ALLOWED_EMAILS=you@example.com` on the backend. Unlisted emails get HTTP 403.
 

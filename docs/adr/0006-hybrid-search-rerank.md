@@ -6,13 +6,20 @@ Accepted
 
 ## Context
 
-Pure vector search misses exact merchant / amount queries.
+Pure vector search misses exact merchant and amount queries ("Uber", "$54.99"),
+while pure keyword search misses paraphrases ("coffee" → Tim Hortons).
 
 ## Decision
 
-Postgres `tsvector` + GIN fused with pgvector via reciprocal rank fusion (k=60), then optional Cohere/cross-encoder rerank of top 30 → top 5. Structured date/amount/account filters applied as SQL `WHERE` before search.
+Run a keyword ranking (`ILIKE` on description and merchant) and a pgvector cosine
+ranking side by side, then fuse them with reciprocal rank fusion (k = 60).
+Date, amount and account filters parsed from the query apply as SQL `WHERE`
+clauses before either ranking. A token-overlap booster reorders the fused top
+results; the `Reranker` protocol in `rag/rerank.py` lets a hosted cross-encoder
+replace it without touching the retriever.
 
 ## Consequences
 
-- Ablation table in `docs/evals.md` proves each gain
-- Extra latency on rerank path
+- Exact merchant lookups and fuzzy questions both land in the top five
+- Fusion runs in Python over at most a few dozen ids per ranking, so it adds no measurable latency
+- A Postgres `tsvector` index would push keyword ranking into SQL if transaction counts grow large

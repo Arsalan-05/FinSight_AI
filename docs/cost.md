@@ -1,16 +1,19 @@
 # Cost model
 
-Approximate monthly cost at personal / demo scale. Update after Phase 8 load test.
+What FinSight costs to run at personal and small-demo scale (CAD, monthly).
 
-| Component | Free tier / plan | Est. at 1k MAU |
-|-----------|------------------|----------------|
-| Railway (web + API) | Hobby | $5–20 |
-| Supabase | Free → Pro | $0–25 |
-| Groq (basic + heavy fallback) | Generous free | ~$0–5 |
-| Claude Sonnet (heavy tier) | Pay-as-you-go | ~$5–40 (routing keeps most turns on Groq) |
-| Voyage | 200M tokens free | ~$0 |
-| Plaid | Sandbox free | Production TBD |
-| Domain | — | ~$15/yr |
-| Sentry / Langfuse | Free tiers | $0 |
+| Component | Plan | Cost now | At ~1k monthly users |
+|-----------|------|----------|----------------------|
+| Railway (web + API) | Hobby | ~$7 | $10–25 |
+| Supabase (Postgres, Auth) | Free | $0 | $0–35 (Pro when the 500 MB database fills) |
+| Groq (`gpt-oss-20b` basic, `gpt-oss-120b` fallback) | Free tier | $0 | $0–10 |
+| Anthropic (`claude-sonnet-4-6`, heavy turns only) | Pay as you go | a few dollars | $10–50 |
+| Voyage (`voyage-4-large` embeddings) | Free token allowance | $0 | ~$0 |
+| Plaid | Sandbox | $0 | per-item pricing if production access is enabled |
 
-**Routing:** basic → Groq 8B (cheap); heavy → Claude when keyed (ADR 0005). Target: document $ per 1,000 chat queries from eval cost metrics.
+## What keeps it cheap
+
+- **Tier routing** ([ADR 0005](./adr/0005-model-routing.md)): spend lookups, which are most turns, stay on Groq. Claude only sees planning, coaching and multi-step questions.
+- **No LLM arithmetic**: totals come from SQL and the `calculate` tool, so prompts stay short and retries are rare.
+- **Semantic cache** for repeated searches, and one embedding per transaction computed once at ingest.
+- **Groq 429s fall straight through to Claude** instead of waiting out the rate-limit window, trading a little cost for latency.

@@ -2,7 +2,7 @@
 
 > Pitch: *A Canadian finance agent that finds money you're losing, proves every number it shows, and never lets the LLM do the math.*
 
-**Version:** see [`metrics.json`](./metrics.json) · **Status:** v2.0 in progress
+**Version:** 2.0.0 · **Status:** complete · numbers in [`metrics.json`](./metrics.json)
 
 ## C4 — Context
 
@@ -12,7 +12,7 @@ flowchart LR
     Web[FinSight Web — Next.js]
     API[FinSight API — FastAPI]
     SB[(Supabase Postgres + Auth)]
-    Groq[Groq Llama basic]
+    Groq[Groq gpt-oss basic]
     Claude[Claude Sonnet heavy]
     Voyage[Voyage Embeddings]
     Plaid[Plaid — optional]
@@ -34,7 +34,7 @@ flowchart LR
 | Next.js frontend | Auth UI, dashboard, chat, leaks, planner, forecast, evidence drawer |
 | FastAPI backend | REST + SSE chat, ingest, RAG, leak detectors, planning engines |
 | PostgreSQL + pgvector | Relational data, embeddings, RLS, chat evidence |
-| Background workers | Async ingest, FX rate refresh, demo reset, digests |
+| Background threads | CSV ingest jobs and post-turn memory and profile learning |
 
 ## Separation of concerns (non-negotiable)
 
@@ -56,10 +56,10 @@ Production uses Voyage. Ollama is **not** a prerequisite.
 ## Data flow (chat)
 
 1. User message → JWT scoped to `user_id`
-2. **Tier router** (`agent/routing.py`): basic → Groq Llama 8B; heavy → Claude Sonnet (or Groq 70B fallback)
+2. **Tier router** (`agent/routing.py`): basic → Groq `gpt-oss-20b`; heavy → Claude `claude-sonnet-4-6` (or Groq `gpt-oss-120b` without an Anthropic key)
 3. LangGraph ReAct loop selects tools (SQL aggregates, search, leaks, planning, `calculate`)
 4. Tool results get `evidence_id`s; draft answer tags amounts as `[[$412.30|ev_17]]`
-5. Numeric guardrail verifies amounts; on failure, regenerate once or strip
+5. Numeric guardrail verifies every amount against tool output (sums, period conversions and table totals of shown rows are allowed); anything else is stripped
 6. Persist messages + evidence in `chat_sessions.messages_json`
 7. Frontend renders clickable chips → evidence drawer
 
@@ -67,7 +67,7 @@ See [ADR 0005](./adr/0005-model-routing.md).
 
 ## Migrations (Alembic)
 
-Head evolves with v2.0. Historical chain (newest last):
+Chain, oldest first (head is `p6q7r8s9t0u1`):
 
 1. `603770f84793` — users, accounts, transactions
 2. `a1b2c3d4e5f6` — transaction_embeddings + pgvector

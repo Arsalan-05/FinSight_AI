@@ -75,6 +75,59 @@ def resolve_category(
     return default
 
 
+_MIN_LEARNED_NEEDLE = 3
+
+
+def learn_from_correction(db: Session, user: User, tx: Transaction) -> int:
+    """Turn a manual category edit into a merchant rule and apply it to history.
+
+    The rule goes first so the newest correction wins over older, broader rules.
+    Returns how many of the user's other transactions were recategorized.
+    """
+    needle = (tx.merchant or "").strip().lower()
+    if len(needle) < _MIN_LEARNED_NEEDLE:
+        return 0
+
+    rules = [
+        r
+        for r in load_rules(user)
+        if not (
+            r.get("match") == "merchant_contains"
+            and str(r.get("value", "")).strip().lower() == needle
+        )
+    ]
+    rules.insert(
+        0,
+        {
+            "id": str(uuid.uuid4()),
+            "match": "merchant_contains",
+            "value": needle,
+            "category": tx.category,
+            "source": "correction",
+        },
+    )
+    user.category_rules_json = json.dumps(rules)
+
+    account_ids = [a.id for a in db.query(Account.id).filter(Account.user_id == user.id).all()]
+    updated = 0
+    if account_ids:
+        others = (
+            db.query(Transaction)
+            .filter(
+                Transaction.account_id.in_(account_ids),
+                Transaction.id != tx.id,
+                Transaction.category != tx.category,
+            )
+            .all()
+        )
+        for other in others:
+            if needle in f"{other.merchant or ''} {other.description}".lower():
+                other.category = tx.category
+                updated += 1
+    db.commit()
+    return updated
+
+
 def apply_rules_to_user_transactions(db: Session, user: User) -> int:
     """Re-apply all rules to the user's transactions. Returns rows updated."""
     rules = load_rules(user)

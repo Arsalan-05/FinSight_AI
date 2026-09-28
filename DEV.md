@@ -1,6 +1,6 @@
 # Developer guide
 
-**Production is the product.** Local is the workshop — use it only when coding, testing, or debugging.
+Production is where FinSight runs; local is for coding, testing and debugging.
 
 | | Production | Local |
 |--|------------|-------|
@@ -29,10 +29,11 @@ uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 cd frontend && npm run dev
 
 # Quality gate before push
-cd backend && uv run pytest -q
-cd backend && uv run ruff check . && uv run ruff format .
+cd backend && uv run ruff check . && uv run ruff format --check .
 cd backend && uv run mypy app/ agent/ db/ rag/ insights/
-cd frontend && npm run lint && npm run type-check
+cd backend && uv run pytest -q
+cd backend && uv run python -m evals.run --subset full --dry-run
+cd frontend && npm run lint && npm run type-check && npm run build
 
 # Docker full stack (optional)
 docker compose up --build
@@ -48,7 +49,7 @@ docker compose up --build
 
 Set `GROQ_API_KEY`, `LLM_ROUTING_ENABLED=true`, optional `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL`, and `VOYAGE_API_KEY` in `.env` (local) and on the Railway **API** service.
 
-**Why tiered:** Most questions stay on free Groq 8B (rate limits). Planning / advice / leaks / tax go to Claude for deeper reasoning (ADR 0005).
+**Why tiered:** most questions are lookups and stay on Groq. Planning, coaching, leaks and tax go to Claude (ADR 0005). A Groq 429 falls through to Claude.
 
 ## Deploy after changes
 
@@ -59,18 +60,19 @@ git push origin main
 curl https://finsight-api-production-2aee.up.railway.app/capabilities
 ```
 
-**v1.5.1 backend paths:** `backend/agent/scope.py`, `backend/agent/llm.py` (`call_llm_plain`), `backend/agent/prompts.py`  
-**v1.5.1 frontend paths:** `frontend/lib/chat-stream-manager.ts`, `frontend/contexts/ChatStreamContext.tsx`
+**Where chat lives:** `backend/agent/` (routing, graph, runner, prompts, guardrails), `backend/app/routers/chat.py`, `frontend/lib/chat-stream-manager.ts`, `frontend/contexts/ChatStreamContext.tsx`, `frontend/app/chat/page.tsx`
 
 **What deploys where:**
 
 | Change type | Railway frontend | Railway API | Supabase |
 |-------------|------------------|-------------|----------|
-| Frontend UI (pages, chat links) | ✅ | — | — |
-| Backend API / agent / search | — | ✅ | — |
-| `GROQ_MODEL` env var | — | ✅ API only | — |
+| Frontend UI (pages, chat links) | yes | — | — |
+| Backend API / agent / search | — | yes | — |
+| `GROQ_MODEL` env var | — | yes | — |
 | Database schema | — | migrations on deploy | — |
-| `NEXT_PUBLIC_*` change | ✅ rebuild required | — | — |
+| `NEXT_PUBLIC_*` change | rebuild required | — | — |
+
+## Conventions
 
 - Python package manager: `uv`
 - Backend code under `backend/app/`, `backend/agent/`, `backend/rag/`, `backend/db/`
@@ -80,5 +82,3 @@ curl https://finsight-api-production-2aee.up.railway.app/capabilities
 - Secrets in `.env` only — never commit
 - Use `127.0.0.1` not `localhost` for `NEXT_PUBLIC_API_URL` (macOS IPv6)
 - Cap `DB_POOL_SIZE=2` locally — Supabase session pooler shares ~15 slots with Railway
-
-## Conventions

@@ -80,6 +80,10 @@ class TransactionOut(BaseModel):
     created_at: datetime
 
 
+class TransactionUpdateOut(TransactionOut):
+    recategorized: int = 0
+
+
 class TransactionListOut(BaseModel):
     total: int
     items: list[TransactionOut]

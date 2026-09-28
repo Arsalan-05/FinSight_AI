@@ -4,9 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 2.x     | Yes (maintenance mode after freeze) |
-| 1.5.x   | Security fixes only until v2.0 ships |
-| < 1.5   | No |
+| 2.0.x   | Yes |
+| < 2.0   | No |
 
 ## Reporting a vulnerability
 
@@ -24,7 +23,7 @@ You should receive an acknowledgment within 7 days.
 ## Secrets
 
 - Never commit `.env`, service-role keys, or Plaid tokens.
-- Rotate any key that appeared in git history before making the repo public.
+- Keys live only in Railway variables and the gitignored `.env`; git history is scanned for key patterns before each release.
 - See `docs/security.md` for the STRIDE threat model and PIPEDA mapping.
 
 ## Scope notes

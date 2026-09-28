@@ -1,6 +1,6 @@
 # Contributing to FinSight AI
 
-Thanks for your interest. FinSight is a portfolio / invite-only project; external contributions are accepted as PRs when they improve quality without expanding scope.
+FinSight is a finished personal project (v2.0.0). Bug reports and small fixes are welcome as issues or focused pull requests; new features are out of scope.
 
 ## Commit messages
 
@@ -26,14 +26,14 @@ uv run pytest -q
 cd ../frontend && npm ci && npm run lint && npm run type-check
 ```
 
-Nothing merges without tests. Feature work that claims an "improvement" must include an eval or coverage number.
+Nothing merges without tests. A change to money math or retrieval must keep `python -m evals.run --subset full --dry-run` passing.
 
 ## Pull requests
 
 1. Branch from `main` (`feat/...`, `fix/...`).
 2. Keep PRs focused; prefer small reviewable diffs.
 3. CI must be green: lint, types, tests, eval smoke.
-4. Update `CHANGELOG.md` under `[Unreleased]` when user-facing.
+4. Add a line to `CHANGELOG.md` when the change is user-facing.
 
 ## Code style
 

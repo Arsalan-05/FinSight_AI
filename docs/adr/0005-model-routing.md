@@ -1,4 +1,4 @@
-# ADR 0005: Model routing — Llama basic / Claude heavy
+# ADR 0005: Model routing — Groq basic / Claude heavy
 
 ## Status
 
@@ -28,5 +28,6 @@ the **basic** utility backend (`resolve_utility_backend`).
 
 - Lower average $ / query (most turns stay on free Groq)
 - Claude only burns tokens on deep turns
-- Need eval gate so routing regressions are caught
-- Without `ANTHROPIC_API_KEY`, heavy falls back to Groq 70B automatically
+- `tests/test_routing.py` pins which questions land on each tier
+- Without `ANTHROPIC_API_KEY`, heavy turns fall back to Groq `openai/gpt-oss-120b` automatically
+- A Groq 429 on a basic turn falls through to Claude instead of waiting out the rate limit

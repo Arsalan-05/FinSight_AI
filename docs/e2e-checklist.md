@@ -1,20 +1,17 @@
-# FinSight AI — E2E smoke checklist
+# FinSight AI — manual smoke checklist
 
-Manual / Playwright flows for Phase 10. Mark each pass before a release.
+Run against production (or `docker compose -f docker-compose.demo.yml up`) before tagging a release.
 
-| # | Flow | Path / action | Pass? |
-|---|------|---------------|-------|
-| 1 | Auth sync | Sign in → `/auth/callback` → dashboard loads | |
-| 2 | Demo provision | Empty user → starter data appears after sync | |
-| 3 | Chat SSE | `/chat` ask spend question → streamed reply + evidence chips | |
-| 4 | Evidence drawer | Click `[[$…\|ev_N]]` chip → drawer shows tool result | |
-| 5 | Leaks list | `/leaks` shows findings; dismiss / resolve | |
-| 6 | Leak draft | Generate cancellation / fee-reversal draft | |
-| 7 | Planner | `/planner` registered / OSAP / what-if renders | |
-| 8 | Forecast | `/forecast` Monte Carlo bands render | |
-| 9 | Search | `/search` hybrid query returns transactions | |
-| 10 | Settings / export | Profile + PIPEDA export download | |
-
-## Playwright stubs (optional)
-
-When Playwright is added (`npx playwright install`), mirror each row as `test.skip` in `frontend/e2e/smoke.spec.ts`. Until then, run this checklist against staging or `docker compose -f docker-compose.demo.yml up`.
+| # | Flow | Path / action | Expect |
+|---|------|---------------|--------|
+| 1 | Sign in | Google or email link → `/auth/callback` | Dashboard loads with your accounts |
+| 2 | Demo data | New empty account signs in | Starter data appears after sync |
+| 3 | Chat | Ask "How much did I spend on groceries last month?" | Chat appears in the sidebar at once; reply streams with source chips |
+| 4 | Concurrent chats | Click three suggested questions quickly | Three separate chats, each answered |
+| 5 | Evidence | Click a source chip | Drawer shows the transactions behind the amount |
+| 6 | Weekly brief | Home → "Ask advisor" | Opens a chat and answers without an error flash |
+| 7 | Search | `/search` "Uber last month" | Matching transactions |
+| 8 | Leaks | `/leaks` | Findings list; dismiss and draft a cancellation letter |
+| 9 | Planner and forecast | `/planner`, `/forecast` | TFSA / OSAP results and Monte Carlo bands render |
+| 10 | Delete chat | Delete from the sidebar | Confirmation dialog; chat does not come back on refresh |
+| 11 | Export | Settings → export | JSON download of your data |

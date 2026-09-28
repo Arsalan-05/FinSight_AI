@@ -10,7 +10,7 @@
 | Plaid tokens | — | encrypt at rest | — | never log tokens | — | rotate keys |
 | CSV export | — | formula-injection sanitize | — | export is user-owned | size/MIME limits | — |
 
-## Mitigations (v2.0)
+## Mitigations
 
 | Control | Location |
 |---------|----------|
@@ -22,7 +22,7 @@
 | Security headers | CSP, HSTS (prod), X-Frame-Options, nosniff |
 | CSV formula sanitize | `app/csv_sanitize.py` — applied on `GET /auth/me/export` string fields |
 | Request correlation | `X-Request-ID` middleware + `request_id` on structured logs |
-| Dependency audits | [`.github/workflows/security.yml`](../.github/workflows/security.yml) — pip-audit, npm audit; CodeQL placeholder |
+| Dependency audits | [`.github/workflows/security.yml`](../.github/workflows/security.yml) — weekly `pip-audit` and `npm audit` |
 
 ## Privacy mode
 
@@ -42,17 +42,17 @@ When enabled, `settings.effective_llm_provider` always returns `ollama`. Transac
 
 | Principle | Feature |
 |-----------|---------|
-| Consent | Google OAuth + invite beta; clear privacy page |
+| Consent | Google / email sign-in behind an invite allowlist; privacy page |
 | Access | `GET /auth/me/export` (formula-sanitized strings) |
 | Deletion | `DELETE /auth/me` |
-| Retention | Optional chat auto-delete after N days (user setting) |
+| Retention | Users delete individual chats or the whole account at any time |
 | Safeguards | RLS, encryption at rest (Supabase), PII redaction, privacy mode |
 
 ## Key management
 
 - Plaid `access_token` encrypted at rest (Fernet / app crypto)
-- Rotate any key that ever appeared in git history before public release
-- Document rotation in ops runbook; never paste secrets into docs
+- Keys live only in Railway variables and the gitignored `.env`; history is scanned for key patterns before each release tag
+- Rotate a key immediately if it is ever pasted anywhere else; never put secrets in docs
 
 ## Reporting
 

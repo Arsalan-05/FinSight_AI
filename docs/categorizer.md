@@ -1,21 +1,33 @@
 # Transaction categorizer
 
-Compare after Phase 5 training run. Metrics below are from a **tiny synthetic train**
-(`ingest.categorizer.train_and_evaluate`) — placeholder until a real labeled set ships.
+Every imported transaction gets one of FinSight's categories (Dining, Groceries,
+Transport, Housing, Subscriptions, Income, Transfers, Savings, and so on).
 
-| Model | Accuracy | Macro-F1 | Latency | Cost / 1k txs |
-|-------|----------|----------|---------|---------------|
-| TF-IDF + Logistic Regression | 1.00* | 1.00* | &lt;1 ms | ~$0 |
-| Keyword rules fallback | 1.00* | 1.00* | &lt;1 ms | ~$0 |
-| DistilBERT fine-tune | — | — | — | GPU train once |
-| LLM zero-shot | — | — | — | API $ |
+## How a category is chosen
 
-\*Synthetic hold-out (n_train=16, n_test=4). Backend used at runtime: **keyword rules** when
-`scikit-learn` is not installed; TF-IDF + LR when it is. Prefer keyword fallback in prod
-deps to avoid a heavy sklearn install — add sklearn only in optional/dev if comparing.
+1. **User rules** (`category_rules`): changing a category on the Transactions page
+   saves a `merchant_contains` rule for that merchant, moves the user's other
+   transactions from the same merchant to the new category, and applies to every
+   future CSV import and Plaid sync. The newest correction for a merchant replaces
+   the old one and is checked first. Pass `?learn=false` on the PATCH for a one-off
+   change. Rules can also be added by hand in Settings and re-run with
+   `POST /transactions/rules/apply`.
+2. **Merchant aliases** (`ingest/merchants.py`): raw descriptors such as
+   `TIM HORTONS #1234 TORONTO` normalize to a canonical merchant first.
+3. **Keyword rules** (`ingest/categorizer.py`): ordered keyword lists tuned for
+   Canadian merchants (Loblaws, Presto, Rogers, Interac e-Transfer, and others).
+4. **Fallback**: `Uncategorized`, which the agent treats as its own bucket.
 
-Ship the best cost/accuracy option. User corrections feed `category_rules` + retraining set.
+Keyword rules are deterministic, explainable and free, which matters more here
+than squeezing out the last few points of accuracy.
+
+## Optional learned model
+
+`ingest.categorizer.train_and_evaluate` trains a TF-IDF + logistic regression
+baseline when scikit-learn is installed. scikit-learn is deliberately not a
+production dependency, so the deployed API always uses the rules above.
 
 ```bash
-cd backend && python -c "from ingest.categorizer import train_and_evaluate; print(train_and_evaluate().to_dict())"
+cd backend && uv run --with scikit-learn python -c \
+  "from ingest.categorizer import train_and_evaluate; print(train_and_evaluate().to_dict())"
 ```

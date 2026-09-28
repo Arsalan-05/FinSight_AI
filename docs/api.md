@@ -28,8 +28,8 @@ the app layer and again by Postgres RLS ([ADR 0007](./adr/0007-rls-app-scoping.m
 | GET / POST | `/accounts` | List / create |
 | GET | `/accounts/{account_id}` | Detail |
 | GET / POST | `/transactions` | List (filters, pagination) / create |
-| GET / PATCH / DELETE | `/transactions/{transaction_id}` | Detail / recategorize / delete |
-| POST | `/transactions/upload` | CSV or PDF statement; returns an ingest job |
+| GET / PATCH / DELETE | `/transactions/{transaction_id}` | Detail / recategorize (learns a merchant rule unless `?learn=false`; returns `recategorized`) / delete |
+| POST | `/transactions/upload` | Bank CSV export (RBC, TD, CIBC, Scotiabank, BMO, Tangerine, Simplii, EQ Bank or generic date/description/amount); returns an ingest job |
 | GET | `/transactions/upload/jobs/{job_id}` | Ingest job status |
 | GET / POST | `/transactions/rules` | Category rules |
 | POST | `/transactions/rules/apply` | Re-run rules over history |
