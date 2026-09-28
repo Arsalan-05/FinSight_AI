@@ -112,30 +112,66 @@ def amounts_from_tool_outputs(tool_json_strings: Iterable[str]) -> set[float]:
         try:
             data = json.loads(raw)
         except (json.JSONDecodeError, TypeError):
-            _walk_numbers(str(raw), known)
+            # Prose sources (user question, goals, profile) state amounts without "$".
+            for match in _BARE_NUMBER_RE.finditer(str(raw)):
+                try:
+                    known.add(_round_amount(_parse_number(match.group(0))))
+                except ValueError:
+                    continue
             continue
         _walk_numbers(data, known)
     return known
 
 
-def _is_known(value: float, known: set[float]) -> bool:
+_BARE_NUMBER_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+# Monthly ↔ yearly ↔ weekly conversions the advisor routinely does.
+_PERIOD_FACTORS = (2.0, 3.0, 4.0, 4.33, 6.0, 12.0, 26.0, 52.0)
+
+# Cap pairwise checks so a huge tool dump cannot stall the reply.
+_MAX_PAIRWISE = 400
+
+
+def _is_known(value: float, known: set[float], *, whole: bool = False) -> bool:
     rounded = _round_amount(value)
     if rounded in known or _round_amount(abs(rounded)) in known:
         return True
+    if whole:
+        # "$186" / "~$4,950" are rounded restatements of $186.40 / $4,952.59.
+        tolerance = max(1.0, abs(rounded) * 0.005)
+        return any(abs(k - rounded) <= tolerance for k in known)
     return False
 
 
-def _is_simple_derivation(value: float, known: set[float]) -> bool:
-    """Allow sum/diff of two known amounts within $0.01."""
-    amounts = list(known)
-    target = _round_amount(value)
+def _is_simple_derivation(value: float, known: set[float], *, whole: bool = False) -> bool:
+    """Allow sum/diff of two known amounts, or a period conversion of one."""
+    amounts = sorted(known, key=abs, reverse=True)[:_MAX_PAIRWISE]
+    target = _round_amount(abs(value))
+    tolerance = max(1.0, target * 0.005) if whole else 0.01
+    for a in amounts:
+        for f in _PERIOD_FACTORS:
+            if abs(abs(a) * f - target) <= tolerance or abs(abs(a) / f - target) <= tolerance:
+                return True
     for i, a in enumerate(amounts):
         for b in amounts[i:]:
-            for candidate in (a + b, a - b, b - a):
-                if abs(_round_amount(candidate) - target) <= 0.01:
+            for candidate in (a + b, a - b):
+                if abs(abs(candidate) - target) <= tolerance:
                     return True
-                if abs(_round_amount(abs(candidate)) - target) <= 0.01:
-                    return True
+    return False
+
+
+def _is_ratio(value: float, known: set[float]) -> bool:
+    """Percentages like "up 29%" or "71% of your goal" derived from two known amounts."""
+    amounts = [a for a in sorted(known, key=abs, reverse=True)[:_MAX_PAIRWISE] if a]
+    target = abs(value)
+    for a in amounts:
+        for b in amounts:
+            if a is b:
+                continue
+            if abs(abs(a) / abs(b) * 100 - target) <= 0.6:
+                return True
+            if abs(abs(a - b) / abs(b) * 100 - target) <= 0.6:
+                return True
     return False
 
 
@@ -149,7 +185,13 @@ def verify_numeric_grounding(
     unverified: list[tuple[str, float]] = []
 
     for raw, value in extract_amounts(answer):
-        if _is_known(value, known) or _is_simple_derivation(value, known):
+        is_percent = raw.rstrip().endswith("%")
+        whole = not is_percent and "." not in raw
+        if (
+            _is_known(value, known, whole=whole)
+            or _is_simple_derivation(value, known, whole=whole)
+            or (is_percent and _is_ratio(value, known))
+        ):
             verified.append((raw, value))
         else:
             unverified.append((raw, value))
@@ -165,7 +207,9 @@ def strip_unverified(answer: str, unverified: list[tuple[str, float]]) -> str:
     result = answer
     # Replace longer spans first so nested/overlapping raw strings are stable
     for raw, _ in sorted(unverified, key=lambda item: len(item[0]), reverse=True):
-        result = result.replace(raw, "[unverified]")
+        # Whole-token match only: "$186" must not eat the front of "$186.40" or an evidence tag.
+        pattern = re.compile(r"(?<![\w.,$|\[])" + re.escape(raw) + r"(?![\d]|[.,]\d|\s*\|)")
+        result = pattern.sub("[unverified]", result)
 
     cleaned = result.rstrip()
     if _UNVERIFIED_NOTICE.strip() not in cleaned:

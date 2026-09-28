@@ -46,6 +46,7 @@ def list_goals(
     return load_goals(user)
 
 
+@router.post("", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_goal(
     payload: GoalCreate,

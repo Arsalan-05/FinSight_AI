@@ -176,6 +176,8 @@ export interface ChatSessionDetail {
   pinned: boolean;
   messages: Array<{ role: ChatRole; content: string }>;
   updated_at: string | null;
+  /** Server still generating the reply to the last user turn (another tab / after reload). */
+  reply_pending?: boolean;
 }
 
 export type ChatSSEEvent =

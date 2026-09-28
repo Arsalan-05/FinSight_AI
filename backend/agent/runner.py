@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -72,11 +73,71 @@ def _build_evidence_from_tools(messages: list[BaseMessage]) -> list[dict[str, An
     return store.list()
 
 
-def _apply_numeric_guardrail(reply: str, tool_outputs: list[str]) -> str:
+_post_turn_threads: set[threading.Thread] = set()
+
+
+def wait_for_post_turn_learning(timeout: float = 10.0) -> None:
+    """Block until background memory/profile updates finish (tests, scripts)."""
+    for thread in list(_post_turn_threads):
+        thread.join(timeout)
+
+
+def _schedule_post_turn_learning(
+    *,
+    bind: Any,
+    session_id: str,
+    user_id: str | None,
+    final_messages: list[BaseMessage],
+    memory_summary: str,
+    learned_profile: dict[str, Any],
+    data_profile: dict[str, Any],
+    update_memory: bool,
+) -> None:
+    """Run memory summary + profile learning off the reply path (extra LLM calls)."""
+
+    def work() -> None:
+        db = Session(bind=bind)
+        try:
+            if update_memory:
+                try:
+                    summary = summarize_memory(final_messages, memory_summary)
+                    if summary and summary != memory_summary:
+                        session = load_session(db, session_id, user_id=user_id)
+                        session.memory_summary = summary
+                        db.commit()
+                except Exception:
+                    logger.exception("Memory summarization failed — keeping prior summary")
+                    db.rollback()
+            if user_id:
+                try:
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if user:
+                        updated = update_learned_profile(final_messages, learned_profile, data_profile)
+                        if updated != learned_profile:
+                            save_agent_profile(db, user, updated)
+                except Exception:
+                    logger.exception("Learned profile update failed")
+                    db.rollback()
+        finally:
+            db.close()
+            _post_turn_threads.discard(threading.current_thread())
+
+    thread = threading.Thread(target=work, name=f"post-turn-{session_id[:8]}", daemon=True)
+    _post_turn_threads.add(thread)
+    thread.start()
+
+
+def _apply_numeric_guardrail(
+    reply: str,
+    tool_outputs: list[str],
+    *,
+    extra_sources: list[str] | None = None,
+) -> str:
     """Verify amounts against tool outputs; strip unverified on failure."""
     if not reply:
         return reply
-    result = verify_numeric_grounding(reply, tool_outputs)
+    sources = list(tool_outputs) + [s for s in (extra_sources or []) if s]
+    result = verify_numeric_grounding(reply, sources)
     if result.ok:
         return reply
     logger.info(
@@ -230,24 +291,26 @@ def run_agent(
         # Claude may have been disabled mid-turn (bad key) and replaced by Groq.
         chat_provider, chat_model = resolve_chat_backend(chat_tier)
 
-        if update_memory and llm_runtime_available() and _should_update_memory(final_messages):
-            try:
-                memory_summary = summarize_memory(final_messages, memory_summary)
-            except Exception:
-                logger.exception("Memory summarization failed — keeping prior summary")
-
-        if user and llm_runtime_available() and _should_update_memory(final_messages):
-            try:
-                updated = update_learned_profile(final_messages, learned_profile, data_profile)
-                if updated != learned_profile:
-                    save_agent_profile(db, user, updated)
-            except Exception:
-                logger.exception("Learned profile update failed")
-
         save_session(db, session_id, final_messages, memory_summary, user_id=user_id)
+
+        if llm_runtime_available() and _should_update_memory(final_messages):
+            _schedule_post_turn_learning(
+                bind=db.get_bind(),
+                session_id=session_id,
+                user_id=user_id,
+                final_messages=final_messages,
+                memory_summary=memory_summary,
+                learned_profile=learned_profile,
+                data_profile=data_profile,
+                update_memory=update_memory,
+            )
+
         reply = _last_ai_text(final_messages)
         tool_outputs = _collect_tool_outputs(final_messages)
-        reply = _sanitize_tool_leak(_apply_numeric_guardrail(reply, tool_outputs))
+        grounding = [user_message, goals_text, user_intelligence]
+        reply = _sanitize_tool_leak(
+            _apply_numeric_guardrail(reply, tool_outputs, extra_sources=grounding)
+        )
         citations = _extract_citations(final_messages)
         evidence = store.list() or _build_evidence_from_tools(final_messages)
         return AgentResult(

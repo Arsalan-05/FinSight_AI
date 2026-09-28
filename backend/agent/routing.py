@@ -54,6 +54,21 @@ _HEAVY_PATTERNS = (
     r"\bin depth\b",
     r"\bdeep dive\b",
     r"\bwalk me through\b",
+    # Coaching prompts from Overview / alerts / goals need judgment, not a single lookup
+    r"\bsummar(?:y|ize|ise)\b",
+    r"\bweekly\b",
+    r"\bhighlight\b",
+    r"\bact on\b",
+    r"\bgoals?\b",
+    r"\btracking\b",
+    r"\bon track\b",
+    r"\balert\b",
+    r"\bunusual\b",
+    r"\banomal(?:y|ies|ous)\b",
+    r"\bafford\b",
+    r"\bsave (?:up )?for\b",
+    r"\bcut back\b",
+    r"\brunway\b",
 )
 
 _HEAVY_RE = re.compile("|".join(_HEAVY_PATTERNS), re.IGNORECASE)

@@ -11,7 +11,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from agent.graph import build_graph
 from agent.memory import load_messages, load_session, save_session
-from agent.runner import run_agent
+from agent.runner import run_agent, wait_for_post_turn_learning
 from agent.tools import execute_tool
 from app.config import settings
 from db.models import Account, Transaction, User
@@ -179,6 +179,8 @@ class TestRunAgent:
         )
 
         assert "5.50" in result.reply
+        wait_for_post_turn_learning()
+        db_session.expire_all()
         session = load_session(db_session, "persist-session")
         assert session.memory_summary == "User asked about total spending."
         messages = load_messages(session)
@@ -199,7 +201,9 @@ class TestRunAgent:
         mock_summarize.return_value = "Prior context."
 
         run_agent("First question", "multi-turn", db_session)
+        wait_for_post_turn_learning()
         run_agent("Follow-up question", "multi-turn", db_session)
+        wait_for_post_turn_learning()
 
         assert mock_llm.call_count == 2
         second_call_messages = mock_llm.call_args_list[1][0][0]

@@ -62,9 +62,10 @@ CORE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "properties": {
                 "period": {
                     "type": "string",
-                    "enum": ["last_month", "this_month", "last_30_days", "all"],
+                    "enum": ["last_7_days", "last_month", "this_month", "last_30_days", "all"],
                     "description": (
-                        "Relative time window. Use last_month when the user says 'last month'. "
+                        "Relative time window. Use last_month when the user says 'last month'; "
+                        "last_7_days for 'this week' / 'weekly' / 'past week'. "
                         "Prefer this over start_date/end_date."
                     ),
                 },

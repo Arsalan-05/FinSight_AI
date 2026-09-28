@@ -114,6 +114,7 @@ def reindex_search_index(
         ) from exc
 
 
+@router.post("", response_model=SearchResponse, include_in_schema=False)
 @router.post("/", response_model=SearchResponse)
 def semantic_search(
     payload: SearchRequest,

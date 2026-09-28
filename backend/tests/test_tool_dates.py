@@ -186,3 +186,13 @@ def test_broaden_to_nearest_month_when_last_month_empty(db_session) -> None:
     assert result["filters"]["start_date"] == "2026-06-01"
     assert "12.50" in result["summary"]
     assert "nearest" in result["summary"].lower() or "NOTE" in result["summary"]
+
+
+def test_last_7_days_period_resolves_to_this_week() -> None:
+    from datetime import date, timedelta
+
+    from agent.tools.dates import resolve_period
+
+    start, end = resolve_period("last_7_days")
+    assert end == date.today()
+    assert start == date.today() - timedelta(days=6)

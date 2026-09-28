@@ -60,6 +60,33 @@ def test_verify_fails_on_hallucinated_amount() -> None:
     assert any(abs(v - 999.99) < 0.001 for _, v in result.unverified)
 
 
+def test_rounded_restatement_is_grounded() -> None:
+    tools = [json.dumps({"amount": -186.40, "total": 4952.59})]
+    result = verify_numeric_grounding("That $186 dinner pushed you to ~$4,950.", tools)
+    assert result.ok
+
+
+def test_period_conversion_and_ratio_are_grounded() -> None:
+    tools = [json.dumps({"monthly": 54.99, "saved": 450.0, "target": 1599.0})]
+    answer = "GoodLife costs $659.88 a year, and you're 28.1% of the way to the iPhone."
+    result = verify_numeric_grounding(answer, tools)
+    assert result.ok, result.unverified
+
+
+def test_prose_sources_ground_goal_amounts() -> None:
+    goals = "Goals: iPhone 17 Pro — saved 450.00 of 1599.00, due 2026-12-15"
+    result = verify_numeric_grounding("You've saved $450 of $1,599.", [goals])
+    assert result.ok
+
+
+def test_strip_does_not_mangle_longer_amounts_or_tags() -> None:
+    answer = "Miku was [[$186.40|ev_2]] — about $186.40 — versus $186 claimed."
+    stripped = strip_unverified(answer, [("$186", 186.0)])
+    assert "[[$186.40|ev_2]]" in stripped
+    assert "about $186.40" in stripped
+    assert "versus [unverified] claimed" in stripped
+
+
 def test_strip_unverified_appends_notice() -> None:
     answer = "You spent $999.99 somehow."
     stripped = strip_unverified(answer, [("$999.99", 999.99)])
