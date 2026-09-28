@@ -2,26 +2,43 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Sequence
+from typing import Any
 
 _SKLEARN_AVAILABLE = False
 try:
-    from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore
-    from sklearn.linear_model import LogisticRegression  # type: ignore
-    from sklearn.pipeline import Pipeline  # type: ignore
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
 
     _SKLEARN_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dep
-    TfidfVectorizer = None  # type: ignore[misc, assignment]
-    LogisticRegression = None  # type: ignore[misc, assignment]
-    Pipeline = None  # type: ignore[misc, assignment]
+    TfidfVectorizer = None
+    LogisticRegression = None
+    Pipeline = None
 
 
 # Keyword rules used when sklearn is unavailable (and as cold-start fallback).
 _KEYWORD_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("Groceries", ("loblaws", "metro", "no frills", "costco", "walmart", "freshco", "sobeys")),
-    ("Dining", ("tim hortons", "starbucks", "uber eats", "doordash", "mcdonald", "restaurant", "sushi", "pizza", "chipotle", "a&w", "harvey", "popeyes")),
+    (
+        "Dining",
+        (
+            "tim hortons",
+            "starbucks",
+            "uber eats",
+            "doordash",
+            "mcdonald",
+            "restaurant",
+            "sushi",
+            "pizza",
+            "chipotle",
+            "a&w",
+            "harvey",
+            "popeyes",
+        ),
+    ),
     ("Transport", ("uber", "lyft", "presto", "shell", "esso", "petro", "gas")),
     ("Subscriptions", ("netflix", "spotify", "apple.com/bill", "disney+", "youtube premium")),
     ("Utilities", ("hydro", "enbridge", "rogers", "bell", "telus", "internet")),

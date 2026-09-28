@@ -265,9 +265,7 @@ def _supabase_session_pooler_url(settings: Settings, database_url: str = "") -> 
 
     pooler_host = settings.supabase_pooler_host or "aws-1-us-east-2.pooler.supabase.com"
     pwd = quote_plus(password)
-    return (
-        f"postgresql://postgres.{ref}:{pwd}@{pooler_host}:5432/postgres?sslmode=require"
-    )
+    return f"postgresql://postgres.{ref}:{pwd}@{pooler_host}:5432/postgres?sslmode=require"
 
 
 def _normalize_supabase_database_url(url: str) -> str:

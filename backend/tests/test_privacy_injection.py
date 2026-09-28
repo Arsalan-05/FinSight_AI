@@ -8,8 +8,8 @@ from agent.privacy.injection import (
     strip_instruction_patterns,
     wrap_tool_output,
 )
-from app.csv_sanitize import sanitize_csv_cell
 from app.config import Settings
+from app.csv_sanitize import sanitize_csv_cell
 
 
 def test_wrap_tool_output_delimiters() -> None:

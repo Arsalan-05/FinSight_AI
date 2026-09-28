@@ -27,7 +27,7 @@ def test_coaching_prompts_route_heavy() -> None:
     for q in (
         "Based on my spending, where should I cut back?",
         "Summarize my weekly spending and highlight anything I should act on.",
-        "Help me understand this spend alert: Unusual charge. $186.40 is 9.7× your usual Dining spend",
+        "Help me understand this spend alert: Unusual charge. $186.40 is 9.7× your usual Dining",
         "How am I tracking toward my goal: iPhone 17 Pro?",
         "Help me understand this spend alert: Low cash runway.",
     ):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 from pydantic import BaseModel, EmailStr, field_validator
 
@@ -206,7 +207,7 @@ class LeakFindingOut(BaseModel):
     user_id: str
     type: str
     amount_cad: float
-    evidence: dict
+    evidence: dict[str, Any]
     status: str
     title: str | None = None
     message: str | None = None
@@ -227,4 +228,4 @@ class LeakDraftOut(BaseModel):
     finding_type: str
     subject: str
     body: str
-    fields_used: dict
+    fields_used: dict[str, Any]

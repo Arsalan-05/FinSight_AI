@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 
 from app.account_serializers import account_to_out
 from app.auth import get_current_user_optional
@@ -35,7 +35,7 @@ def _month_bounds(today: date, *, months_ago: int = 0) -> tuple[date, date]:
     return start, end
 
 
-def _scoped_tx_query(db: Session, user: User | None):
+def _scoped_tx_query(db: Session, user: User | None) -> Query[Transaction]:
     return scope_transactions(db.query(Transaction), db, user)
 
 
@@ -77,9 +77,7 @@ def get_dashboard(
         # Prefer a degraded payload over a hard 500 for Overview first paint.
         try:
             accounts = accounts_for_user(db, current_user)
-            empty["accounts"] = [
-                account_to_out(db, a).model_dump(mode="json") for a in accounts
-            ]
+            empty["accounts"] = [account_to_out(db, a).model_dump(mode="json") for a in accounts]
         except Exception:
             logger.exception("dashboard account fallback failed")
         return empty
@@ -129,9 +127,7 @@ def _build_dashboard(db: Session, current_user: User | None) -> dict[str, Any]:
     credit_count = int(cur_income_q.with_entities(func.count()).scalar() or 0)
     prev_spend = abs(_f(prev_spend_q.with_entities(func.sum(Transaction.amount)).scalar()))
     net_savings = cur_income - cur_spend
-    spend_change_pct = (
-        ((cur_spend - prev_spend) / prev_spend) * 100 if prev_spend > 0 else None
-    )
+    spend_change_pct = ((cur_spend - prev_spend) / prev_spend) * 100 if prev_spend > 0 else None
 
     cat_rows = (
         cur_spend_q.with_entities(Transaction.category, func.sum(Transaction.amount))
@@ -159,8 +155,7 @@ def _build_dashboard(db: Session, current_user: User | None) -> dict[str, Any]:
         .all()
     )
     daily = [
-        {"day": d.isoformat()[5:], "spend": round(abs(_f(total)), 2)}
-        for d, total in daily_rows
+        {"day": d.isoformat()[5:], "spend": round(abs(_f(total)), 2)} for d, total in daily_rows
     ]
 
     insight_cards: list[dict[str, Any]] = []

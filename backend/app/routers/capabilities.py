@@ -52,9 +52,7 @@ def capabilities() -> dict[str, object]:
             "embedding_dim": settings.embedding_dim,
             "search_available": embeddings_runtime_available(),
             "search_unavailable_reason": (
-                None
-                if embeddings_runtime_available()
-                else embeddings_unavailable_message()
+                None if embeddings_runtime_available() else embeddings_unavailable_message()
             ),
         },
         "agent": {

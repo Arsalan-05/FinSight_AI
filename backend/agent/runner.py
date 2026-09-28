@@ -68,7 +68,9 @@ def _build_evidence_from_tools(messages: list[BaseMessage]) -> list[dict[str, An
             data = {"value": data}
         existing_id = data.get("evidence_id")
         payload = {k: v for k, v in data.items() if k != "evidence_id"}
-        eid = existing_id if isinstance(existing_id, str) and existing_id.startswith("ev_") else None
+        eid = (
+            existing_id if isinstance(existing_id, str) and existing_id.startswith("ev_") else None
+        )
         store.register(msg.name or "tool", {}, payload, evidence_id=eid)
     return store.list()
 
@@ -112,7 +114,9 @@ def _schedule_post_turn_learning(
                 try:
                     user = db.query(User).filter(User.id == user_id).first()
                     if user:
-                        updated = update_learned_profile(final_messages, learned_profile, data_profile)
+                        updated = update_learned_profile(
+                            final_messages, learned_profile, data_profile
+                        )
                         if updated != learned_profile:
                             save_agent_profile(db, user, updated)
                 except Exception:

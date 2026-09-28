@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from agent.privacy.redact import redact_pii, rehydrate
 
-
 FIXTURES = [
     (
         "Email arsalan@example.com about the refund",
@@ -60,7 +59,11 @@ def test_redact_and_rehydrate_etransfer() -> None:
     redacted, cmap = redact_pii(text)
     assert "Jane Doe" not in redacted
     assert "[ETRANSFER_1]" in redacted
-    assert "INTERAC" in redacted.upper() or "e-Transfer" in redacted or "e-transfer" in redacted.lower()
+    assert (
+        "INTERAC" in redacted.upper()
+        or "e-Transfer" in redacted
+        or "e-transfer" in redacted.lower()
+    )
     assert rehydrate(redacted, cmap) == text
 
 

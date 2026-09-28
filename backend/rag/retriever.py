@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import or_
@@ -162,11 +163,7 @@ def retrieve(
         if cached is not None and isinstance(cached, list):
             # cached stores transaction ids
             if cached:
-                txs = (
-                    db.query(Transaction)
-                    .filter(Transaction.id.in_(cached))
-                    .all()
-                )
+                txs = db.query(Transaction).filter(Transaction.id.in_(cached)).all()
                 by_id = {tx.id: tx for tx in txs}
                 return [by_id[i] for i in cached if i in by_id][:k]
             return []
@@ -195,8 +192,7 @@ def retrieve(
 
     if use_rerank and ordered:
         ranked = [
-            RankedItem(id=tx.id, score=1.0 / (i + 1), payload=tx)
-            for i, tx in enumerate(ordered)
+            RankedItem(id=tx.id, score=1.0 / (i + 1), payload=tx) for i, tx in enumerate(ordered)
         ]
         reranked = rerank(search_text, ranked, top_n=k)
         ordered = [item.payload for item in reranked if item.payload is not None]

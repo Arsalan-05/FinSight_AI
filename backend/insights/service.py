@@ -175,8 +175,7 @@ def build_weekly_brief(
         headline = f"Spending is up {abs(spend_delta_pct):.0f}% vs last week (${this_spend:,.0f})."
     elif spend_delta_pct < -5:
         headline = (
-            f"Nice — spending is down {abs(spend_delta_pct):.0f}% "
-            f"this week (${this_spend:,.0f})."
+            f"Nice — spending is down {abs(spend_delta_pct):.0f}% this week (${this_spend:,.0f})."
         )
     else:
         headline = f"Spending held steady at ${this_spend:,.0f} this week."
@@ -204,8 +203,7 @@ def build_weekly_brief(
                 "id": "subscriptions",
                 "label": "Recurring",
                 "value": (
-                    f"~${subs['estimated_monthly_total']:,.0f}/mo "
-                    f"across {subs['count']} charges"
+                    f"~${subs['estimated_monthly_total']:,.0f}/mo across {subs['count']} charges"
                 ),
             }
         )
@@ -237,8 +235,7 @@ def build_weekly_brief(
                 "severity": "warning",
                 "title": "Spending spike",
                 "body": (
-                    f"Week-over-week spend rose {spend_delta_pct:.0f}%. "
-                    "Review dining and shopping."
+                    f"Week-over-week spend rose {spend_delta_pct:.0f}%. Review dining and shopping."
                 ),
             }
         )

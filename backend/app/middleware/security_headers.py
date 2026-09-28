@@ -11,12 +11,7 @@ from starlette.responses import Response
 from app.config import settings
 
 # API-oriented CSP: no scripts served from this origin; allow nothing by default
-_CSP = (
-    "default-src 'none'; "
-    "frame-ancestors 'none'; "
-    "base-uri 'none'; "
-    "form-action 'none'"
-)
+_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

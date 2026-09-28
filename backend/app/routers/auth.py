@@ -57,9 +57,7 @@ def bootstrap(
     using_fallback = "supabase" not in host and "pooler" not in host
 
     account_count = db.query(Account).filter(Account.user_id == user.id).count()
-    tx_count = (
-        db.query(Transaction).join(Account).filter(Account.user_id == user.id).count()
-    )
+    tx_count = db.query(Transaction).join(Account).filter(Account.user_id == user.id).count()
 
     return BootstrapOut(
         user_id=user.id,

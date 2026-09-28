@@ -11,7 +11,9 @@ from db.models import User
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+@router.post(
+    "", response_model=UserOut, status_code=status.HTTP_201_CREATED, include_in_schema=False
+)
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     if db.query(User).filter(User.email == payload.email).first():

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 # Currency: $1,234.56 | CAD 12.30 | 12.30 CAD | €50
 _CURRENCY_RE = re.compile(

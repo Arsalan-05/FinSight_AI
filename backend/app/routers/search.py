@@ -13,7 +13,7 @@ from app.schemas import TransactionOut
 from app.scoping import account_ids_for_user
 from db.models import Transaction, User
 from rag.embedder import embeddings_runtime_available
-from rag.indexing import count_indexed_transactions, index_missing_batch, reindex_transactions
+from rag.indexing import count_indexed_transactions, index_missing_batch
 from rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
@@ -54,9 +54,7 @@ def search_status(
     current_user: User | None = Depends(get_current_user_optional),
 ) -> SearchStatusResponse:
     """Report whether semantic search is indexed for the current user."""
-    enabled = bool(
-        settings.embeddings_configured and embeddings_runtime_available()
-    )
+    enabled = bool(settings.embeddings_configured and embeddings_runtime_available())
     account_ids = account_ids_for_user(db, current_user)
     if not account_ids:
         return SearchStatusResponse(
@@ -65,9 +63,7 @@ def search_status(
             indexed_count=0,
             needs_reindex=False,
         )
-    tx_count = (
-        db.query(Transaction).filter(Transaction.account_id.in_(account_ids)).count()
-    )
+    tx_count = db.query(Transaction).filter(Transaction.account_id.in_(account_ids)).count()
     indexed = count_indexed_transactions(db, account_ids)
     return SearchStatusResponse(
         embedding_enabled=enabled,

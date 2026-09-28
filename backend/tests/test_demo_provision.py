@@ -34,10 +34,7 @@ def test_provision_clones_demo_data(db_session):
     assert provision_demo_if_empty(db_session, oauth_user) is True
     assert db_session.query(Account).filter(Account.user_id == oauth_user.id).count() == 1
     assert (
-        db_session.query(Transaction)
-        .join(Account)
-        .filter(Account.user_id == oauth_user.id)
-        .count()
+        db_session.query(Transaction).join(Account).filter(Account.user_id == oauth_user.id).count()
         == 1
     )
 

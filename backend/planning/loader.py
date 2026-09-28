@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 RULES_DIR = Path(__file__).resolve().parent / "rules"
@@ -99,9 +99,7 @@ def load_rules(year: int) -> PlanningRules:
     path = _rules_path(year)
     if not path.is_file():
         available = ", ".join(str(y) for y in available_years()) or "(none)"
-        raise FileNotFoundError(
-            f"No planning rules for year {year}. Available: {available}"
-        )
+        raise FileNotFoundError(f"No planning rules for year {year}. Available: {available}")
     with path.open(encoding="utf-8") as fh:
         raw: Any = yaml.safe_load(fh)
     if not isinstance(raw, dict):

@@ -1,5 +1,6 @@
 """Public capability manifest."""
 
+
 def test_capabilities_manifest(client) -> None:
     r = client.get("/capabilities")
     assert r.status_code == 200

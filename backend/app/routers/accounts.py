@@ -13,7 +13,9 @@ from db.models import Account, User
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
-@router.post("", response_model=AccountOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+@router.post(
+    "", response_model=AccountOut, status_code=status.HTTP_201_CREATED, include_in_schema=False
+)
 @router.post("/", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
 def create_account(
     payload: AccountCreate,

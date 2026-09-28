@@ -20,9 +20,7 @@ def sync_all_active_connections(db: Session) -> int:
     """Sync every active bank connection. Returns count synced."""
     if not plaid_configured():
         return 0
-    connections = (
-        db.query(BankConnection).filter(BankConnection.status == "active").all()
-    )
+    connections = db.query(BankConnection).filter(BankConnection.status == "active").all()
     synced = 0
     for conn in connections:
         try:

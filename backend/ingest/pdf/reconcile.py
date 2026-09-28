@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Sequence
+from typing import Any
 
 
 @dataclass
@@ -66,9 +67,7 @@ def reconcile(
         checked += 1
         expected = _running_balance(tx)
         if expected is not None and abs(running - expected) > tolerance:
-            line_errors.append(
-                f"Line {i}: running balance {running:.2f} != stated {expected:.2f}"
-            )
+            line_errors.append(f"Line {i}: running balance {running:.2f} != stated {expected:.2f}")
 
     computed = round(running, 2)
     delta = round(computed - closing_f, 2)

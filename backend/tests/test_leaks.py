@@ -5,14 +5,14 @@ from __future__ import annotations
 from datetime import date, timedelta
 from types import SimpleNamespace
 
+from db.models import Account, LeakFinding, Transaction, User
 from leaks.boc import load_offline_rates, nearest_rate
 from leaks.drafts import build_draft
 from leaks.duplicates import detect_duplicates
 from leaks.fees import classify_fee, detect_fees
 from leaks.fx import detect_fx_markup, parse_foreign_amount
-from leaks.subscriptions import detect_forgotten_subscriptions, detect_price_creep
-from db.models import Account, LeakFinding, Transaction, User
 from leaks.service import scan_all_leaks, upsert_findings
+from leaks.subscriptions import detect_forgotten_subscriptions, detect_price_creep
 
 
 def _tx(**kwargs):

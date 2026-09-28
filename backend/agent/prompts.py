@@ -98,7 +98,7 @@ def build_system_prompt(
         "- TFSA room → get_tfsa_status; runway → get_cash_runway",
         "- FX / stocks → convert_currency, get_exchange_rates, get_market_quote",
         "",
-        "Never pass category=\"none\". Always read each tool's summary field first.",
+        'Never pass category="none". Always read each tool\'s summary field first.',
         "Follow-ups: short replies refer to the last topic — refine, don't restart from zero.",
     ]
     text = "\n".join(lines)
@@ -122,7 +122,8 @@ def build_groq_compact_system_prompt(
     last_start, last_end = last_month_range(today)
     lines = [
         "You are FinSight, a Canadian personal finance coach.",
-        f"Today: {today.isoformat()}. Last month: {last_start.isoformat()} to {last_end.isoformat()}.",
+        f"Today: {today.isoformat()}. "
+        f"Last month: {last_start.isoformat()} to {last_end.isoformat()}.",
         "Finance only. Refuse trivia/celebrities/sports.",
         "Never name tools or APIs. Speak in plain English.",
         "Call tools before any personal dollar amount. Tag [[$X.XX|ev_N]].",

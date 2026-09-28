@@ -53,9 +53,7 @@ def test_budget_spend_calculation(client, db_session, monkeypatch):
             category="Dining",
         )
     )
-    db_session.add(
-        Budget(id="bud-1", user_id=user.id, category="Dining", monthly_limit=100)
-    )
+    db_session.add(Budget(id="bud-1", user_id=user.id, category="Dining", monthly_limit=100))
     db_session.commit()
 
     from app.auth import get_current_user
