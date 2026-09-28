@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Optional
+from typing import Any
 
 _CANCELLATION = """\
 Subject: Cancellation request — {merchant}
@@ -89,7 +89,7 @@ def build_draft(
     finding_type: str,
     evidence: Mapping[str, Any],
     *,
-    kind: Optional[str] = None,
+    kind: str | None = None,
     user_name: str = "Account Holder",
     account_email: str = "",
     institution: str = "my bank",

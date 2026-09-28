@@ -8,7 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -372,7 +372,7 @@ def run_eval(
         "model": model,
         "subset": subset,
         "dry_run": dry_run,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "n_questions": len(scored),
         "answer_numeric_acc": mean([1.0 if s["numeric_match"] else 0.0 for s in numeric_cases])
         if numeric_cases
@@ -414,7 +414,7 @@ def main(argv: list[str] | None = None) -> int:
 
     summary = run_eval(model=args.model, subset=args.subset, dry_run=args.dry_run)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out_path = RESULTS_DIR / f"{stamp}.json"
     with out_path.open("w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2, default=str)

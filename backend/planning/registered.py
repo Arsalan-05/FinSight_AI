@@ -6,7 +6,7 @@ Pure Python year-by-year projection. Educational estimates only.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from planning import DISCLAIMER
 from planning.loader import PlanningRules, combined_marginal_rate, load_rules
@@ -27,7 +27,7 @@ class ExistingRoom:
     fhsa_lifetime_contributed: float = 0.0
 
     @classmethod
-    def from_mapping(cls, data: Optional[dict[str, Any]]) -> ExistingRoom:
+    def from_mapping(cls, data: dict[str, Any] | None) -> ExistingRoom:
         data = data or {}
         return cls(
             tfsa=float(data.get("tfsa", 0) or 0),
@@ -120,13 +120,13 @@ def optimize_registered(
     age: int,
     first_time_buyer: bool,
     horizon: int,
-    existing_room: Optional[dict[str, Any]] = None,
+    existing_room: dict[str, Any] | None = None,
     annual_contribution: float = 0.0,
     tax_year: int = 2026,
     growth_rate: float = _DEFAULT_GROWTH_RATE,
     income_growth: float = 0.0,
-    opening_balances: Optional[dict[str, float]] = None,
-    rules: Optional[PlanningRules] = None,
+    opening_balances: dict[str, float] | None = None,
+    rules: PlanningRules | None = None,
 ) -> dict[str, Any]:
     """Optimize FHSA/TFSA/RRSP allocation and project year by year.
 

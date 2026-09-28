@@ -26,7 +26,6 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -38,7 +37,7 @@ class SeedTx:
     description: str
     amount: float
     category: str
-    merchant: Optional[str] = None
+    merchant: str | None = None
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -135,8 +134,8 @@ class Builder:
         description: str,
         amount: float,
         category: str,
-        merchant: Optional[str] = None,
-    ) -> Optional[SeedTx]:
+        merchant: str | None = None,
+    ) -> SeedTx | None:
         if d > self.today:
             return None
         tx = SeedTx(d, account, description, round(amount, 2), category, merchant)

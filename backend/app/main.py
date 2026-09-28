@@ -1,7 +1,6 @@
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -111,7 +110,7 @@ def health() -> dict[str, str]:
 def health_ready() -> dict[str, object]:
     """Readiness probe — verifies database connectivity."""
     connected = False
-    error: Optional[str] = None
+    error: str | None = None
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
@@ -129,7 +128,7 @@ def health_db() -> dict[str, object]:
     host = url.split("@")[-1].split("/")[0] if "@" in url else "unknown"
     connected = False
     schema_ready = False
-    error: Optional[str] = None
+    error: str | None = None
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
@@ -168,9 +167,9 @@ def health_auth() -> dict[str, object]:
 
     configured = settings.supabase_auth_enabled
     jwks_ok = False
-    jwks_error: Optional[str] = None
+    jwks_error: str | None = None
     jwks_keys = 0
-    supabase_host: Optional[str] = None
+    supabase_host: str | None = None
     raw = (settings.supabase_url or "").strip()
     if raw:
         parsed = urlparse(raw if "://" in raw else f"https://{raw}")

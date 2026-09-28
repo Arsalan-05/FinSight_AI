@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 RULES_DIR = Path(__file__).resolve().parent / "rules"
@@ -14,7 +14,7 @@ RULES_DIR = Path(__file__).resolve().parent / "rules"
 class TaxBracket(BaseModel):
     """Simplified tax bracket: rate applies up to ``up_to`` (None = unlimited)."""
 
-    up_to: Optional[float] = None
+    up_to: float | None = None
     rate: float
 
     @field_validator("rate")
@@ -26,7 +26,7 @@ class TaxBracket(BaseModel):
 
     @field_validator("up_to")
     @classmethod
-    def up_to_positive(cls, v: Optional[float]) -> Optional[float]:
+    def up_to_positive(cls, v: float | None) -> float | None:
         if v is not None and v <= 0:
             raise ValueError("up_to must be positive when set")
         return v
@@ -56,7 +56,7 @@ class PlanningRules(BaseModel):
         ):
             if not brackets:
                 raise ValueError(f"{name} must be non-empty")
-            prev: Optional[float] = 0.0
+            prev: float | None = 0.0
             for i, b in enumerate(brackets):
                 if b.up_to is None:
                     if i != len(brackets) - 1:

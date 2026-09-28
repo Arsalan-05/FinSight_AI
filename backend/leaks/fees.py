@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
 # Ordered most-specific first so NSF beats generic "fee"
 _FEE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
@@ -55,7 +55,7 @@ _FEE_LABELS = {
 }
 
 
-def classify_fee(description: str, category: str = "") -> Optional[str]:
+def classify_fee(description: str, category: str = "") -> str | None:
     """Return fee type key or None if the text is not a known bank fee."""
     blob = f"{description or ''} {category or ''}"
     for fee_type, pattern in _FEE_PATTERNS:
@@ -67,7 +67,7 @@ def classify_fee(description: str, category: str = "") -> Optional[str]:
 def detect_fees(
     transactions: Sequence[Any],
     *,
-    year: Optional[int] = None,
+    year: int | None = None,
 ) -> dict[str, Any]:
     """
     Classify fee transactions and sum yearly total.

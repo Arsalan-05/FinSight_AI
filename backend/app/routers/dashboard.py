@@ -134,14 +134,12 @@ def _build_dashboard(db: Session, current_user: User | None) -> dict[str, Any]:
         .group_by(Transaction.category)
         .all()
     )
-    top_categories = sorted(
-        [
-            {"category": c or "Uncategorized", "amount": round(abs(_f(total)), 2)}
-            for c, total in cat_rows
-        ],
-        key=lambda x: x["amount"],
+    category_totals = sorted(
+        ((c or "Uncategorized", round(abs(_f(total)), 2)) for c, total in cat_rows),
+        key=lambda pair: pair[1],
         reverse=True,
     )[:6]
+    top_categories = [{"category": c, "amount": amount} for c, amount in category_totals]
 
     daily_rows = (
         base.filter(

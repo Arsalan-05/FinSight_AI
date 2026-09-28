@@ -40,6 +40,9 @@ _connect_args: dict[str, object] = {"connect_timeout": 8}
 _is_supabase_url = "supabase.co" in DATABASE_URL or "pooler.supabase.com" in DATABASE_URL
 if _is_supabase_url and "sslmode=" not in DATABASE_URL:
     _connect_args["sslmode"] = "require"
+if _is_supabase_url:
+    # Supavisor in transaction mode cannot hold server-side prepared statements.
+    _connect_args["prepare_threshold"] = None
 _engine_kwargs["connect_args"] = _connect_args
 # Session pooler allows ~15 clients total (shared with Railway). Cap pool in all envs.
 if _is_supabase_url:

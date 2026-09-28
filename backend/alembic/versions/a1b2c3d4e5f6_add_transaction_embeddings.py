@@ -7,7 +7,6 @@ Create Date: 2026-06-28 18:45:00.000000
 """
 
 from collections.abc import Sequence
-from typing import Union
 
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
@@ -15,9 +14,9 @@ from pgvector.sqlalchemy import Vector
 from alembic import op
 
 revision: str = "a1b2c3d4e5f6"
-down_revision: Union[str, Sequence[str], None] = "603770f84793"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "603770f84793"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 EMBEDDING_DIM = 1024
 

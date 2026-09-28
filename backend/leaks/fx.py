@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
 from leaks.boc import RateDict, nearest_rate
 
@@ -28,7 +28,7 @@ _FOREIGN_HINT_RE = re.compile(
 TxLike = Any  # Transaction ORM or duck-typed object with amount/date/description
 
 
-def parse_foreign_amount(description: str) -> Optional[tuple[str, float]]:
+def parse_foreign_amount(description: str) -> tuple[str, float] | None:
     """Extract (currency_code, foreign_amount) from a transaction description."""
     if not description:
         return None
@@ -54,7 +54,7 @@ def detect_fx_markup(
     transactions: Sequence[TxLike],
     boc_rates: RateDict,
     *,
-    year: Optional[int] = None,
+    year: int | None = None,
     min_markup_cad: float = 0.25,
     min_markup_pct: float = 0.5,
 ) -> dict[str, Any]:

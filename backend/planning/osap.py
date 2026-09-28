@@ -6,7 +6,7 @@ Pure Python; educational estimates only.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from planning import DISCLAIMER
 from planning.loader import load_rules
@@ -88,9 +88,9 @@ def _simulate(
 def plan_osap(
     *,
     principal: float,
-    annual_rate: Optional[float] = None,
-    standard_years: Optional[float] = None,
-    accelerated_years: Optional[float] = None,
+    annual_rate: float | None = None,
+    standard_years: float | None = None,
+    accelerated_years: float | None = None,
     extra_monthly: float = 0.0,
     tax_year: int = 2026,
 ) -> dict[str, Any]:

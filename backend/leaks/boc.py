@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -36,7 +36,7 @@ def load_offline_rates() -> RateDict:
     return out
 
 
-def fetch_boc_observations(*, start_date: Optional[date] = None) -> list[dict[str, Any]]:
+def fetch_boc_observations(*, start_date: date | None = None) -> list[dict[str, Any]]:
     """Fetch raw Valet observations; returns [] on network/parse failure."""
     url = _BOC_URL
     if start_date is not None:
@@ -94,10 +94,10 @@ def rates_from_db(db: Session) -> RateDict:
 
 
 def get_rate_dict(
-    db: Optional[Session] = None,
+    db: Session | None = None,
     *,
     prefer_live: bool = True,
-    start_date: Optional[date] = None,
+    start_date: date | None = None,
 ) -> RateDict:
     """
     Resolve a {(date, pair): rate} map.
@@ -128,7 +128,7 @@ def nearest_rate(
     pair: str,
     *,
     max_lookback_days: int = 7,
-) -> Optional[float]:
+) -> float | None:
     """Find rate for pair on `on`, walking back up to max_lookback_days for weekends/holidays."""
     pair_u = pair.upper().replace("/", "")
     for offset in range(max_lookback_days + 1):
@@ -143,7 +143,7 @@ def nearest_rate(
     return candidates[0][1]
 
 
-def refresh_boc_cache(db: Session, *, start_date: Optional[date] = None) -> dict[str, Any]:
+def refresh_boc_cache(db: Session, *, start_date: date | None = None) -> dict[str, Any]:
     """Background-friendly refresh: live fetch with offline seed if Valet is down."""
     live = observations_to_rate_dict(
         fetch_boc_observations(start_date=start_date or date(datetime.utcnow().year, 1, 1))

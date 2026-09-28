@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -39,7 +39,7 @@ class RegisteredRequest(BaseModel):
     age: int = Field(..., ge=0, le=120)
     first_time_buyer: bool = False
     horizon: int = Field(5, ge=1, le=50)
-    existing_room: Optional[ExistingRoomIn] = None
+    existing_room: ExistingRoomIn | None = None
     annual_contribution: float = Field(0.0, ge=0)
     tax_year: int = 2026
     growth_rate: float = Field(0.05, ge=0, le=0.5)
@@ -48,9 +48,9 @@ class RegisteredRequest(BaseModel):
 
 class OsapRequest(BaseModel):
     principal: float = Field(..., ge=0)
-    annual_rate: Optional[float] = Field(None, ge=0, le=1)
-    standard_years: Optional[float] = Field(None, gt=0)
-    accelerated_years: Optional[float] = Field(None, gt=0)
+    annual_rate: float | None = Field(None, ge=0, le=1)
+    standard_years: float | None = Field(None, gt=0)
+    accelerated_years: float | None = Field(None, gt=0)
     extra_monthly: float = Field(0.0, ge=0)
     tax_year: int = 2026
 
@@ -70,15 +70,15 @@ class ForecastRequest(BaseModel):
     monthly_expense_std: float = Field(0.0, ge=0)
     months: int = Field(12, ge=1, le=120)
     n_sims: int = Field(5000, ge=1, le=20000)
-    seed: Optional[int] = None
+    seed: int | None = None
     ruin_threshold: float = 0.0
 
 
 class ScenarioRequest(BaseModel):
     base: dict[str, Any]
-    set: Optional[dict[str, Any]] = None
-    delta: Optional[dict[str, Any]] = None
-    label: Optional[str] = None
+    set: dict[str, Any] | None = None
+    delta: dict[str, Any] | None = None
+    label: str | None = None
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ def get_forecast(
     monthly_expense_std: float = Query(0.0, ge=0),
     months: int = Query(12, ge=1, le=120),
     n_sims: int = Query(5000, ge=1, le=20000),
-    seed: Optional[int] = Query(None),
+    seed: int | None = Query(None),
     ruin_threshold: float = Query(0.0),
 ) -> dict[str, Any]:
     """GET variant of Monte Carlo forecast (query params)."""

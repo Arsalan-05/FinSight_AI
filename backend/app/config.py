@@ -269,18 +269,15 @@ def _supabase_session_pooler_url(settings: Settings, database_url: str = "") -> 
 
 
 def _normalize_supabase_database_url(url: str) -> str:
-    """Ensure Supabase pooler URLs include sslmode and pgbouncer when required."""
+    """Ensure Supabase URLs require SSL and drop params libpq does not understand."""
     from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
     parsed = urlparse(url)
-    host = parsed.hostname or ""
-    port = parsed.port or 5432
     params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    params.pop("pgbouncer", None)
 
     if "sslmode" not in params:
         params["sslmode"] = "require"
-    if "pooler.supabase.com" in host and port == 6543 and "pgbouncer" not in params:
-        params["pgbouncer"] = "true"
 
     return urlunparse(parsed._replace(query=urlencode(params)))
 

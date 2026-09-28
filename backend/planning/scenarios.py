@@ -7,8 +7,8 @@ re-running engines unless ``recompute`` callbacks are provided.
 from __future__ import annotations
 
 import copy
-from collections.abc import Mapping
-from typing import Any, Callable, Optional
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from planning import DISCLAIMER
 
@@ -17,7 +17,7 @@ def apply_overlay(
     base: Mapping[str, Any],
     overlay: Mapping[str, Any],
     *,
-    recompute: Optional[Callable[[dict[str, Any]], dict[str, Any]]] = None,
+    recompute: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Merge ``overlay`` onto a deep copy of ``base``.
 
@@ -81,10 +81,10 @@ def apply_overlay(
 def what_if(
     base: Mapping[str, Any],
     *,
-    set: Optional[Mapping[str, Any]] = None,  # noqa: A002 — intentional API name
-    delta: Optional[Mapping[str, Any]] = None,
-    recompute: Optional[Callable[[dict[str, Any]], dict[str, Any]]] = None,
-    label: Optional[str] = None,
+    set: Mapping[str, Any] | None = None,  # noqa: A002 — intentional API name
+    delta: Mapping[str, Any] | None = None,
+    recompute: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    label: str | None = None,
 ) -> dict[str, Any]:
     """Convenience wrapper around :func:`apply_overlay`."""
     overlay: dict[str, Any] = {}

@@ -5,9 +5,9 @@ from __future__ import annotations
 import ast
 import operator
 from collections.abc import Callable
-from typing import Any, Union
+from typing import Any
 
-Number = Union[int, float]
+Number = int | float
 
 _BIN_OPS: dict[type[ast.operator], Callable[[Number, Number], Number]] = {
     ast.Add: operator.add,

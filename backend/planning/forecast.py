@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import random
 from collections.abc import Sequence
-from typing import Any, Optional
+from typing import Any
 
 from planning import DISCLAIMER
 
@@ -43,7 +43,7 @@ def run_cash_forecast(
     monthly_expense_std: float = 0.0,
     months: int = 12,
     n_sims: int = DEFAULT_N_SIMS,
-    seed: Optional[int] = None,
+    seed: int | None = None,
     ruin_threshold: float = 0.0,
 ) -> dict[str, Any]:
     """Run Monte Carlo cash-balance simulations.

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from db.models import ChatSession
@@ -51,5 +51,5 @@ def _reply_pending(session: ChatSession, messages: list[dict[str, str]]) -> bool
         return False
     updated = session.updated_at
     if updated.tzinfo is not None:
-        updated = updated.astimezone(timezone.utc).replace(tzinfo=None)
+        updated = updated.astimezone(UTC).replace(tzinfo=None)
     return datetime.utcnow() - updated < _REPLY_PENDING_WINDOW

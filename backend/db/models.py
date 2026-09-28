@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
@@ -21,9 +20,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    auth_id: Mapped[Optional[str]] = mapped_column(
-        String(36), unique=True, nullable=True, index=True
-    )
+    auth_id: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     goals_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
@@ -48,8 +45,8 @@ class Account(Base):
     institution: Mapped[str] = mapped_column(String(255), nullable=False)
     # checking | savings | credit
     account_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    plaid_account_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
-    bank_connection_id: Mapped[Optional[str]] = mapped_column(
+    plaid_account_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    bank_connection_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("bank_connections.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -67,15 +64,15 @@ class Transaction(Base):
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)  # negative = debit
     category: Mapped[str] = mapped_column(String(100), nullable=False, default="Uncategorized")
-    merchant: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    plaid_transaction_id: Mapped[Optional[str]] = mapped_column(
+    merchant: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plaid_transaction_id: Mapped[str | None] = mapped_column(
         String(64), unique=True, nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     account: Mapped[Account] = relationship("Account", back_populates="transactions")
-    embedding: Mapped[Optional[TransactionEmbedding]] = relationship(
+    embedding: Mapped[TransactionEmbedding | None] = relationship(
         "TransactionEmbedding",
         back_populates="transaction",
         uselist=False,
@@ -95,10 +92,10 @@ class BankConnection(Base):
     item_id: Mapped[str] = mapped_column(String(128), nullable=False)
     access_token: Mapped[str] = mapped_column(Text, nullable=False)
     institution_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
-    institution_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    institution_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     transactions_cursor: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
-    last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
@@ -109,7 +106,7 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    user_id: Mapped[Optional[str]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=True, index=True
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
@@ -203,7 +200,7 @@ class MerchantAlias(Base):
     __tablename__ = "merchant_aliases"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    user_id: Mapped[Optional[str]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=True, index=True
     )
     raw_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -222,8 +219,8 @@ class AuditLog(Base):
         String(36), ForeignKey("users.id"), nullable=False, index=True
     )
     action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    resource_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    resource_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    resource_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    resource_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     detail_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -237,5 +234,5 @@ class EvalRun(Base):
     model: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     subset: Mapped[str] = mapped_column(String(50), nullable=False, default="smoke")
     metrics_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
-    result_file: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    result_file: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

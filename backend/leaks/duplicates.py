@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 
 def _merchant_key(tx: Any) -> str:
@@ -29,7 +29,7 @@ def _as_datetime(tx: Any) -> datetime:
 def detect_duplicates(
     transactions: Sequence[Any],
     *,
-    recurring_merchants: Optional[Sequence[str]] = None,
+    recurring_merchants: Sequence[str] | None = None,
     window_hours: int = 72,
 ) -> list[dict[str, Any]]:
     """

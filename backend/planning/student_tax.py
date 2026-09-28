@@ -7,7 +7,7 @@ only — not a tax filing calculation.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from planning import DISCLAIMER
 from planning.loader import load_rules, marginal_rate
@@ -87,7 +87,7 @@ def estimate_tuition_credit(
 
 
 def estimate_tuition_credit_optional(
-    eligible_tuition: Optional[float],
+    eligible_tuition: float | None,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """Wrapper that treats None tuition as 0."""

@@ -6,7 +6,7 @@ import threading
 import traceback
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 # job_id -> status dict
@@ -15,7 +15,7 @@ _LOCK = threading.Lock()
 
 
 def _utcnow() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def get_job(job_id: str) -> dict[str, Any] | None:

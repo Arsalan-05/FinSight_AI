@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any
 
 
 def _merchant_key(tx: Any) -> str:
@@ -89,7 +89,7 @@ def detect_price_creep(
 
         # Find first date where amount rose above the initial price
         baseline = series[0][1]
-        creep_from: Optional[date] = None
+        creep_from: date | None = None
         for d, amt, _ in series[1:]:
             if amt - baseline >= min_increase_cad:
                 creep_from = d
