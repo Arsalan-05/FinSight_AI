@@ -1,6 +1,6 @@
 # FinSight AI — Documentation
 
-Version 2.1.0 · complete. This is the reference for how FinSight works, how to run
+Version 2.0.0 · complete. This is the reference for how FinSight works, how to run
 it, and where the details live. The README has the short version.
 
 ## 1. Product

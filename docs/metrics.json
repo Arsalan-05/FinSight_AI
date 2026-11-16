@@ -1,7 +1,7 @@
 {
-  "version": "2.1.0",
+  "version": "2.0.0",
   "generated_at": "2026-11-16T03:47:37Z",
-  "commit_sha": "v2.1.0",
+  "commit_sha": "v2.0.0",
   "tests": {
     "backend": {
       "passed": 348,

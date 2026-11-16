@@ -1,6 +1,6 @@
 # Contributing to FinSight AI
 
-FinSight is a finished personal project (v2.1.0). Bug reports and small fixes are welcome as issues or focused pull requests; new features are out of scope.
+FinSight is a finished personal project (v2.0.0). Bug reports and small fixes are welcome as issues or focused pull requests; new features are out of scope.
 
 ## Commit messages
 

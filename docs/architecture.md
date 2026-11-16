@@ -2,7 +2,7 @@
 
 > Pitch: *A Canadian finance agent that finds money you're losing, proves every number it shows, and never lets the LLM do the math.*
 
-**Version:** 2.1.0 · **Status:** complete · numbers in [`metrics.json`](./metrics.json)
+**Version:** 2.0.0 · **Status:** complete · numbers in [`metrics.json`](./metrics.json)
 
 ## C4 — Context
 

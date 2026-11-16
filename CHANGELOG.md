@@ -5,22 +5,10 @@ All notable changes to FinSight AI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2026-11-15
-
-Final release. FinSight is complete; this release fixes leak-detection defects found in the audit (`audit/`).
-
-### Added
-- `as_of` scan date on `scan_all_leaks`, the FX, fee and forgotten-subscription detectors, and `detect_recurring_charges`; defaults to today, so behaviour is unchanged when omitted
-- `seed` parameter on the eval persona builder and loader for robustness checks
-
-### Changed
-- Price-creep alerts only fire for subscription-like charges: at least three charges, weekly-to-monthly cadence, and a price that rarely changes. Variable spending (groceries, fuel, dining, utility bills) no longer produces "price increase" alerts
-- Forgotten-subscription alerts skip rent/housing, transfers, savings and income
-- Eval persona: USD purchases are priced at the Bank of Canada reference plus a 2–3% card markup, and the planted-leak list now holds only real leaks (45; rent and the prompt-injection row stay as test data)
-
 ## [2.0.0] - 2026-09-28
 
 Final release. FinSight is feature-complete and in maintenance.
+Updated 2026-11-15 with leak-detection fixes from the audit (`audit/`); the version stays 2.0.0.
 
 ### Added
 - Evidence tags on every dollar amount, a numeric guardrail that strips anything the tools cannot back up, and a safe `calculate` tool
@@ -34,6 +22,8 @@ Final release. FinSight is feature-complete and in maintenance.
 - Category corrections stick: changing a transaction's category saves a rule for that merchant, recategorizes the rest of the user's history from it, and applies to future imports. `PATCH /transactions/{id}` returns `recategorized` and accepts `?learn=false`
 - Row-level security policies, PII redaction before LLM calls, audit log, security headers, CSV formula sanitizing on export
 - `scripts/seed_full.py` loads a year of realistic data into any account
+- `as_of` scan date on `scan_all_leaks`, the FX, fee and forgotten-subscription detectors, and `detect_recurring_charges`; defaults to today, so behaviour is unchanged when omitted
+- `seed` parameter on the eval persona builder and loader for robustness checks
 
 ### Changed
 - Production moved to Railway (web and API) with a same-origin `/backend` proxy
@@ -42,6 +32,9 @@ Final release. FinSight is feature-complete and in maintenance.
 - Weekly questions use a true last-7-days window
 - Groq rate limits fall through to Claude instead of stalling the reply
 - Memory and profile learning run after the reply is sent
+- Price-creep alerts only fire for subscription-like charges: at least three charges, weekly-to-monthly cadence, and a price that rarely changes. Variable spending (groceries, fuel, dining, utility bills) no longer produces "price increase" alerts
+- Forgotten-subscription alerts skip rent/housing, transfers, savings and income
+- Eval persona: USD purchases are priced at the Bank of Canada reference plus a 2–3% card markup, and the planted-leak list now holds only real leaks (45; rent and the prompt-injection row stay as test data)
 
 ### Fixed
 - Search, goals, budgets and other collection routes no longer 404 behind the proxy
@@ -68,7 +61,6 @@ Final release. FinSight is feature-complete and in maintenance.
 - LangGraph ReAct agent with SQL and search tools
 - pgvector semantic search with Voyage embeddings
 
-[2.1.0]: https://github.com/Arsalan-05/FinSight_AI/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/Arsalan-05/FinSight_AI/compare/v1.5.1...v2.0.0
 [1.5.1]: https://github.com/Arsalan-05/FinSight_AI/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Arsalan-05/FinSight_AI/releases/tag/v1.5.0
