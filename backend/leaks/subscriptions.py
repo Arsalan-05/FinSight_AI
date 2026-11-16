@@ -23,6 +23,62 @@ def _display(tx: Any) -> str:
     ).strip()
 
 
+# A subscription bills a fixed price on a regular schedule. Two charges count as
+# the same price when they differ by at most 3% (or 5 cents): enough to absorb
+# card FX drift on foreign-billed services, far below normal price increases.
+_SAME_PRICE_PCT = 0.03
+_SAME_PRICE_MIN_CAD = 0.05
+_MIN_SUBSCRIPTION_CHARGES = 3
+# Billing cadence: weekly through monthly-ish (matches the 20-45 day monthly band
+# used by _group_recurring, widened down to weekly plans).
+_MIN_MEDIAN_GAP_DAYS = 6
+_MAX_MEDIAN_GAP_DAYS = 45
+
+# Recurring outflows that are never subscriptions: housing, money moved between
+# people or accounts, and savings/investment contributions.
+_NON_SUBSCRIPTION_CATEGORIES = frozenset({"housing", "rent", "transfers", "savings", "income"})
+_NON_SUBSCRIPTION_RE = re.compile(
+    r"\b(?:e-?transfer|interac|transfer|rent|tfsa|rrsp|fhsa|resp)\b",
+    re.IGNORECASE,
+)
+
+
+def _same_price(a: float, b: float) -> bool:
+    return abs(b - a) <= max(_SAME_PRICE_MIN_CAD, _SAME_PRICE_PCT * max(a, b))
+
+
+def _is_subscription_like(group: Sequence[Any]) -> bool:
+    """True when a merchant's charges look like a fixed-price subscription.
+
+    Requires at least three charges on a weekly-to-monthly cadence whose price
+    changes only rarely: at most one change per four consecutive charges, and
+    never fewer than two allowed. Variable spending (groceries, fuel, dining,
+    utility bills) changes price on most charges and is rejected.
+    """
+    if len(group) < _MIN_SUBSCRIPTION_CHARGES:
+        return False
+    ordered = sorted(group, key=lambda t: t.transaction_date)
+    amounts = [round(abs(float(t.amount)), 2) for t in ordered]
+    changes = sum(1 for a, b in zip(amounts, amounts[1:]) if not _same_price(a, b))
+    if changes > max(2, (len(amounts) - 1) // 4):
+        return False
+    gaps: list[int] = sorted(
+        (ordered[i + 1].transaction_date - ordered[i].transaction_date).days
+        for i in range(len(ordered) - 1)
+    )
+    median_gap = gaps[len(gaps) // 2]
+    return _MIN_MEDIAN_GAP_DAYS <= median_gap <= _MAX_MEDIAN_GAP_DAYS
+
+
+def _is_non_subscription_outflow(group: Sequence[Any]) -> bool:
+    """True for rent, transfers and savings, which recur but are not subscriptions."""
+    latest = max(group, key=lambda t: t.transaction_date)
+    category = (getattr(latest, "category", "") or "").strip().lower()
+    if category in _NON_SUBSCRIPTION_CATEGORIES:
+        return True
+    return any(_NON_SUBSCRIPTION_RE.search(getattr(t, "description", "") or "") for t in group)
+
+
 def _group_recurring(
     transactions: Sequence[Any],
     *,
@@ -62,12 +118,17 @@ def detect_price_creep(
     min_increase_cad: float = 0.50,
 ) -> list[dict[str, Any]]:
     """
-    Alert when a recurring merchant's charge amount increases over time.
+    Alert when a subscription-like charge's price increases over time.
+
+    Only fixed-price, regularly billed merchants qualify (see
+    ``_is_subscription_like``); variable spending is not price creep.
 
     Example message: "+$2.00/mo since March."
     """
     findings: list[dict[str, Any]] = []
     for key, group in _group_recurring(transactions).items():
+        if not _is_subscription_like(group):
+            continue
         # Chronological unique amounts (collapse same-day duplicates)
         series: list[tuple[date, float, Any]] = []
         for tx in group:
@@ -141,6 +202,7 @@ def detect_forgotten_subscriptions(
     *,
     lookback_days: int = 180,
     related_activity_window_days: int = 90,
+    as_of: date | None = None,
 ) -> list[dict[str, Any]]:
     """
     Recurring charges with no related non-subscription activity heuristic.
@@ -148,8 +210,13 @@ def detect_forgotten_subscriptions(
     "Related activity" = other debit txs whose description/merchant shares a
     significant token with the subscription merchant (beyond the recurring
     charge itself), within recent window.
+
+    Rent, transfers and savings contributions are skipped: they recur but are
+    not subscriptions anyone can forget. Windows end at ``as_of`` (defaults to
+    today).
     """
-    since = date.today() - timedelta(days=lookback_days)
+    today = as_of or date.today()
+    since = today - timedelta(days=lookback_days)
     recent = [
         tx
         for tx in transactions
@@ -162,12 +229,14 @@ def detect_forgotten_subscriptions(
     all_debits = [tx for tx in transactions if float(getattr(tx, "amount", 0) or 0) < 0]
 
     for key, group in recurring.items():
+        if _is_non_subscription_outflow(group):
+            continue
         tokens = _tokens(key)
         if not tokens:
             continue
         recurring_ids: set[Any] = {getattr(t, "id", None) for t in group}
         latest = group[-1]
-        window_start = date.today() - timedelta(days=related_activity_window_days)
+        window_start = today - timedelta(days=related_activity_window_days)
 
         related = 0
         for tx in all_debits:

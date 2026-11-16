@@ -17,9 +17,13 @@ def detect_recurring_charges(
     account_ids: list[str] | None = None,
     lookback_days: int = 180,
     min_occurrences: int = 2,
+    as_of: date | None = None,
 ) -> list[dict[str, Any]]:
-    """Find merchants with repeated similar amounts (subscriptions, bills)."""
-    since = date.today() - timedelta(days=lookback_days)
+    """Find merchants with repeated similar amounts (subscriptions, bills).
+
+    The lookback window ends at ``as_of`` (defaults to today).
+    """
+    since = (as_of or date.today()) - timedelta(days=lookback_days)
     q = db.query(Transaction).filter(Transaction.transaction_date >= since)
     if account_ids is not None:
         if not account_ids:

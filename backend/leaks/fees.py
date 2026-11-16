@@ -68,13 +68,16 @@ def detect_fees(
     transactions: Sequence[Any],
     *,
     year: int | None = None,
+    as_of: date | None = None,
 ) -> dict[str, Any]:
     """
     Classify fee transactions and sum yearly total.
 
     Returns per-fee findings plus aggregate yearly_total_cad.
+    ``as_of`` is the scan date (defaults to today); when ``year`` is not given,
+    the yearly total covers ``as_of``'s calendar year.
     """
-    target_year = year or date.today().year
+    target_year = year or (as_of or date.today()).year
     items: list[dict[str, Any]] = []
     by_type: dict[str, float] = {}
     yearly_total = 0.0

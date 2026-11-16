@@ -40,9 +40,18 @@ def _load_transactions(db: Session, user_id: str) -> list[Transaction]:
     )
 
 
-def scan_all_leaks(db: Session, user_id: str) -> list[FindingDict]:
+def scan_all_leaks(
+    db: Session,
+    user_id: str,
+    *,
+    as_of: date | None = None,
+) -> list[FindingDict]:
     """
     Run every detector for `user_id` and return merged FindingDict list.
+
+    ``as_of`` is the scan date every detector uses in place of today (FX and
+    fee year, recurring and forgotten-subscription lookback windows). It
+    defaults to today, so production behaviour is unchanged when omitted.
 
     Pure merge of detector outputs — does not write to the DB.
     """
@@ -50,20 +59,21 @@ def scan_all_leaks(db: Session, user_id: str) -> list[FindingDict]:
     if not txs:
         return []
 
+    scan_date = as_of or date.today()
     account_ids = list({t.account_id for t in txs})
-    recurring = detect_recurring_charges(db, account_ids=account_ids)
+    recurring = detect_recurring_charges(db, account_ids=account_ids, as_of=scan_date)
     # Only exclude merchants with 3+ occurrences — 2-hit clusters are often duplicates.
     recurring_merchants = [
         r["merchant"] for r in recurring if r.get("merchant") and r.get("occurrences", 0) >= 3
     ]
     rates = get_rate_dict(db, prefer_live=False)
-    fx_result = detect_fx_markup(txs, rates, year=date.today().year)
+    fx_result = detect_fx_markup(txs, rates, year=scan_date.year, as_of=scan_date)
     fx_findings = findings_from_fx_result(fx_result)
 
     dup_findings = detect_duplicates(txs, recurring_merchants=recurring_merchants)
-    fee_result = detect_fees(txs, year=date.today().year)
+    fee_result = detect_fees(txs, year=scan_date.year, as_of=scan_date)
     creep = detect_price_creep(txs)
-    forgotten = detect_forgotten_subscriptions(txs)
+    forgotten = detect_forgotten_subscriptions(txs, as_of=scan_date)
 
     merged: list[FindingDict] = []
     for block in (fx_findings, dup_findings, fee_result["findings"], creep, forgotten):

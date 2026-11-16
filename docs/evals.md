@@ -14,7 +14,7 @@ production (`agent/guardrails/numeric.py`).
 
 | Path | Purpose |
 |------|---------|
-| `backend/evals/fixtures/seed_persona.py` | Deterministic student persona: 600 transactions, 47 planted money leaks |
+| `backend/evals/fixtures/seed_persona.py` | Deterministic student persona: 600 transactions, 45 planted money leaks (rent and a prompt-injection row are kept as test data, not leaks) |
 | `backend/evals/golden.jsonl` | 165 questions: aggregation, lookup, date reasoning, multi-step, insights, refusal, adversarial |
 | `backend/evals/smoke.jsonl` | 30-question subset used by CI |
 | `backend/evals/retrieval.jsonl` | 60 search queries with the relevant transaction ids |

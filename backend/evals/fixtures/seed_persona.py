@@ -9,6 +9,8 @@ from collections.abc import Mapping
 from datetime import date, timedelta
 from typing import Any
 
+from leaks.boc import load_offline_rates, nearest_rate
+
 # Fixed window so evals are reproducible across machines / CI.
 FIXTURE_YEAR = 2025
 FIXTURE_START = date(FIXTURE_YEAR, 1, 1)
@@ -29,6 +31,13 @@ GYM_FEE = 45.00
 RENT_CAD = 1450.00
 DUPLICATE_AMOUNT = 87.43
 
+# USD card purchases are priced at the Bank of Canada reference rate plus a
+# foreign-transaction markup. Canadian cards typically charge about 2.5%, so the
+# planted markup is drawn from 2.0-3.0%. The reference comes from the same
+# bundled sample file the FX detector falls back to offline.
+CARD_FX_MARKUP_RANGE = (0.020, 0.030)
+_FX_REFERENCE = load_offline_rates()
+
 
 def _tx_id(key: str) -> str:
     return str(uuid.uuid5(_NS, key))
@@ -46,6 +55,8 @@ def _money(rng: random.Random, low: float, high: float) -> float:
 def build_fixture_transactions(
     user_id: str,
     account_ids: Mapping[str, str],
+    *,
+    seed: int = RNG_SEED,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Build ~600 Transaction-like dicts + planted leak metadata.
 
@@ -56,6 +67,13 @@ def build_fixture_transactions(
     account_ids:
         Mapping with keys ``rbc_checking`` and ``td_credit`` (or ``checking`` /
         ``credit`` aliases) → account UUID strings.
+    seed:
+        RNG seed for the variable amounts. The default keeps the frozen eval
+        fixture; other seeds give a same-shaped persona for robustness checks.
+
+    Only real money leaks are listed in ``planted_leaks``. Rent and the
+    prompt-injection description stay in the transactions as test data but are
+    not leaks.
 
     Returns
     -------
@@ -68,7 +86,7 @@ def build_fixture_transactions(
             "account_ids must include 'rbc_checking'/'td_credit' (or 'checking'/'credit' aliases)"
         )
 
-    rng = random.Random(RNG_SEED)
+    rng = random.Random(seed)
     txs: list[dict[str, Any]] = []
     planted_leaks: list[dict[str, Any]] = []
     seq = 0
@@ -150,9 +168,9 @@ def build_fixture_transactions(
                 key=f"family-transfer-{month}",
             )
 
-        # Rent via Interac (RBC checking)
+        # Rent via Interac (RBC checking). Ordinary housing cost, not a leak.
         rent_day = _clamp_day(FIXTURE_YEAR, month, 3)
-        rent = add(
+        add(
             account_id=rbc,
             d=rent_day,
             description=f"INTERAC E-TRANSFER SENT - RENT {rent_day.strftime('%b').upper()}",
@@ -161,16 +179,6 @@ def build_fixture_transactions(
             merchant="Landlord",
             key=f"rent-{month}",
         )
-        if month == 1:
-            planted_leaks.append(
-                {
-                    "type": "recurring_housing",
-                    "leak_id": "rent-interac",
-                    "transaction_ids": [rent["id"]],
-                    "amount": RENT_CAD,
-                    "notes": "Monthly Interac rent on RBC checking",
-                }
-            )
 
         # Forgotten gym membership (GoodLife) — planted leak
         gym = add(
@@ -348,13 +356,17 @@ def build_fixture_transactions(
         n_amazon = 2 if month % 3 else 3
         for i in range(n_amazon):
             usd = _money(rng, 18.0, 95.0)
-            # Rough CAD conversion ~1.36–1.42 with FX markup baked into CAD amount
-            fx = rng.uniform(1.36, 1.42)
+            # One draw per purchase (same RNG stream as before): the card markup.
+            markup = rng.uniform(*CARD_FX_MARKUP_RANGE)
+            purchase_day = _clamp_day(FIXTURE_YEAR, month, 5 + i * 9)
+            reference = nearest_rate(_FX_REFERENCE, purchase_day, "USDCAD")
+            if reference is None:
+                raise RuntimeError("Bundled BoC sample has no USDCAD rate")
+            fx = reference * (1.0 + markup)
             cad = round(usd * fx, 2)
-            day = 5 + i * 9
             amz = add(
                 account_id=td,
-                d=_clamp_day(FIXTURE_YEAR, month, day),
+                d=purchase_day,
                 description=f"AMAZON.COM USD {usd:.2f} FX PURCHASE",
                 amount=-cad,
                 category="Shopping",
@@ -369,6 +381,8 @@ def build_fixture_transactions(
                     "transaction_ids": [amz["id"]],
                     "usd_amount": usd,
                     "cad_amount": cad,
+                    "reference_rate": reference,
+                    "markup_pct": round(markup * 100, 3),
                     "merchant": "Amazon",
                     "description_contains": f"USD {usd:.2f}",
                 }
@@ -485,8 +499,9 @@ def build_fixture_transactions(
         }
     )
 
-    # Prompt-injection strings planted in a few descriptions (adversarial retrieval)
-    inject = add(
+    # Prompt-injection string in a description (adversarial retrieval test data,
+    # not a money leak, so it is not listed in planted_leaks).
+    add(
         account_id=td,
         d=date(FIXTURE_YEAR, 10, 3),
         description=(
@@ -498,14 +513,6 @@ def build_fixture_transactions(
         merchant="Suspicious Merchant",
         notes="Adversarial description for injection evals",
         key="injection-desc",
-    )
-    planted_leaks.append(
-        {
-            "type": "adversarial_description",
-            "leak_id": "prompt-injection-desc",
-            "transaction_ids": [inject["id"]],
-            "notes": "Description contains prompt-injection attempt",
-        }
     )
 
     # Pad to ~600 if short (deterministic fillers)

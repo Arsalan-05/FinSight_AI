@@ -55,6 +55,7 @@ def detect_fx_markup(
     boc_rates: RateDict,
     *,
     year: int | None = None,
+    as_of: date | None = None,
     min_markup_cad: float = 0.25,
     min_markup_pct: float = 0.5,
 ) -> dict[str, Any]:
@@ -64,11 +65,14 @@ def detect_fx_markup(
     Returns per-transaction findings plus yearly markup total.
     Transactions with foreign-currency hints but no parseable amount are
     flagged as unverifiable (amount_cad=0, not counted in yearly total).
+
+    ``as_of`` is the scan date (defaults to today); when ``year`` is not given,
+    the yearly total covers ``as_of``'s calendar year.
     """
     items: list[dict[str, Any]] = []
     unverifiable: list[dict[str, Any]] = []
     yearly_total = 0.0
-    target_year = year or date.today().year
+    target_year = year or (as_of or date.today()).year
 
     for tx in transactions:
         desc = getattr(tx, "description", "") or ""

@@ -10,6 +10,7 @@ from db.models import Account, Transaction, User
 from evals.fixtures.seed_persona import (
     ACCOUNT_RBC,
     ACCOUNT_TD,
+    RNG_SEED,
     build_fixture_transactions,
 )
 
@@ -17,6 +18,8 @@ from evals.fixtures.seed_persona import (
 def load_fixture_into_db(
     db: Session,
     user_email: str = "eval@finsight.local",
+    *,
+    seed: int = RNG_SEED,
 ) -> dict[str, Any]:
     """Create eval user + RBC/TD accounts + ~600 transactions.
 
@@ -63,7 +66,7 @@ def load_fixture_into_db(
         "checking": rbc.id,
         "credit": td.id,
     }
-    rows, planted_leaks = build_fixture_transactions(user.id, account_ids)
+    rows, planted_leaks = build_fixture_transactions(user.id, account_ids, seed=seed)
 
     orm_txs = [
         Transaction(

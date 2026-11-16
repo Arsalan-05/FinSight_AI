@@ -5,6 +5,17 @@ All notable changes to FinSight AI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `as_of` scan date on `scan_all_leaks`, the FX, fee and forgotten-subscription detectors, and `detect_recurring_charges`; defaults to today, so behaviour is unchanged when omitted
+- `seed` parameter on the eval persona builder and loader for robustness checks
+
+### Changed
+- Price-creep alerts only fire for subscription-like charges: at least three charges, weekly-to-monthly cadence, and a price that rarely changes. Variable spending (groceries, fuel, dining, utility bills) no longer produces "price increase" alerts
+- Forgotten-subscription alerts skip rent/housing, transfers, savings and income
+- Eval persona: USD purchases are priced at the Bank of Canada reference plus a 2–3% card markup, and the planted-leak list now holds only real leaks (45; rent and the prompt-injection row stay as test data)
+
 ## [2.0.0] - 2026-09-28
 
 Final release. FinSight is feature-complete and in maintenance.
