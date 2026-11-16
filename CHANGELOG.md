@@ -5,7 +5,9 @@ All notable changes to FinSight AI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.1.0] - 2026-11-15
+
+Final release. FinSight is complete; this release fixes leak-detection defects found in the audit (`audit/`).
 
 ### Added
 - `as_of` scan date on `scan_all_leaks`, the FX, fee and forgotten-subscription detectors, and `detect_recurring_charges`; defaults to today, so behaviour is unchanged when omitted
@@ -66,6 +68,7 @@ Final release. FinSight is feature-complete and in maintenance.
 - LangGraph ReAct agent with SQL and search tools
 - pgvector semantic search with Voyage embeddings
 
+[2.1.0]: https://github.com/Arsalan-05/FinSight_AI/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/Arsalan-05/FinSight_AI/compare/v1.5.1...v2.0.0
 [1.5.1]: https://github.com/Arsalan-05/FinSight_AI/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Arsalan-05/FinSight_AI/releases/tag/v1.5.0

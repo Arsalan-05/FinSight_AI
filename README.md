@@ -2,7 +2,7 @@
 
 **A Canadian personal-finance agent that finds money you're losing, proves every number it shows, and never lets the LLM do the math.**
 
-**Status:** complete · v2.0.0 · [MIT License](./LICENSE) · built and maintained by Arsalan Amir Ali
+**Status:** complete · v2.1.0 · [MIT License](./LICENSE) · built and maintained by Arsalan Amir Ali
 
 | | URL |
 |--|-----|
