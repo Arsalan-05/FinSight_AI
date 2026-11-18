@@ -228,3 +228,9 @@ backend/evals/results/*.json
 # Local tool settings
 .claude/
 notes/
+
+# Local tool config (keep out of the repo)
+CLAUDE.md
+AGENTS.md
+.cursorrules
+.codex/

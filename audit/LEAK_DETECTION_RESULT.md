@@ -122,7 +122,7 @@ Counting each named leak once (28 FX purchases, 1 gym, 2 price increases, 2 fee 
 Both scripts are in the session scratchpad. They are reproduced below so this file stands alone. Every Python call went through a wrapper that blanks all database and API credentials, so `db/base.py` cannot reach Supabase and no paid API key is present.
 
 ```sh
-SP=/private/tmp/claude-501/-Users-Arsalan-Amir-Ali-Developer-GitHub-FinSight-AI/58310595-ec75-442f-83e9-ee07c97b8900/scratchpad
+SP=<tmp-dir>
 "$SP/safe.sh" -I "$SP/measure_leaks.py" A   # config A
 "$SP/safe.sh" -I "$SP/measure_leaks.py" B   # config B
 "$SP/safe.sh" -I "$SP/fx_explain.py"        # FX miss explanation
