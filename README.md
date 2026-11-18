@@ -1,70 +1,81 @@
 # FinSight AI
 
-**A Canadian personal-finance agent that finds money you're losing, proves every number it shows, and never lets the LLM do the math.**
-
-**Status:** complete · v2.0.0 · [MIT License](./LICENSE) · built and maintained by Arsalan Amir Ali
-
-| | URL |
-|--|-----|
-| App | https://finsightai-production-43d0.up.railway.app |
-| API | https://finsight-api-production-2aee.up.railway.app ([`/docs`](https://finsight-api-production-2aee.up.railway.app/docs)) |
-
-Access is invite-only (Google or email sign-in); new accounts get demo data so every page has something to show.
+AI personal finance agent that answers questions about your own spending and flags money leaks. Built end to end by me.
 
 ## What it does
 
-- **Advisor chat.** Ask "how much did I spend on dining last month?" or "can I afford a $1,600 laptop by December?". Every dollar in the reply is tagged with the tool result it came from, and a numeric guardrail strips any amount the data can't back up.
-- **Money leaks.** Detects FX markups, duplicate charges, bank fees and subscriptions whose price crept up, then drafts the cancellation or dispute letter.
-- **Canadian planning.** TFSA / RRSP / FHSA contribution order, OSAP estimates, a student tax helper and a seedable Monte Carlo forecast, all computed from year-specific rules in YAML.
-- **Search and insights.** Hybrid keyword + vector search over transactions, a weekly brief, budgets, goals, cash runway and alerts.
-- **Your data stays yours.** Full JSON export, one-click account deletion, audit log, PII redaction before any LLM call, and Postgres row-level security.
+- Answers questions about your spending using RAG over transaction history, LangGraph workflows and MCP-connected tools.
+- Gives the agent 14 tools, with hybrid search over your transactions.
+- Flags money leaks. On a synthetic user with 45 planted leaks it flags 39 of 45, and a precision fix cut false alarms by about half.
+- Runs on a 78-endpoint backend with 348 automated tests that run on every merge.
 
-## How it works
+## Features
 
-```
-Next.js (Railway) ──/backend proxy──▶ FastAPI (Railway) ──▶ Supabase Postgres + pgvector
-                                          │
-                                          ├── LangGraph agent ── Groq gpt-oss-20b  (basic turns)
-                                          │                  └─ Claude Sonnet 4.6 (planning / coaching)
-                                          ├── deterministic engines: leaks, planning, runway, calculate
-                                          └── Voyage voyage-4-large embeddings (1024-d)
-```
-
-Python computes; the model picks tools and explains. See [`docs/architecture.md`](./docs/architecture.md) and the [ADRs](./docs/adr/).
+- **Grounded answers.** Each dollar figure in an advisor answer is tagged to the tool result it came from, and a numeric guardrail removes any amount the data cannot back up.
+- **Money-leak detectors.** Flags FX markups (compared with Bank of Canada rates), duplicate charges, bank fees, subscription price creep and forgotten subscriptions, then drafts a cancellation or dispute letter.
+- **Canadian planning.** A TFSA, RRSP and FHSA contribution optimizer, OSAP repayment scenarios, student tuition tax credit estimates and a Monte Carlo cash forecast.
+- **Privacy.** Personal details are redacted before text goes to a third-party LLM, and the database uses Postgres row-level security.
+- **Your data.** JSON export of your data, account deletion and an audit log.
 
 ## Stack
 
-Python 3.11 · FastAPI · LangGraph · SQLAlchemy 2.1 · psycopg 3 · PostgreSQL + pgvector · Next.js 16 · React 19 · TypeScript · Tailwind 4 · Supabase Auth · Groq · Anthropic · Voyage · Docker · Railway · GitHub Actions
+Python, FastAPI, LangGraph, PostgreSQL, pgvector, Next.js
 
-## Run it locally
+## Getting started
+
+Copy the example environment files:
 
 ```bash
-cp .env.example .env                      # add GROQ_API_KEY, VOYAGE_API_KEY, Supabase keys
+cp .env.example .env
 cp frontend/.env.local.example frontend/.env.local
-
-docker compose up -d db
-cd backend && uv sync && uv run alembic upgrade head
-uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-
-cd frontend && npm ci && npm run dev      # http://localhost:3000
 ```
 
-`ANTHROPIC_API_KEY` is optional: without it, heavy turns use Groq `gpt-oss-120b`.
+In `.env`, add `GROQ_API_KEY`, `VOYAGE_API_KEY` and the Supabase settings (`SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`). `ANTHROPIC_API_KEY` is optional. `.env.example` lists every variable name. In `frontend/.env.local`, fill in the variables it lists (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`).
 
-## Quality
+Start the database and the backend:
 
-| Check | Command |
-|-------|---------|
-| Lint, format, strict types | `uv run ruff check . && uv run ruff format --check . && uv run mypy app/ agent/ db/ rag/ insights/` |
-| Backend tests | `uv run pytest -q` |
-| Eval gate (165 questions) | `uv run python -m evals.run --subset full --dry-run` |
-| Frontend | `npm run lint && npm run type-check && npm run build` |
+```bash
+docker compose up -d db
+cd backend
+uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-All of these run in CI on every push. Current numbers are in [`docs/metrics.json`](./docs/metrics.json).
+Start the frontend in a second terminal:
 
-## Documentation
+```bash
+cd frontend
+npm ci
+npm run dev
+```
 
-Start with [DOCUMENTATION.md](./DOCUMENTATION.md): features, configuration, data model, operations and known limits, with links to the detailed docs in [`docs/`](./docs/).
+The frontend runs at http://localhost:3000.
+
+## Tests
+
+Backend, from `backend/`:
+
+```bash
+uv run pytest -q
+uv run ruff check .
+uv run mypy app/ agent/ db/ rag/ insights/
+uv run python -m evals.run --subset smoke --dry-run
+```
+
+Frontend, from `frontend/`:
+
+```bash
+npm run lint
+npm run type-check
+npm run build
+```
+
+CI runs all of these on every push and pull request to `main` (see `.github/workflows/ci.yml`).
+
+## Status
+
+Deployed; solo project.
 
 ## License
 
