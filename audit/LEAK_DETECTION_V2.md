@@ -113,7 +113,7 @@ Fixture effect alone (old code, config B, seed 42): FX went from 12/28 to 28/28.
 - **Seed choice:** `SECOND_SEED = 7` was fixed in the script before any V2 measurement ran. No code changed between the seed-42 and seed-7 runs (`git diff --stat` before the seed-7 run: 7 files, +140/−40; the later CHANGELOG and docs edits touched no code).
 
 ```sh
-SP=/private/tmp/claude-501/-Users-Arsalan-Amir-Ali-Developer-GitHub-FinSight-AI/58310595-ec75-442f-83e9-ee07c97b8900/scratchpad
+SP=<tmp-dir>
 R="/Users/Arsalan Amir Ali/Developer/GitHub/FinSight_AI/backend"
 cd "$SP"
 for c in A B; do "$SP/safe_in.sh" "$SP/snap_main/backend"           -I "$SP/measure_v2.py" old $c default "$SP/v2/oldcode_oldfix_42_$c.json"; done
