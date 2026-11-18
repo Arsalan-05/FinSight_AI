@@ -9,6 +9,14 @@ AI personal finance agent that answers questions about your own spending and fla
 - Flags money leaks. On a synthetic user with 45 planted leaks it flags 39 of 45, and a precision fix cut false alarms by about half.
 - Runs on a 78-endpoint backend with 348 automated tests that run on every merge.
 
+## Features
+
+- **Grounded answers.** Each dollar figure in an advisor answer is tagged to the tool result it came from, and a numeric guardrail removes any amount the data cannot back up.
+- **Money-leak detectors.** Flags FX markups (compared with Bank of Canada rates), duplicate charges, bank fees, subscription price creep and forgotten subscriptions, then drafts a cancellation or dispute letter.
+- **Canadian planning.** A TFSA, RRSP and FHSA contribution optimizer, OSAP repayment scenarios, student tuition tax credit estimates and a Monte Carlo cash forecast.
+- **Privacy.** Personal details are redacted before text goes to a third-party LLM, and the database uses Postgres row-level security.
+- **Your data.** JSON export of your data, account deletion and an audit log.
+
 ## Stack
 
 Python, FastAPI, LangGraph, PostgreSQL, pgvector, Next.js
