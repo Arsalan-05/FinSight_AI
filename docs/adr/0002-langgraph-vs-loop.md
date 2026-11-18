@@ -14,5 +14,5 @@ LangGraph ReAct loop with capped iterations (6 in v2.0), Pydantic-validated tool
 
 ## Consequences
 
-- Observable graph steps for tracing
-- Harder to debug than a for-loop initially; mitigated by Langfuse/OTel
+- Observable graph steps
+- Harder to debug than a for-loop initially
