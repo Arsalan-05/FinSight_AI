@@ -108,7 +108,7 @@ every page and advisor question has data behind it.
 
 - 332 backend tests (pytest), strict mypy on the core packages, Ruff lint and format.
 - ESLint (including the React compiler rules), TypeScript strict, production build.
-- Eval gate: 165 questions with SQL ground truth and 60 retrieval queries, scored through the production guardrail. It fails CI and the Docker build below its floors. See [`docs/evals.md`](./docs/evals.md).
+- Eval gate: 165 questions with SQL ground truth and 60 retrieval queries, scored through the app's numeric guardrail. It fails CI and the Docker build below its floors. See [`docs/evals.md`](./docs/evals.md).
 - `security.yml` runs `pip-audit` and `npm audit` weekly; both are clean at release.
 
 ## 7. Operations
