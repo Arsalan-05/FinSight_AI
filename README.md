@@ -7,7 +7,7 @@ AI personal finance agent that answers questions about your own spending and fla
 - Answers questions about your spending using RAG over transaction history, LangGraph workflows and MCP-connected tools.
 - Gives the agent 14 tools, with hybrid search over your transactions.
 - Flags money leaks. On a synthetic user with 45 planted leaks it flags 39 of 45, and a precision fix cut false alarms by about half.
-- Runs on a 78-endpoint backend with 348 automated tests that run on every merge.
+- Runs on a 78-endpoint backend with 348 automated tests; CI runs on pushes and pull requests to main.
 
 ## Features
 
