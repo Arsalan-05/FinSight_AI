@@ -26,7 +26,7 @@ Updated 2026-11-15 with leak-detection fixes from the audit (`audit/`); the vers
 - `seed` parameter on the eval persona builder and loader for robustness checks
 
 ### Changed
-- Production moved to Railway (web and API) with a same-origin `/backend` proxy
+- Deployment moved to Railway (web and API) with a same-origin `/backend` proxy
 - Backend on Python 3.11 with SQLAlchemy 2.1, psycopg 3 and LangGraph 1.x; frontend on Next.js 16.3
 - Cash runway now divides cash on hand by the monthly shortfall and reports "cash-flow positive" when income covers spending
 - Weekly questions use a true last-7-days window
@@ -52,7 +52,7 @@ Updated 2026-11-15 with leak-detection fixes from the audit (`audit/`); the vers
 ### Added
 - Finance-only advisor scope, background and concurrent chat, unified alert toggles
 - Follow-up context and learned profile updates
-- Railway, Supabase, Groq and Voyage production stack
+- Railway, Supabase, Groq and Voyage deployment stack
 
 ## [1.5.0] - 2026-07-01
 
